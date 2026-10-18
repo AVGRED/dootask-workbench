@@ -25,6 +25,7 @@ use Request;
  * @property string|null $ai_auto_analyze AI自动分析
  * @property string|null $task_template_share 共享模板开关
  * @property string|null $department_owner_view 部门负责人视角可见开关
+ * @property string|null $task_dependency 任务依赖功能开关
  * @property string|null $user_simple 成员总数|1,2,3
  * @property int|null $dialog_id 聊天会话ID
  * @property \Illuminate\Support\Carbon|null $archived_at 归档时间

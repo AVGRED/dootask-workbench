@@ -40,8 +40,8 @@ class DooSo
                 char* pgpGenerateKeyPair(char* name, char* email, char* passphrase);
                 char* pgpEncrypt(char* plainText, char* publicKey);
                 char* pgpDecrypt(char* cipherText, char* privateKey, char* passphrase);
-            EOF, "/usr/lib/doo/doo.so");
-        $this->so->initialize("/var/www", $token, $language);
+            EOF, (string)config('dootask.library_path', '/usr/lib/doo/doo.so'));
+        $this->so->initialize(base_path(), $token, $language);
         return $this->so;
     }
 

@@ -10,6 +10,10 @@ namespace App\Models;
  * @property string $name 模板名称
  * @property string|null $title 任务标题
  * @property string|null $content 任务内容
+ * @property string|null $milestone_name 主任务关联里程碑名称
+ * @property int|null $estimated_minutes 模板主任务预估工时，分钟
+ * @property array|null $subtasks 子任务模板树
+ * @property int $version 模板版本号
  * @property int $sort 排序
  * @property int $is_default 是否默认模板
  * @property int $userid 创建人
@@ -54,6 +58,10 @@ class ProjectTaskTemplate extends AbstractModel
         'name',
         'title',
         'content',
+        'milestone_name',
+        'estimated_minutes',
+        'subtasks',
+        'version',
         'sort',
         'is_default',
         'userid',
@@ -67,6 +75,8 @@ class ProjectTaskTemplate extends AbstractModel
      * @var array
      */
     protected $casts = [
+        'subtasks' => 'array',
+        'version' => 'integer',
         'last_used_at' => 'datetime',
     ];
 

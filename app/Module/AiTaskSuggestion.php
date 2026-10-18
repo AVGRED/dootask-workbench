@@ -570,11 +570,10 @@ class AiTaskSuggestion
                 return [];
             }
 
-            // 获取当前任务的子任务ID列表
-            $childTaskIds = ProjectTask::where('parent_id', $excludeTaskId)
-                ->whereNull('deleted_at')
+            // 获取当前任务整棵子任务树的 ID，避免把后代任务推荐为相似任务。
+            $childTaskIds = ProjectTask::find($excludeTaskId)?->subTaskDescendants()
                 ->pluck('id')
-                ->toArray();
+                ->toArray() ?? [];
 
             // 过滤：同项目、排除当前任务及其子任务、相似度阈值
             $similarTasks = [];

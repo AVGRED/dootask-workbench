@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Module\ProjectTaskHandoffRecord;
+use App\Module\ProjectTaskDependencyService;
+use App\Module\ProjectTaskWorkService;
 use App\Module\Timer;
 use DB;
 use Arr;
@@ -21,7 +23,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $id
  * @property int|null $parent_id 父级任务ID
  * @property int|null $project_id 项目ID
+ * @property int|null $milestone_id 关联里程碑ID
  * @property int|null $column_id 列表ID
+ * @property int|null $source_template_id 来源任务模板ID
+ * @property int|null $source_template_version 来源任务模板版本
+ * @property string|null $source_template_name 来源任务模板名称快照
  * @property int|null $dialog_id 聊天会话ID
  * @property int|null $flow_item_id 工作流状态ID
  * @property string|null $flow_item_name 工作流状态名称
@@ -433,48 +439,294 @@ class ProjectTask extends AbstractModel
     }
 
     /**
+     * 校验用户未完成任务上限。调用方应在事务内执行。
+     * @param array $userids
+     * @param int|null $excludeTaskId 更新当前任务时排除自身
+     * @return void
+     */
+    public static function assertUserTaskLimit(array $userids, ?int $excludeTaskId = null): void
+    {
+        $userids = array_values(array_unique(array_filter(array_map('intval', $userids), fn($userid) => $userid > 0)));
+        if (!$userids) {
+            return;
+        }
+
+        $incomingTaskCounts = array_fill_keys($userids, 1);
+        self::assertUserTaskBatchLimit($incomingTaskCounts, $excludeTaskId === null ? [] : [$excludeTaskId]);
+    }
+
+    /**
+     * 校验一批未完成任务恢复或分配后的个人任务上限。
+     * @param array<int, int> $incomingTaskCounts userid => 新增的未完成任务数
+     * @param array<int> $excludeTaskIds
+     * @return void
+     */
+    public static function assertUserTaskBatchLimit(array $incomingTaskCounts, array $excludeTaskIds = []): void
+    {
+        $normalizedCounts = [];
+        foreach ($incomingTaskCounts as $userid => $count) {
+            $userid = (int)$userid;
+            $count = (int)$count;
+            if ($userid > 0 && $count > 0) {
+                $normalizedCounts[$userid] = ($normalizedCounts[$userid] ?? 0) + $count;
+            }
+        }
+        $userids = array_keys($normalizedCounts);
+        sort($userids, SORT_NUMERIC);
+        if (!$userids) {
+            return;
+        }
+
+        $limit = intval(Base::settingFind('system', 'task_user_limit'));
+        // 按用户 ID 固定顺序加锁，避免跨项目并发创建同时通过个人上限校验。
+        User::query()->whereIn('userid', $userids)->orderBy('userid')->lockForUpdate()->get();
+        foreach ($userids as $userid) {
+            $query = ProjectTask::authData($userid)
+                ->whereNull('project_tasks.complete_at')
+                ->whereNull('project_tasks.archived_at');
+            if ($excludeTaskIds) {
+                $query->whereNotIn('project_tasks.id', $excludeTaskIds);
+            }
+            if ($query->count() + $normalizedCounts[$userid] > $limit) {
+                throw new ApiException(User::userid2nickname($userid) . '负责或参与的未完成任务最多不能超过' . $limit . '个');
+            }
+        }
+    }
+
+    /**
+     * 校验项目和列表的未完成任务容量。调用方应在事务内执行。
+     * @param int $projectId
+     * @param int $columnId
+     * @param int|null $excludeTaskId 更新或移动任务时排除自身
+     * @return void
+     */
+    public static function assertTaskPlacementLimit(int $projectId, int $columnId, ?int $excludeTaskId = null): void
+    {
+        self::assertTaskBatchPlacementLimit($projectId, $columnId, $excludeTaskId === null ? [] : [$excludeTaskId], 1);
+    }
+
+    /**
+     * 校验一批任务进入目标项目和列表后的未完成任务容量。
+     * 调用方应在事务内执行；excludeTaskIds 中的任务会从目标现有数量里扣除。
+     * @param int $projectId
+     * @param int $columnId
+     * @param array $excludeTaskIds
+     * @param int $incomingOpenTaskCount
+     * @return void
+     */
+    public static function assertTaskBatchPlacementLimit(
+        int $projectId,
+        int $columnId,
+        array $excludeTaskIds,
+        int $incomingOpenTaskCount,
+        ?array $columnExcludeTaskIds = null,
+        ?int $incomingOpenColumnTaskCount = null
+    ): void
+    {
+        Project::query()->whereKey($projectId)->lockForUpdate()->first();
+        $columnExcludeTaskIds ??= $excludeTaskIds;
+        $incomingOpenColumnTaskCount ??= $incomingOpenTaskCount;
+        if ($incomingOpenTaskCount <= 0 && $incomingOpenColumnTaskCount <= 0) {
+            return;
+        }
+
+        $projectTasks = ProjectTask::whereProjectId($projectId)
+            ->whereNull('project_tasks.complete_at')
+            ->whereNull('project_tasks.archived_at');
+        $columnTasks = ProjectTask::whereColumnId($columnId)
+            ->whereNull('project_tasks.complete_at')
+            ->whereNull('project_tasks.archived_at');
+        if ($excludeTaskIds && $incomingOpenTaskCount > 0) {
+            $projectTasks->whereNotIn('project_tasks.id', $excludeTaskIds);
+        }
+        if ($columnExcludeTaskIds && $incomingOpenColumnTaskCount > 0) {
+            $columnTasks->whereNotIn('project_tasks.id', $columnExcludeTaskIds);
+        }
+        if ($incomingOpenTaskCount > 0 && $projectTasks->count() + $incomingOpenTaskCount > 2000) {
+            throw new ApiException('项目内未完成任务最多不能超过2000个');
+        }
+        if ($incomingOpenColumnTaskCount > 0 && $columnTasks->count() + $incomingOpenColumnTaskCount > 500) {
+            throw new ApiException('单个列表未完成任务最多不能超过500个');
+        }
+    }
+
+    /**
+     * 读取子任务树并校验最大嵌套深度。
+     * @param int $rootTaskId
+     * @param int|null $maxCount
+     * @return \Illuminate\Support\Collection
+     */
+    private static function taskSubtreeDescendants(int $rootTaskId, ?int $maxCount = null, bool $withTrashed = false, bool $lockForUpdate = false, bool $activeOnly = false): \Illuminate\Support\Collection
+    {
+        $descendants = collect();
+        $projectId = (int)self::withTrashed()->whereKey($rootTaskId)->value('project_id');
+        if ($projectId <= 0) {
+            return $descendants;
+        }
+        $parentIds = [$rootTaskId];
+        $depth = 0;
+        while ($parentIds) {
+            $children = collect();
+            foreach (array_chunk($parentIds, 1000) as $parentIdBatch) {
+                $builder = self::where('project_id', $projectId)->whereIn('parent_id', $parentIdBatch);
+                if ($activeOnly) {
+                    $builder->whereNull('complete_at')->whereNull('archived_at');
+                }
+                if ($withTrashed) {
+                    $builder->withTrashed();
+                }
+                if ($lockForUpdate) {
+                    $builder->lockForUpdate();
+                }
+                $children = $children->concat($builder->get(['id', 'parent_id', 'project_id', 'column_id', 'complete_at', 'archived_at', 'deleted_at']));
+            }
+            if ($children->isEmpty()) {
+                break;
+            }
+            if (++$depth > 5) {
+                throw new ApiException('子任务格式错误');
+            }
+            $descendants = $descendants->concat($children);
+            if ($maxCount !== null && $descendants->count() > $maxCount) {
+                throw new ApiException('子任务格式错误，最多可添加50项');
+            }
+            $parentIds = $children->pluck('id')->map(fn($id) => (int)$id)->all();
+        }
+        return $descendants;
+    }
+
+    /**
+     * 获取当前任务下的所有后代子任务。
+     * @return \Illuminate\Support\Collection
+     */
+    public function subTaskDescendants(): \Illuminate\Support\Collection
+    {
+        return self::taskSubtreeDescendants($this->id);
+    }
+
+    /**
+     * 将父任务时间边界递归同步到所有层级的子任务。
+     * @param array $oldAt 父任务修改前的开始和结束时间
+     * @param array $updateMarking
+     * @return void
+     */
+    private function syncSubTaskTimeBounds(array $oldAt, array &$updateMarking): void
+    {
+        $newAt = [Carbon::parse($this->start_at), Carbon::parse($this->end_at)];
+        self::where('project_id', $this->project_id)->whereParentId($this->id)->chunk(100, function ($list) use ($oldAt, $newAt, &$updateMarking) {
+            /** @var self $subTask */
+            foreach ($list as $subTask) {
+                $subTaskOldAt = [Carbon::parse($subTask->start_at), Carbon::parse($subTask->end_at)];
+                $isUp = false;
+                if (empty($subTask->start_at) || $subTaskOldAt[0]->eq($oldAt[0]) || $subTaskOldAt[0]->lt($newAt[0])) {
+                    $subTask->start_at = $this->start_at;
+                    $isUp = true;
+                }
+                if (empty($subTask->end_at) || $subTaskOldAt[1]->eq($oldAt[1]) || $subTaskOldAt[1]->gt($newAt[1])) {
+                    $subTask->end_at = $this->end_at;
+                    $isUp = true;
+                }
+                if ($subTask->start_at && Carbon::parse($subTask->start_at)->gt($subTask->end_at)) {
+                    $subTask->start_at = $this->start_at;
+                    $isUp = true;
+                }
+                if ($isUp) {
+                    $updateMarking['is_update_subtask'] = true;
+                    $subTask->addLog("同步修改{任务}时间");
+                    $subTask->save();
+                    $subTask->syncSubTaskTimeBounds($subTaskOldAt, $updateMarking);
+                }
+            }
+        });
+    }
+
+    /**
+     * 校验在指定任务下新增子任务是否仍处于支持的层级和数量范围内。
+     * @param self $parentTask
+     * @return void
+     */
+    public static function assertSubtaskCanBeAdded(self $parentTask): void
+    {
+        $parentDepth = 0;
+        $rootTask = $parentTask;
+        while ($rootTask->parent_id > 0) {
+            $parentDepth++;
+            $rootTask = self::where('project_id', $parentTask->project_id)->find($rootTask->parent_id);
+            if (!$rootTask || $parentDepth >= 5) {
+                throw new ApiException('子任务格式错误');
+            }
+        }
+        // Every branch under one main task uses the root row as its shared
+        // serialization point. Locking only the immediate parent lets parallel
+        // additions to different branches both pass the same 50-task check.
+        $rootTask = self::where('project_id', $parentTask->project_id)->whereKey($rootTask->id)->lockForUpdate()->first();
+        if (!$rootTask) {
+            throw new ApiException('子任务格式错误');
+        }
+        // Use locking reads for descendants too, so InnoDB does not reuse an
+        // older repeatable-read snapshot created while resolving the ancestors.
+        $activeDescendants = self::taskSubtreeDescendants($rootTask->id, null, false, true, true);
+        if ($activeDescendants->count() >= 50) {
+            throw new ApiException('子任务格式错误，最多可添加50项');
+        }
+    }
+
+    /**
      * 添加任务
      * @param $data
      * @return self
      */
     public static function addTask($data)
     {
-        $parent_id  = intval($data['parent_id']);
-        $project_id = intval($data['project_id']);
-        $column_id  = intval($data['column_id']);
-        $name       = $data['name'];
-        $content    = $data['content'];
-        $times      = $data['times'];
-        $owner      = $data['owner'];
-        $add_assist = intval($data['add_assist']);  // 将自己添加到参与者
-        $assist     = $data['assist'];              // 参与者，此项设置时 add_assist 无效
-        $subtasks   = $data['subtasks'];
-        $p_level    = intval($data['p_level']);
-        $p_name     = $data['p_name'];
-        $p_color    = $data['p_color'];
-        $top        = intval($data['top']);
+        $parent_id  = intval($data['parent_id'] ?? 0);
+        $project_id = intval($data['project_id'] ?? 0);
+        $column_id  = intval($data['column_id'] ?? 0);
+        $name       = $data['name'] ?? '';
+        $content    = $data['content'] ?? '';
+        $times      = $data['times'] ?? [];
+        $owner      = $data['owner'] ?? [];
+        $add_assist = intval($data['add_assist'] ?? 0);  // 将自己添加到参与者
+        $assist     = $data['assist'] ?? [];              // 参与者，此项设置时 add_assist 无效
+        $subtasks   = $data['subtasks'] ?? [];
+        $p_level    = intval($data['p_level'] ?? 0);
+        $p_name     = $data['p_name'] ?? '';
+        $p_color    = $data['p_color'] ?? '';
+        $top        = intval($data['top'] ?? 0);
         $userid     = User::userid();
-        $visibility = $data['visibility_appoint'] ?? $data['visibility'];
-        $visibility_userids = $data['visibility_appointor'] ?: [];
-        $taskUserLimit = intval(Base::settingFind('system', 'task_user_limit'));
-        //
-        if (ProjectTask::whereProjectId($project_id)
-                ->whereNull('project_tasks.complete_at')
-                ->whereNull('project_tasks.archived_at')
-                ->count() > 2000) {
-            throw new ApiException('项目内未完成任务最多不能超过2000个');
+        $visibility = $data['visibility_appoint'] ?? $data['visibility'] ?? 1;
+        $visibility_userids = is_array($data['visibility_appointor'] ?? null) ? $data['visibility_appointor'] : [];
+        $estimatedMinutes = $data['estimated_minutes'] ?? null;
+        if ($estimatedMinutes !== null && $estimatedMinutes !== '') {
+            $estimatedMinutes = filter_var($estimatedMinutes, FILTER_VALIDATE_INT);
+            if ($estimatedMinutes === false || $estimatedMinutes < 0 || $estimatedMinutes > 1000000) {
+                throw new ApiException('预估工时须为 0 至 1000000 分钟');
+            }
+        } else {
+            $estimatedMinutes = null;
         }
-        if (ProjectTask::whereColumnId($column_id)
-                ->whereNull('project_tasks.complete_at')
-                ->whereNull('project_tasks.archived_at')
-                ->count() > 500) {
-            throw new ApiException('单个列表未完成任务最多不能超过500个');
+        $templateSource = $parent_id === 0 && is_array($data['template_source'] ?? null) ? $data['template_source'] : [];
+        $milestoneName = $data['milestone_name'] ?? '';
+        if (!is_string($milestoneName)) {
+            throw new ApiException('任务里程碑格式错误');
         }
-        if ($parent_id > 0 && ProjectTask::whereParentId($parent_id)
-                ->whereNull('project_tasks.complete_at')
-                ->whereNull('project_tasks.archived_at')
-                ->count() > 50) {
-            throw new ApiException('每个任务的子任务最多不能超过50个');
+        $milestoneName = trim($milestoneName);
+        $milestoneId = null;
+        if ($milestoneName !== '') {
+            $milestones = ProjectMilestone::query()
+                ->where('project_id', $project_id)
+                ->where('name', $milestoneName)
+                ->orderBy('sort')
+                ->orderBy('id')
+                ->limit(2)
+                ->get();
+            if ($milestones->count() > 1) {
+                throw new ApiException('当前项目存在重名里程碑，请先重命名：' . $milestoneName);
+            }
+            $milestone = $milestones->first();
+            if (!$milestone) {
+                throw new ApiException('模板关联的里程碑在当前项目中不存在：' . $milestoneName);
+            }
+            $milestoneId = $milestone->id;
         }
         //
         $retPre = $parent_id ? '子任务' : '任务';
@@ -497,10 +749,15 @@ class ProjectTask extends AbstractModel
         $task = self::createInstance([
             'parent_id' => $parent_id,
             'project_id' => $project_id,
+            'milestone_id' => $milestoneId,
+            'estimated_minutes' => $parent_id === 0 && $estimatedMinutes ? $estimatedMinutes : null,
             'column_id' => $column_id,
             'p_level' => $p_level,
             'p_name' => $p_name,
             'p_color' => $p_color,
+            'source_template_id' => $templateSource['id'] ?? null,
+            'source_template_version' => $templateSource['version'] ?? null,
+            'source_template_name' => $templateSource['name'] ?? null,
             'visibility' => $visibility ?: 1
         ]);
         if ($content) {
@@ -528,12 +785,6 @@ class ProjectTask extends AbstractModel
             if (intval($uid) == 0) continue;
             if (!ProjectUser::whereProjectId($project_id)->whereUserid($uid)->exists()) {
                 throw new ApiException($retPre . '负责人填写错误');
-            }
-            if (ProjectTask::authData($uid)
-                    ->whereNull('project_tasks.complete_at')
-                    ->whereNull('project_tasks.archived_at')
-                    ->count() > $taskUserLimit) {
-                throw new ApiException(User::userid2nickname($uid) . '负责或参与的未完成任务最多不能超过' . $taskUserLimit . '个');
             }
             $tmpArray[] = $uid;
         }
@@ -569,9 +820,22 @@ class ProjectTask extends AbstractModel
             }
         }
         //
-        return AbstractModel::transaction(function () use ($assist, $times, $subtasks, $content, $owner, $task, $visibility_userids) {
-            $task->save();
+        return AbstractModel::transaction(function () use ($assist, $times, $subtasks, $content, $owner, $task, $visibility_userids, $project_id, $column_id, $parent_id) {
+            self::assertTaskPlacementLimit($project_id, $column_id);
+            if ($parent_id > 0) {
+                $parentTask = self::whereKey($parent_id)->lockForUpdate()->first();
+                if (!$parentTask || intval($parentTask->project_id) !== $project_id) {
+                    throw new ApiException('子任务格式错误');
+                }
+                self::assertSubtaskCanBeAdded($parentTask);
+            }
+
             $owner = array_values(array_unique($owner));
+            $assist = array_values(array_diff(array_unique($assist), $owner));
+            $participantIds = array_values(array_unique(array_merge($owner, $assist)));
+            self::assertUserTaskLimit($participantIds);
+
+            $task->save();
             foreach ($owner as $uid) {
                 ProjectTaskUser::createInstance([
                     'project_id' => $task->project_id,
@@ -581,7 +845,6 @@ class ProjectTask extends AbstractModel
                     'owner' => 1,
                 ])->save();
             }
-            $assist = array_values(array_unique(array_diff($assist, $owner)));
             foreach ($assist as $uid) {
                 ProjectTaskUser::createInstance([
                     'project_id' => $task->project_id,
@@ -612,14 +875,30 @@ class ProjectTask extends AbstractModel
                     ],
                 ])->save();
             }
-            if ($task->parent_id == 0 && $subtasks && is_array($subtasks)) {
+            if ($subtasks && is_array($subtasks)) {
                 foreach ($subtasks as $subtask) {
-                    list($start, $end) = is_string($subtask['times']) ? explode(",", $subtask['times']) : (is_array($subtask['times']) ? $subtask['times'] : []);
+                    if (!is_array($subtask)) continue;
+                    $subtask = array_merge([
+                        'content' => '',
+                        'times' => $times,
+                        'owner' => [],
+                        'add_assist' => 0,
+                        'assist' => [],
+                        'p_level' => $task->p_level,
+                        'p_name' => $task->p_name,
+                        'p_color' => $task->p_color,
+                        'top' => 0,
+                        'visibility' => $task->visibility,
+                        'visibility_appointor' => $visibility_userids,
+                        'subtasks' => [],
+                    ], $subtask);
+                    $subtaskTimes = $subtask['times'];
+                    list($start, $end) = is_string($subtaskTimes) ? explode(",", $subtaskTimes) : (is_array($subtaskTimes) ? $subtaskTimes : []);
                     if (Timer::isDate($start) && Timer::isDate($end) && $start != $end) {
-                        if (Carbon::parse($start)->lt($task->start_at)) {
+                        if ($task->start_at && Carbon::parse($start)->lt($task->start_at)) {
                             throw new ApiException('子任务开始时间不能小于主任务开始时间');
                         }
-                        if (Carbon::parse($end)->gt($task->end_at)) {
+                        if ($task->end_at && Carbon::parse($end)->gt($task->end_at)) {
                             throw new ApiException('子任务结束时间不能大于主任务结束时间');
                         }
                     } else {
@@ -650,9 +929,19 @@ class ProjectTask extends AbstractModel
     public function updateTask($data, &$updateMarking = [])
     {
         //
+        // Placement and reopen checks lock the project row as their shared
+        // capacity serialization point. Acquire it before track() locks the
+        // task row, matching addTask()'s project -> task lock order.
+        $projectLockIds = Arr::exists($data, 'flow_item_id')
+            || Arr::exists($data, 'complete_at')
+            || Arr::exists($data, 'column_id')
+            ? [(int)$this->project_id]
+            : [];
         ProjectTaskHandoffRecord::track($this, isset($data['flow_item_id']) ? 'flow' : 'update', function () use ($data, &$updateMarking) {
             // 主任务
-            $mainTask = $this->parent_id > 0 ? self::find($this->parent_id) : null;
+            $mainTask = $this->parent_id > 0
+                ? self::where('project_id', $this->project_id)->find($this->parent_id)
+                : null;
             // 工作流
             if (Arr::exists($data, 'flow_item_id')) {
                 if ($this->flow_item_id == $data['flow_item_id']) {
@@ -764,6 +1053,24 @@ class ProjectTask extends AbstractModel
                     if (!$this->complete_at) {
                         throw new ApiException('未完成任务');
                     }
+                    self::assertTaskPlacementLimit(
+                        $this->project_id,
+                        intval($data['column_id'] ?? $this->column_id),
+                        $this->id
+                    );
+                    $reopenOwnerIds = Arr::exists($data, 'owner')
+                        ? (is_array($data['owner']) ? $data['owner'] : [$data['owner']])
+                        : ProjectTaskUser::whereTaskId($this->id)->whereOwner(1)->pluck('userid')->toArray();
+                    $reopenAssistIds = Arr::exists($data, 'assist')
+                        ? (is_array($data['assist']) ? $data['assist'] : [$data['assist']])
+                        : ProjectTaskUser::whereTaskId($this->id)->whereOwner(0)->pluck('userid')->toArray();
+                    $reopenParticipantIds = array_values(array_unique(array_filter(array_map('intval', array_merge($reopenOwnerIds, $reopenAssistIds)), fn($userid) => $userid > 0)));
+                    $reopenParticipantIds = ProjectUser::whereProjectId($this->project_id)
+                        ->whereIn('userid', $reopenParticipantIds)
+                        ->pluck('userid')
+                        ->map(fn($userid) => (int)$userid)
+                        ->toArray();
+                    self::assertUserTaskLimit($reopenParticipantIds, $this->id);
                     // 只有用户单独提交 complete_at 时才自动设置工作流状态
                     if (!Arr::exists($data, 'flow_item_id')) {
                         $this->checkAndAutoSetFlowItem('start', -4006);
@@ -771,6 +1078,27 @@ class ProjectTask extends AbstractModel
                     $this->completeTask(null);
                 }
                 $updateMarking['is_update_project'] = true;
+            }
+            if (Arr::exists($data, 'owner') || Arr::exists($data, 'assist')) {
+                $currentOwnerIds = ProjectTaskUser::whereTaskId($this->id)->whereOwner(1)->pluck('userid')->toArray();
+                $currentAssistIds = ProjectTaskUser::whereTaskId($this->id)->whereOwner(0)->pluck('userid')->toArray();
+                $currentUserIds = ProjectTaskUser::whereTaskId($this->id)->pluck('userid')->toArray();
+                $targetOwnerIds = Arr::exists($data, 'owner')
+                    ? (is_array($data['owner']) ? $data['owner'] : [$data['owner']])
+                    : $currentOwnerIds;
+                $targetAssistIds = Arr::exists($data, 'assist')
+                    ? (is_array($data['assist']) ? $data['assist'] : [$data['assist']])
+                    : $currentAssistIds;
+                $targetUserIds = array_values(array_unique(array_filter(array_map('intval', array_merge($targetOwnerIds, $targetAssistIds)), fn($userid) => $userid > 0)));
+                $targetUserIds = ProjectUser::whereProjectId($this->project_id)
+                    ->whereIn('userid', $targetUserIds)
+                    ->pluck('userid')
+                    ->map(fn($userid) => (int)$userid)
+                    ->toArray();
+                $addedUserIds = array_values(array_diff($targetUserIds, array_map('intval', $currentUserIds)));
+                if ($addedUserIds && !$this->complete_at && !$this->archived_at) {
+                    self::assertUserTaskLimit($addedUserIds, $this->id);
+                }
             }
             // 标题
             if (Arr::exists($data, 'name') && $this->name != $data['name']) {
@@ -903,34 +1231,8 @@ class ProjectTask extends AbstractModel
                         $clearSubTaskTime = true;
                     }
                 }
-                if ($this->parent_id == 0) {
-                    // 判断同步子任务时间（主任务时间 不在 子任务时间 之外）
-                    self::whereParentId($this->id)->chunk(100, function($list) use ($oldAt, &$updateMarking) {
-                        /** @var self $subTask */
-                        foreach ($list as $subTask) {
-                            $start_at = Carbon::parse($subTask->start_at);
-                            $end_at = Carbon::parse($subTask->end_at);
-                            $isUp = false;
-                            if (empty($subTask->start_at) || $start_at->eq($oldAt[0]) || $start_at->lt(Carbon::parse($this->start_at))) {
-                                $subTask->start_at = $this->start_at;
-                                $isUp = true;
-                            }
-                            if (empty($subTask->end_at) || $end_at->eq($oldAt[1]) || $end_at->gt(Carbon::parse($this->end_at))) {
-                                $subTask->end_at = $this->end_at;
-                                $isUp = true;
-                            }
-                            if ($subTask->start_at && Carbon::parse($subTask->start_at)->gt($subTask->end_at)) {
-                                $subTask->start_at = $this->start_at;
-                                $isUp = true;
-                            }
-                            if ($isUp) {
-                                $updateMarking['is_update_subtask'] = true;
-                                $subTask->addLog("同步修改{任务}时间");
-                                $subTask->save();
-                            }
-                        }
-                    });
-                }
+                // 保持每一层子任务的时间都落在其直接父任务的时间范围内。
+                $this->syncSubTaskTimeBounds($oldAt, $updateMarking);
                 $existAt = $this->start_at && !$clearSubTaskTime;
                 $newStringAt = $existAt ? ($this->start_at->toDateTimeString() . '~' . $this->end_at->toDateTimeString()) : '';
                 if ($isOverdue) {
@@ -1027,6 +1329,9 @@ class ProjectTask extends AbstractModel
                     $column = ProjectColumn::whereProjectId($this->project_id)->whereId($data['column_id'])->first();
                     if (empty($column)) {
                         throw new ApiException('请选择正确的列表');
+                    }
+                    if (!$this->complete_at && !$this->archived_at) {
+                        self::assertTaskPlacementLimit($this->project_id, $column->id, $this->id);
                     }
                     $this->addLog("修改{任务}列表", [
                         'change' => [$oldName, $column->name]
@@ -1132,7 +1437,7 @@ class ProjectTask extends AbstractModel
                 }
             }
             $this->save();
-        });
+        }, '', $projectLockIds);
         return true;
     }
 
@@ -1229,28 +1534,77 @@ class ProjectTask extends AbstractModel
 
     /**
      * 复制任务
+     * @param int|null $projectId 目标项目，默认沿用源任务
+     * @param int|null $columnId 目标列表，默认沿用源任务
+     * @param int|null $parentId 目标父任务，默认沿用源任务
+     * @param bool $checkUserLimit 是否检查复制成员的个人任务上限
+     * @param bool $checkPlacementLimit 是否检查目标项目、列表和子任务容量
      * @return self
      */
-    public function copyTask()
+    public function copyTask(?int $projectId = null, ?int $columnId = null, ?int $parentId = null, bool $checkUserLimit = true, bool $checkPlacementLimit = true)
     {
-        $source = $this->fresh(['content', 'taskFile', 'taskUser']);
+        $source = $this->fresh(['content', 'taskFile', 'taskUser', 'taskTag']);
         if (!$source) {
             throw new ApiException('任务不存在');
         }
 
-        return AbstractModel::transaction(function () use ($source) {
+        return AbstractModel::transaction(function () use ($source, $projectId, $columnId, $parentId, $checkUserLimit, $checkPlacementLimit) {
             // 复制任务（使用最新数据，避免复制临时字段）
             $task = $source->replicate();
+            $task->project_id = $projectId ?? $source->project_id;
+            $task->column_id = $columnId ?? $source->column_id;
+            $task->parent_id = $parentId ?? $source->parent_id;
+            // Capacity checks serialize on the project row. Lock it before a
+            // parent task so copies use the same project -> task order as adds
+            // and moves, avoiding a parent -> project deadlock cycle.
+            Project::query()->whereKey($task->project_id)->lockForUpdate()->firstOrFail();
+            if ($task->parent_id > 0) {
+                $parentTask = self::whereKey($task->parent_id)->lockForUpdate()->first();
+                if (!$parentTask || (int)$parentTask->project_id !== (int)$task->project_id) {
+                    throw new ApiException('子任务格式错误');
+                }
+            }
+            if ($task->project_id != $source->project_id && $source->milestone_id) {
+                $milestoneName = ProjectMilestone::whereProjectId($source->project_id)
+                    ->whereKey($source->milestone_id)
+                    ->value('name');
+                if ($milestoneName) {
+                    $targetMilestones = ProjectMilestone::whereProjectId($task->project_id)
+                        ->where('name', $milestoneName)
+                        ->orderBy('id')
+                        ->limit(2)
+                        ->pluck('id');
+                    if ($targetMilestones->count() > 1) {
+                        throw new ApiException('目标项目存在重名里程碑，无法复制任务关联');
+                    }
+                    $task->milestone_id = $targetMilestones->first();
+                } else {
+                    $task->milestone_id = null;
+                }
+            }
             $task->dialog_id = 0;
             $task->archived_at = null;
             $task->archived_userid = 0;
             $task->archived_follow = 0;
             $task->complete_at = null;
             $task->created_at = Carbon::now();
+            if ($checkPlacementLimit) {
+                self::assertTaskPlacementLimit($task->project_id, $task->column_id);
+                if ($task->parent_id > 0 && ProjectTask::whereParentId($task->parent_id)
+                        ->whereNull('project_tasks.complete_at')
+                        ->whereNull('project_tasks.archived_at')
+                        ->count() >= 50) {
+                    throw new ApiException('每个任务的子任务最多不能超过50个');
+                }
+            }
+            if ($checkUserLimit) {
+                self::assertUserTaskLimit($source->taskUser->pluck('userid')->toArray());
+            }
             $task->save();
             // 复制任务内容
             if ($source->content) {
                 $tmp = $source->content->replicate();
+                $tmp->project_id = $task->project_id;
                 $tmp->task_id = $task->id;
                 $tmp->created_at = Carbon::now();
                 $tmp->save();
@@ -1258,6 +1612,15 @@ class ProjectTask extends AbstractModel
             // 复制任务附件
             foreach ($source->taskFile as $taskFile) {
                 $tmp = $taskFile->replicate();
+                $tmp->project_id = $task->project_id;
+                $tmp->task_id = $task->id;
+                $tmp->created_at = Carbon::now();
+                $tmp->save();
+            }
+            // 复制任务标签快照
+            foreach ($source->taskTag as $taskTag) {
+                $tmp = $taskTag->replicate();
+                $tmp->project_id = $task->project_id;
                 $tmp->task_id = $task->id;
                 $tmp->created_at = Carbon::now();
                 $tmp->save();
@@ -1265,8 +1628,9 @@ class ProjectTask extends AbstractModel
             // 复制任务成员
             foreach ($source->taskUser as $taskUser) {
                 $tmp = $taskUser->replicate();
+                $tmp->project_id = $task->project_id;
                 $tmp->task_id = $task->id;
-                $tmp->task_pid = $task->id;
+                $tmp->task_pid = $task->parent_id ?: $task->id;
                 $tmp->created_at = Carbon::now();
                 $tmp->save();
             }
@@ -1325,8 +1689,9 @@ class ProjectTask extends AbstractModel
         $syncTime = $options['sync_time'] ?? false;
         $updateProject = $options['update_project'] ?? false;
 
+        self::taskSubtreeDescendants($this->id, 50);
         $newSubTasks = [];
-        $subTasks = self::whereParentId($this->id)->get();
+        $subTasks = self::where('project_id', $this->project_id)->whereParentId($this->id)->get();
         if ($subTasks->isEmpty()) {
             return $newSubTasks;
         }
@@ -1336,8 +1701,9 @@ class ProjectTask extends AbstractModel
         $startFlowItem = $flowItems['start'];
 
         foreach ($subTasks as $subTask) {
-            $newSubTask = $subTask->copyTask();
-            $newSubTask->parent_id = $newParentTask->id;
+            $targetProjectId = $updateProject ? $newParentTask->project_id : $subTask->project_id;
+            $targetColumnId = $updateProject ? $newParentTask->column_id : $subTask->column_id;
+            $newSubTask = $subTask->copyTask($targetProjectId, $targetColumnId, $newParentTask->id);
 
             // 同步时间
             if ($syncTime) {
@@ -1360,6 +1726,7 @@ class ProjectTask extends AbstractModel
 
             $newSubTask->save();
             $newSubTasks[] = $newSubTask;
+            $newSubTasks = array_merge($newSubTasks, $subTask->copySubTasks($newSubTask, $options));
         }
 
         return $newSubTasks;
@@ -1370,9 +1737,10 @@ class ProjectTask extends AbstractModel
      * @param int $projectId 目标项目ID
      * @param int $columnId 目标列ID
      */
-    public function moveSubTasks(int $projectId, int $columnId): void
+    public function moveSubTasks(int $projectId, int $columnId, ?int $sourceProjectId = null, ?array $targetMemberIds = null, ?array $milestoneMap = null): void
     {
-        $subTasks = self::whereParentId($this->id)->get();
+        $sourceProjectId ??= (int)$this->project_id;
+        $subTasks = self::withTrashed()->where('project_id', $sourceProjectId)->whereParentId($this->id)->get();
         if ($subTasks->isEmpty()) {
             return;
         }
@@ -1392,8 +1760,67 @@ class ProjectTask extends AbstractModel
                 $subTask->flow_item_id = $startFlowItem?->id ?? 0;
                 $subTask->flow_item_name = self::formatFlowItemName($startFlowItem);
             }
+            if ($milestoneMap !== null) {
+                $subTask->milestone_id = $milestoneMap[$subTask->id] ?? null;
+            }
+            self::syncMovedTaskRelations($subTask->id, $projectId, $targetMemberIds);
             $subTask->save();
+            $subTask->moveSubTasks($projectId, $columnId, $sourceProjectId, $targetMemberIds, $milestoneMap);
         }
+    }
+
+    /**
+     * Keep every project-scoped task relation aligned when a task changes projects.
+     */
+    private static function syncMovedTaskRelations(int $taskId, int $projectId, ?array $targetMemberIds = null): void
+    {
+        ProjectTaskContent::whereTaskId($taskId)->update(['project_id' => $projectId]);
+        ProjectTaskFile::whereTaskId($taskId)->update(['project_id' => $projectId]);
+        ProjectTaskTag::whereTaskId($taskId)->update(['project_id' => $projectId]);
+        ProjectTaskUser::whereTaskId($taskId)->update(['project_id' => $projectId]);
+        ProjectTaskVisibilityUser::whereTaskId($taskId)->update(['project_id' => $projectId]);
+
+        if ($targetMemberIds !== null) {
+            ProjectTaskUser::whereTaskId($taskId)->whereNotIn('userid', $targetMemberIds)->delete();
+            ProjectTaskVisibilityUser::whereTaskId($taskId)->whereNotIn('userid', $targetMemberIds)->delete();
+        }
+    }
+
+    /** @param array<int> $taskIds @return array<int, int|null> */
+    private static function projectMoveMilestoneMap(array $taskIds, int $sourceProjectId, int $targetProjectId): array
+    {
+        $taskMilestones = collect();
+        foreach (array_chunk($taskIds, 1000) as $taskIdBatch) {
+            $taskMilestones = $taskMilestones->union(self::withTrashed()->whereIn('id', $taskIdBatch)
+                ->whereNotNull('milestone_id')
+                ->pluck('milestone_id', 'id'));
+        }
+        if ($taskMilestones->isEmpty()) {
+            return [];
+        }
+
+        $sourceMilestoneNames = collect();
+        foreach (array_chunk($taskMilestones->values()->unique()->all(), 1000) as $milestoneIdBatch) {
+            $sourceMilestoneNames = $sourceMilestoneNames->union(ProjectMilestone::whereProjectId($sourceProjectId)
+                ->whereIn('id', $milestoneIdBatch)
+                ->pluck('name', 'id'));
+        }
+        $milestoneNames = $sourceMilestoneNames->values()->unique()->all();
+        $targetMilestonesByName = collect();
+        foreach (array_chunk($milestoneNames, 1000) as $milestoneNameBatch) {
+            $targetMilestonesByName = $targetMilestonesByName->union(ProjectMilestone::whereProjectId($targetProjectId)
+                ->whereIn('name', $milestoneNameBatch)
+                ->get(['id', 'name'])
+                ->groupBy('name')
+                ->map(fn($milestones) => $milestones->count() === 1 ? (int)$milestones->first()->id : null));
+        }
+
+        $map = [];
+        foreach ($taskMilestones as $taskId => $milestoneId) {
+            $name = $sourceMilestoneNames->get($milestoneId);
+            $map[(int)$taskId] = $name !== null ? $targetMilestonesByName->get($name) : null;
+        }
+        return $map;
     }
 
     /**
@@ -1402,7 +1829,7 @@ class ProjectTask extends AbstractModel
     public function syncDialogUser()
     {
         if ($this->parent_id > 0) {
-            $task = self::find($this->parent_id);
+            $task = self::where('project_id', $this->project_id)->find($this->parent_id);
             $task?->syncDialogUser();
             return;
         }
@@ -1435,9 +1862,11 @@ class ProjectTask extends AbstractModel
     public function relationUserids()
     {
         $userids = ProjectTaskUser::whereTaskId($this->id)->orderByDesc('owner')->orderByDesc('id')->pluck('userid')->toArray();
-        $items = ProjectTask::with(['taskUser'])->where('parent_id', $this->id)->whereNull('archived_at')->get();
-        foreach ($items as $item) {
-            $userids = array_merge($userids, $item->taskUser->pluck('userid')->toArray());
+        $taskIds = self::taskSubtreeDescendants($this->id)
+            ->whereNull('archived_at')
+            ->pluck('id')->all();
+        if ($taskIds) {
+            $userids = array_merge($userids, ProjectTaskUser::whereIn('task_id', $taskIds)->pluck('userid')->toArray());
         }
         return array_values(array_filter(array_unique($userids)));
     }
@@ -1517,11 +1946,18 @@ class ProjectTask extends AbstractModel
      */
     public function isAssister()
     {
+        $projectId = (int)$this->project_id;
         $row = $this;
-        while ($row->parent_id > 0) {
-            $row = self::find($row->parent_id);
+        while ($row) {
+            if (ProjectTaskUser::whereTaskId($row->id)->whereUserid(User::userid())->whereOwner(0)->exists()) {
+                return true;
+            }
+            if ($row->parent_id <= 0) {
+                break;
+            }
+            $row = self::where('project_id', $projectId)->find($row->parent_id);
         }
-        return ProjectTaskUser::whereTaskId($row->id)->whereUserid(User::userid())->whereOwner(0)->exists();
+        return false;
     }
 
     /**
@@ -1533,11 +1969,16 @@ class ProjectTask extends AbstractModel
         if ($this->owner) {
             return true;
         }
-        if ($this->parent_id > 0) {
-            $mainTask = self::allData()->find($this->parent_id);
-            if ($mainTask->owner) {
+        $projectId = (int)$this->project_id;
+        $row = $this;
+        while ($row) {
+            if (ProjectTaskUser::whereTaskId($row->id)->whereUserid(User::userid())->whereOwner(1)->exists()) {
                 return true;
             }
+            if ($row->parent_id <= 0) {
+                break;
+            }
+            $row = self::where('project_id', $projectId)->find($row->parent_id);
         }
         return false;
     }
@@ -1624,12 +2065,10 @@ class ProjectTask extends AbstractModel
                 if ($this->complete_at) {
                     return; // 本来就已完成
                 }
-                if ($this->parent_id == 0) {
-                    if (self::whereParentId($this->id)->whereCompleteAt(null)->exists()) {
-                        throw new ApiException('子任务未完成', [
-                            'task_id' => $this->id
-                        ], -4004);
-                    }
+                if (self::taskSubtreeDescendants($this->id)->contains(fn($task) => !$task->complete_at)) {
+                    throw new ApiException('子任务未完成', [
+                        'task_id' => $this->id
+                    ], -4004);
                 }
                 if (!$this->hasOwner()) {
                     throw new ApiException('请先领取任务');
@@ -1718,11 +2157,14 @@ class ProjectTask extends AbstractModel
                 WebSocketDialogUser::whereDialogId($this->dialog_id)->update(['updated_at' => Carbon::now()]);  // 因为是若提醒，可以直接使用 update 更新
             }
             // 更新保存
-            self::whereParentId($this->id)->change([
-                'archived_at' => $this->archived_at,
-                'archived_userid' => $this->archived_userid,
-                'archived_follow' => $this->archived_follow,
-            ]);
+            $descendantIds = self::taskSubtreeDescendants($this->id)->pluck('id')->all();
+            if ($descendantIds) {
+                self::whereIn('id', $descendantIds)->change([
+                    'archived_at' => $this->archived_at,
+                    'archived_userid' => $this->archived_userid,
+                    'archived_follow' => $this->archived_follow,
+                ]);
+            }
             $this->save();
         });
         return true;
@@ -1740,7 +2182,10 @@ class ProjectTask extends AbstractModel
                 $dialog = WebSocketDialog::find($this->dialog_id);
                 $dialog?->deleteDialog();
             }
-            self::whereParentId($this->id)->remove();
+            $descendantIds = self::taskSubtreeDescendants($this->id)->pluck('id')->all();
+            if ($descendantIds) {
+                self::whereIn('id', $descendantIds)->remove();
+            }
             $this->deleted_userid = User::userid();
             $this->save();
             $this->addLog("删除{任务}");
@@ -1759,12 +2204,64 @@ class ProjectTask extends AbstractModel
      */
     public function restoreTask($pushMsg = true)
     {
-        AbstractModel::transaction(function () {
+        $projectId = (int)$this->project_id;
+        AbstractModel::transaction(function () use ($projectId) {
+            // Serialize restores with task creation, copying and moves, and
+            // always lock the project before the task tree.
+            Project::query()->whereKey($projectId)->lockForUpdate()->firstOrFail();
+            $lockedTask = self::withTrashed()->whereKey($this->id)->lockForUpdate()->firstOrFail();
+            if ((int)$lockedTask->project_id !== $projectId) {
+                throw new ApiException('任务所属项目已变化，请刷新后重试');
+            }
+            $this->setRawAttributes($lockedTask->getAttributes(), true);
+            $this->unsetRelations();
+
+            $descendants = self::taskSubtreeDescendants($this->id, null, true, true);
+            $restoringOpenCountsByColumn = [];
+            $restoringOpenTaskIds = [];
+            $restoringTasks = collect([$this])->concat($descendants);
+            foreach ($restoringTasks as $task) {
+                if ($task->trashed() && !$task->complete_at && !$task->archived_at) {
+                    $restoringOpenTaskIds[] = (int)$task->id;
+                    $columnId = (int)$task->column_id;
+                    $restoringOpenCountsByColumn[$columnId] = ($restoringOpenCountsByColumn[$columnId] ?? 0) + 1;
+                }
+            }
+            $totalRestoringOpenTasks = array_sum($restoringOpenCountsByColumn);
+            $rootColumnId = (int)$this->column_id;
+            self::assertTaskBatchPlacementLimit(
+                $projectId,
+                $rootColumnId,
+                [],
+                $totalRestoringOpenTasks,
+                [],
+                $restoringOpenCountsByColumn[$rootColumnId] ?? 0
+            );
+            foreach ($restoringOpenCountsByColumn as $columnId => $count) {
+                if ((int)$columnId === $rootColumnId) {
+                    continue;
+                }
+                self::assertTaskBatchPlacementLimit($projectId, (int)$columnId, [], 0, [], $count);
+            }
+            if ($restoringOpenTaskIds) {
+                $restoringUserCounts = ProjectTaskUser::whereIn('task_id', $restoringOpenTaskIds)
+                    ->select('userid')
+                    ->selectRaw('COUNT(DISTINCT task_id) AS task_count')
+                    ->groupBy('userid')
+                    ->get()
+                    ->mapWithKeys(fn($row) => [(int)$row->userid => (int)$row->task_count])
+                    ->all();
+                self::assertUserTaskBatchLimit($restoringUserCounts);
+            }
+
             if ($this->dialog_id) {
                 $dialog = WebSocketDialog::withTrashed()->find($this->dialog_id);
                 $dialog?->restoreDialog();
             }
-            self::whereParentId($this->id)->withTrashed()->restore();
+            $descendantIds = $descendants->pluck('id')->all();
+            if ($descendantIds) {
+                self::whereIn('id', $descendantIds)->withTrashed()->restore();
+            }
             $this->addLog("还原{任务}");
             $this->restore();
         });
@@ -2128,62 +2625,128 @@ class ProjectTask extends AbstractModel
      */
     public function moveTask(int $projectId, int $columnId, int $flowItemId = 0, array $owner = [], array $assist = [], ?string $completed = null)
     {
-        ProjectTaskHandoffRecord::track($this, 'move', function () use ($projectId, $columnId, $flowItemId, $owner, $assist, $completed) {
-            $newTaskUser =  array_merge($owner, $assist);
+        $sourceProjectId = (int)$this->project_id;
+        // Capacity checks run for same-project status/list changes too, so
+        // serialize every move on its project row before locking the task.
+        $projectLockIds = [$sourceProjectId, $projectId];
+        ProjectTaskHandoffRecord::track($this, 'move', function () use ($sourceProjectId, $projectId, $columnId, $flowItemId, $owner, $assist, $completed) {
             //
-            $oldProject = Project::find($this->project_id);
-            $newProject = $this->project_id != $projectId ? Project::find($projectId) : $oldProject;
+            if ((int)$this->project_id !== $sourceProjectId) {
+                throw new ApiException('任务所属项目已变化，请刷新后重试');
+            }
+            if ($this->parent_id > 0) {
+                $parentTask = self::where('project_id', $this->project_id)->find($this->parent_id);
+                if (!$parentTask) {
+                    throw new ApiException('子任务格式错误');
+                }
+                if ((int)$this->project_id !== $projectId) {
+                    throw new ApiException('子任务格式错误');
+                }
+            }
+            $oldProject = Project::userProject($this->project_id);
+            ProjectPermission::userTaskPermission($oldProject, ProjectPermission::TASK_MOVE, $this);
+            $newProject = Project::userProject($projectId);
+            if ((int)$oldProject->id !== (int)$newProject->id) {
+                ProjectPermission::userTaskPermission($newProject, ProjectPermission::TASK_ADD);
+            }
             if (!$oldProject || !$newProject) {
                 throw new ApiException('项目不存在');
+            }
+            $targetMemberIds = $oldProject->id !== $newProject->id
+                ? ProjectUser::whereProjectId($projectId)->pluck('userid')->map(fn($userid) => (int)$userid)->all()
+                : null;
+            $targetFlowItem = null;
+            if ($flowItemId) {
+                $targetFlowItem = ProjectFlowItem::whereProjectId($projectId)->whereId($flowItemId)->first();
+                if (!$targetFlowItem) {
+                    throw new ApiException('任务状态不存在');
+                }
+            }
+            $placementChanged = (int)$oldProject->id !== (int)$newProject->id || (int)$this->column_id !== $columnId;
+            $rootWillBeOpen = $targetFlowItem
+                ? $targetFlowItem->status !== 'end'
+                : ($completed !== null ? !$completed : !$this->complete_at);
+            // Soft-deleted descendants must move with their live parent. Restoring
+            // them later should not recreate a cross-project parent relationship.
+            $movingSubtasks = self::taskSubtreeDescendants($this->id, null, true);
+            $movingTaskIds = [$this->id];
+            $capacityExcludedProjectIds = [];
+            $incomingOpenTaskCount = $rootWillBeOpen && !$this->archived_at ? 1 : 0;
+            if ((int)$this->project_id === $projectId && !$this->complete_at && !$this->archived_at) {
+                $capacityExcludedProjectIds[] = (int)$this->id;
+            }
+            foreach ($movingSubtasks as $movingSubtask) {
+                $movingTaskIds[] = $movingSubtask->id;
+                if (!$movingSubtask->trashed() && !$movingSubtask->complete_at && !$movingSubtask->archived_at) {
+                    $incomingOpenTaskCount++;
+                    if ((int)$this->project_id === $projectId) {
+                        $capacityExcludedProjectIds[] = (int)$movingSubtask->id;
+                    }
+                }
+            }
+            $capacityExcludedColumnIds = $placementChanged
+                ? $capacityExcludedProjectIds
+                : ((!$this->complete_at && !$this->archived_at) ? [(int)$this->id] : []);
+            $incomingOpenColumnTaskCount = $placementChanged
+                ? $incomingOpenTaskCount
+                : ($rootWillBeOpen && !$this->archived_at ? 1 : 0);
+            self::assertTaskBatchPlacementLimit(
+                $projectId,
+                $columnId,
+                $capacityExcludedProjectIds,
+                $incomingOpenTaskCount,
+                $capacityExcludedColumnIds,
+                $incomingOpenColumnTaskCount
+            );
+            $milestoneMap = $targetMemberIds !== null
+                ? self::projectMoveMilestoneMap($movingTaskIds, (int)$oldProject->id, $projectId)
+                : null;
+            if ($targetMemberIds !== null) {
+                ProjectTaskDependencyService::handleProjectMove((int)$oldProject->id, $projectId, $movingTaskIds);
+                ProjectTaskWorkService::handleProjectMove((int)$oldProject->id, $projectId, $movingTaskIds);
             }
             //
             $this->project_id = $projectId;
             $this->column_id = $columnId;
-            // 日志
-            $log = $this->addLog("移动{任务}", [
+            if ($milestoneMap !== null) {
+                $this->milestone_id = $milestoneMap[$this->id] ?? null;
+            }
+            // Only record a placement move when the project or column actually changed.
+            // Same-column state/assignee edits have their own activity records below.
+            $log = $placementChanged ? $this->addLog("移动{任务}", [
                 'change' => [$oldProject->name, $newProject->name]
-            ]);
-            if ($this->dialog_id) {
+            ]) : null;
+            if ($this->dialog_id && $placementChanged) {
                 $notice = $oldProject->id != $newProject->id ? "「{$oldProject->name}」移动至「{$newProject->name}」" : $log->detail;
                 WebSocketDialogMsg::sendMsg(null, $this->dialog_id, 'notice', ['notice' => $notice], User::userid(), true, true);
             }
-            // 任务内容
-            if ($this->content) {
-                $this->content->project_id = $projectId;
-                $this->content->save();
-            }
-            // 任务文件
-            foreach ($this->taskFile as $taskFile) {
-                $taskFile->project_id = $projectId;
-                $taskFile->save();
-            }
-            // 任务标签
-            foreach ($this->taskTag as $taskTag) {
-                $taskTag->project_id = $projectId;
-                $taskTag->save();
-            }
+            // 移动全部历史内容、附件、标签和权限关联，避免关系仍归属旧项目。
+            self::syncMovedTaskRelations($this->id, $projectId, $targetMemberIds);
             // 任务用户
             $this->updateTask([
                 'owner' => $owner,
                 'assist' => $assist
             ]);
-            foreach ($this->taskUser as $taskUser) {
-                if (in_array($taskUser->id, $newTaskUser)) {
-                    $taskUser->project_id = $projectId;
-                    $taskUser->save();
-                }
+            // 子任务只在项目/列表位置真的变化时跟随移动；同位置更新状态或成员
+            // 不应重置子任务各自的工作流状态。
+            if ($placementChanged) {
+                $this->moveSubTasks($projectId, $columnId, (int)$oldProject->id, $targetMemberIds, $milestoneMap);
             }
-            // 子任务 - 根据完成状态映射工作流
-            $this->moveSubTasks($projectId, $columnId);
+            // 子任务成员会随项目成员范围调整，重新同步任务群聊成员。
+            $this->syncDialogUser();
             //
             if ($flowItemId) {
                 // 更新任务流程
-                $flowItem = projectFlowItem::whereProjectId($projectId)->whereId($flowItemId)->first();
+                $flowItem = $targetFlowItem;
                 $this->flow_item_id = $flowItemId;
                 $this->flow_item_name = $flowItem->status . "|" . $flowItem->name . "|" . $flowItem->color;
                 if ($flowItem->status == 'end') {
                     $this->completeTask(Carbon::now(), $flowItem->name);
                 } else {
+                    if ($this->complete_at) {
+                        self::assertTaskPlacementLimit($projectId, $columnId, $this->id);
+                        self::assertUserTaskLimit(ProjectTaskUser::whereTaskId($this->id)->pluck('userid')->toArray(), $this->id);
+                    }
                     $this->completeTask(null);
                 }
             } else {
@@ -2191,12 +2754,16 @@ class ProjectTask extends AbstractModel
                 $this->flow_item_id = 0;
                 $this->flow_item_name = '';
                 if ($completed !== null) {
+                    if (!$completed && $this->complete_at) {
+                        self::assertTaskPlacementLimit($projectId, $columnId, $this->id);
+                        self::assertUserTaskLimit(ProjectTaskUser::whereTaskId($this->id)->pluck('userid')->toArray(), $this->id);
+                    }
                     $this->completeTask($completed ? Carbon::now(): null);
                 }
             }
             //
             $this->save();
-        });
+        }, '', $projectLockIds);
         $this->pushMsg('update');
         return true;
     }

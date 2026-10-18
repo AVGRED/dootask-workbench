@@ -269,10 +269,17 @@ class AbstractModel extends Model
     public function updateInstance(array $param)
     {
         foreach ($param AS $k => $v) {
-            if (is_array($v)) {
+            // Arrays are pre-encoded for plain JSON columns, but cast attributes
+            // (for example 'array') must receive the raw value so they are encoded
+            // exactly once.
+            if (is_array($v) && !$this->hasCast($k)) {
                 $v = Base::array2json($v);
             }
-            $this->$k = $v;
+            // setAttribute() instead of $this->$k: Eloquent declares protected
+            // properties that share names with common column names (notably
+            // HasAttributes::$changes), and a direct assignment would silently
+            // write into that property instead of the model attribute.
+            $this->setAttribute($k, $v);
         }
     }
 

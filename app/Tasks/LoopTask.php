@@ -78,6 +78,10 @@ class LoopTask extends AbstractTask
                             $task->flow_item_name = $flowItem->status . "|" . $flowItem->name . "|" . $flowItem->color;
                             if ($flowItem->userids) {
                                 $userids = array_values(array_unique($flowItem->userids));
+                                ProjectTask::assertUserTaskLimit(
+                                    array_merge(ProjectTaskUser::whereTaskId($task->id)->pluck('userid')->toArray(), $userids),
+                                    $task->id
+                                );
                                 foreach ($userids as $uid) {
                                     ProjectTaskUser::updateInsert([
                                         'task_id' => $task->id,

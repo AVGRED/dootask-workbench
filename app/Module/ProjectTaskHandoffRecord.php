@@ -3,6 +3,7 @@
 namespace App\Module;
 
 use App\Models\AbstractModel;
+use App\Models\Project;
 use App\Models\ProjectTask;
 use App\Models\ProjectTaskHandoff;
 use App\Models\ProjectTaskUser;
@@ -46,12 +47,17 @@ class ProjectTaskHandoffRecord
     /**
      * 同一请求、同一任务的嵌套状态与负责人变更合并为一条流转记录。
      */
-    public static function track(ProjectTask $task, string $source, Closure $callback, string $note = '')
+    public static function track(ProjectTask $task, string $source, Closure $callback, string $note = '', array $projectLockIds = [])
     {
         if (self::active($task->id)) {
             return $callback();
         }
-        return AbstractModel::transaction(function () use ($task, $source, $callback, $note) {
+        return AbstractModel::transaction(function () use ($task, $source, $callback, $note, $projectLockIds) {
+            $projectLockIds = array_values(array_unique(array_filter(array_map('intval', $projectLockIds), fn ($id) => $id > 0)));
+            sort($projectLockIds, SORT_NUMERIC);
+            foreach ($projectLockIds as $projectId) {
+                Project::query()->whereKey($projectId)->lockForUpdate()->firstOrFail();
+            }
             $locked = ProjectTask::withTrashed()->whereKey($task->id)->lockForUpdate()->firstOrFail();
             $before = self::snapshot($locked);
             $task->setRawAttributes($locked->getAttributes(), true);

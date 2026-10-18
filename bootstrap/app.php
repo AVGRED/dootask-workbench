@@ -19,9 +19,20 @@ return Application::configure(basePath: $_ENV['APP_BASE_PATH'] ?? dirname(__DIR_
         commands: __DIR__.'/../routes/console.php',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Reject arbitrary Host values before URL generation. APP_URL and its subdomains
+        // are trusted by default; deployments with additional exact aliases can list them
+        // in APP_TRUSTED_HOSTS.
+        $middleware->trustHosts(at: static function (): array {
+            return array_map(
+                static fn (string $host) => '^' . preg_quote(strtolower($host), '/') . '$',
+                config('app.trusted_hosts', [])
+            );
+        });
+
         // PHP（Swoole）只在内网被 nginx 访问，外部无法直连，故信任内网代理。
-        // 只采信 X-Forwarded-Proto：nginx 已用 $the_scheme 覆盖该头（值由 nginx 控制），
+        // 只采信 X-Forwarded-Proto：nginx 已用本机 scheme 或显式 APP_SCHEME 覆盖该头，
         // 据此让 url() 实时跟随 https；host/for 一律不信，避免 Host 注入与 IP 伪造。
+        // Base::getIp() 仍读取 Client-IP/X-Forwarded-For，边缘 nginx 必须清空前者并覆盖后者。
         $middleware->trustProxies(at: '*', headers: Request::HEADER_X_FORWARDED_PROTO);
 
         $middleware->trimStrings(except: [

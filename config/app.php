@@ -54,6 +54,12 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Optional comma-separated exact host aliases accepted in production in addition to APP_URL and its subdomains.
+    'trusted_hosts' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('APP_TRUSTED_HOSTS', ''))
+    ))),
+
     'asset_url' => env('ASSET_URL', null),
 
     /*

@@ -8,6 +8,9 @@ return [
     // 许可证显示开关：设为 'hidden' 时隐藏系统许可证信息（Doo::license）
     'system_license' => env('SYSTEM_LICENSE'),
 
+    // 授权与用户校验 FFI 动态库；容器默认位置，宿主机可按实际安装路径覆盖
+    'library_path' => env('DOOTASK_LIBRARY_PATH', '/usr/lib/doo/doo.so'),
+
     // 移动 APP AI 界面开关：设为 true 时仅在移动 APP 隐藏 AI 相关界面
     'app_ai_hidden' => filter_var(env('APP_AI_HIDDEN', false), FILTER_VALIDATE_BOOLEAN),
 

@@ -26,6 +26,7 @@ use App\Tasks\UnclaimedTaskRemindTask;
 use App\Tasks\TodoRemindTask;
 use App\Tasks\AiTaskLoopTask;
 use App\Tasks\MessageAttachmentBackfillTask;
+use App\Tasks\ProjectMilestoneRemindTask;
 use Hhxsv5\LaravelS\Swoole\Task\Task;
 use App\Module\PatchedAvatar as Avatar;
 
@@ -277,6 +278,8 @@ class IndexController extends InvokeController
         Task::deliver(new UnclaimedTaskRemindTask());
         // 待办提醒
         Task::deliver(new TodoRemindTask());
+        // 项目里程碑提醒
+        Task::deliver(new ProjectMilestoneRemindTask());
         // 关闭会议室
         Task::deliver(new CloseMeetingRoomTask());
         // Manticore Search 同步

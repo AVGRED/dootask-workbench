@@ -25,6 +25,7 @@ class WebSocketDialogMsgTask extends AbstractTask
     protected $ignoreFd;
     protected $msgNotExistRetry = false;    // 推送失败后重试
     protected $silence = false;             // 静默推送（前端不通知、App不推送，如果会话设置了免打扰则强制静默）
+    protected $silentReplay = false;        // 幂等重放只补 WebSocket，不重复触发机器人或 App 推送
     protected $client = [];                 // 客户端信息（版本、语言、平台）
     protected $endPush = [];
     protected $endArray = [];
@@ -73,6 +74,11 @@ class WebSocketDialogMsgTask extends AbstractTask
     public function setSilence(bool $silence): void
     {
         $this->silence = $silence;
+    }
+
+    public function setSilentReplay(bool $silentReplay): void
+    {
+        $this->silentReplay = $silentReplay;
     }
 
     public function start()
@@ -140,7 +146,7 @@ class WebSocketDialogMsgTask extends AbstractTask
                 ];
                 // 机器人收到消处理
                 $botUser = User::whereUserid($userid)->whereBot(1)->first();
-                if ($botUser) {  // 避免机器人处理自己发送的消息
+                if ($botUser && !$this->silentReplay) {  // 避免机器人处理自己发送的消息
                     $this->endArray[] = new BotReceiveMsgTask($botUser->userid, $msg->id, $mentions, $this->client);
                 }
             }
@@ -186,7 +192,7 @@ class WebSocketDialogMsgTask extends AbstractTask
             }
         }
         // umeng推送app
-        if ($umengUserid) {
+        if ($umengUserid && !$this->silentReplay) {
             $setting = Base::setting('appPushSetting');
             if ($setting['push'] === 'open') {
                 if ($msg->userid == -1) {

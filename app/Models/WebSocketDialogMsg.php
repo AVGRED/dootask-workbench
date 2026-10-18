@@ -14,12 +14,14 @@ use App\Tasks\WebSocketDialogMsgTask;
 use App\Services\MessageAttachmentService;
 use Hhxsv5\LaravelS\Swoole\Task\Task;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\QueryException;
 
 /**
  * App\Models\WebSocketDialogMsg
  *
  * @property int $id
  * @property int|null $dialog_id 对话ID
+ * @property string|null $idempotency_key 幂等消息键
  * @property string|null $dialog_type 对话类型
  * @property int|null $session_id 会话ID
  * @property int|null $userid 发送会员ID
@@ -95,6 +97,7 @@ class WebSocketDialogMsg extends AbstractModel
 
     protected $hidden = [
         'key',
+        'idempotency_key',
         'updated_at',
     ];
 
@@ -1375,10 +1378,17 @@ class WebSocketDialogMsg extends AbstractModel
      * @param bool|null $push_silence   推送-静默
      * - type = [text|file|record|meeting]  默认为：false
      * @param string|null $search_key   搜索关键词（用于搜索，留空则自动生成）
+     * @param string|null $idempotency_key 可选的持久化消息幂等键（64位小写十六进制）
      * @return array
      */
-    public static function sendMsg($action, $dialog_id, $type, $msg, $sender = null, $push_self = false, $push_retry = false, $push_silence = null, $search_key = null)
+    public static function sendMsg($action, $dialog_id, $type, $msg, $sender = null, $push_self = false, $push_retry = false, $push_silence = null, $search_key = null, $idempotency_key = null)
     {
+        if ($idempotency_key !== null && (!is_string($idempotency_key) || !preg_match('/^[a-f0-9]{64}$/', $idempotency_key))) {
+            throw new ApiException('参数错误');
+        }
+        if ($idempotency_key !== null && $action !== null) {
+            throw new ApiException('参数错误');
+        }
         $link = 0;
         $mtype = $type;
         if ($type === 'text') {
@@ -1437,6 +1447,16 @@ class WebSocketDialogMsg extends AbstractModel
         $dialog = WebSocketDialog::find($dialog_id);
         if (empty($dialog)) {
             throw new ApiException('获取会话失败');
+        }
+        if ($idempotency_key !== null) {
+            $existing = self::withTrashed()->where('idempotency_key', $idempotency_key)->first();
+            if ($existing) {
+                if (!self::matchesIdempotentMessage($existing, (int)$dialog_id, $type, (int)$sender, $msg)) {
+                    throw new ApiException('参数错误');
+                }
+                self::redeliverIdempotentMessage($existing);
+                return Base::retSuccess('发送成功', $existing);
+            }
         }
         if ($sender > 0) {
             $dialog->checkMute($sender);
@@ -1514,6 +1534,7 @@ class WebSocketDialogMsg extends AbstractModel
             //
             $dialogMsg = self::createInstance([
                 'dialog_id' => $dialog_id,
+                'idempotency_key' => $idempotency_key,
                 'dialog_type' => $dialog->type,
                 'session_id' => $dialog->session_id,
                 'reply_id' => $reply_id,
@@ -1526,26 +1547,43 @@ class WebSocketDialogMsg extends AbstractModel
                 'msg' => $msg,
                 'read' => 0,
             ]);
-            AbstractModel::transaction(function () use ($search_key, $dialogMsg) {
-                $dialogMsg->send = 1;
-                $dialogMsg->generateKeyAndSave($search_key);
-                //
-                WebSocketDialogSession::updateTitle($dialogMsg->session_id, $dialogMsg);
-                //
-                if ($dialogMsg->type === 'meeting') {
-                    MeetingMsg::createInstance([
-                        'meetingid' => $dialogMsg->msg['meetingid'],
-                        'dialog_id' => $dialogMsg->dialog_id,
-                        'msg_id' => $dialogMsg->id,
-                    ])->save();
+            try {
+                AbstractModel::transaction(function () use ($search_key, $dialogMsg) {
+                    $dialogMsg->send = 1;
+                    $dialogMsg->generateKeyAndSave($search_key);
+                    //
+                    WebSocketDialogSession::updateTitle($dialogMsg->session_id, $dialogMsg);
+                    //
+                    if ($dialogMsg->type === 'meeting') {
+                        MeetingMsg::createInstance([
+                            'meetingid' => $dialogMsg->msg['meetingid'],
+                            'dialog_id' => $dialogMsg->dialog_id,
+                            'msg_id' => $dialogMsg->id,
+                        ])->save();
+                    }
+                    //
+                    WebSocketDialogUser::whereDialogId($dialogMsg->dialog_id)->change([
+                        'hide' => 0,    // 有新消息时，显示会话（会话内所有会员）
+                        'last_at' => Carbon::now(),
+                        'updated_at' => Carbon::now()->toDateTimeString('millisecond'),
+                    ]);
+                });
+            } catch (QueryException $e) {
+                // Only accept a portable unique-key conflict when the matching
+                // idempotency row exists and its request payload is identical.
+                $errorInfo = $e->errorInfo ?? [];
+                if ($idempotency_key !== null && in_array((string)($errorInfo[0] ?? ''), ['23000', '23505'], true)) {
+                    $existing = self::withTrashed()->where('idempotency_key', $idempotency_key)->first();
+                    if ($existing) {
+                        if (!self::matchesIdempotentMessage($existing, (int)$dialog_id, $type, (int)$sender, $msg)) {
+                            throw new ApiException('参数错误');
+                        }
+                        self::redeliverIdempotentMessage($existing);
+                        return Base::retSuccess('发送成功', $existing);
+                    }
                 }
-                //
-                WebSocketDialogUser::whereDialogId($dialogMsg->dialog_id)->change([
-                    'hide' => 0,    // 有新消息时，显示会话（会话内所有会员）
-                    'last_at' => Carbon::now(),
-                    'updated_at' => Carbon::now()->toDateTimeString('millisecond'),
-                ]);
-            });
+                throw $e;
+            }
             MessageAttachmentService::syncSafely($dialogMsg);
             ProjectTaskRelation::recordMentionsFromMessage($dialogMsg);
             //
@@ -1559,10 +1597,61 @@ class WebSocketDialogMsg extends AbstractModel
             if ($push_silence) {
                 $task->setSilence($push_silence);
             }
-            Task::deliver($task);
+            $taskDelivered = Task::deliver($task);
+            if ($idempotency_key !== null && !$taskDelivered) {
+                throw new ApiException('消息投递任务未能接收');
+            }
             //
             return Base::retSuccess('发送成功', $dialogMsg);
         }
+    }
+
+    private static function matchesIdempotentMessage(self $existing, int $dialogId, string $type, int $sender, array $message): bool
+    {
+        if ((int)$existing->dialog_id !== $dialogId || $existing->type !== $type || (int)$existing->userid !== $sender) {
+            return false;
+        }
+
+        $storedMessage = Base::json2array($existing->getRawOriginal('msg'));
+        return hash_equals(
+            self::idempotencyPayloadHash($storedMessage),
+            self::idempotencyPayloadHash($message)
+        );
+    }
+
+    private static function redeliverIdempotentMessage(self $message): void
+    {
+        if ($message->trashed()) {
+            return;
+        }
+        $task = new WebSocketDialogMsgTask((int)$message->id);
+        $task->setSilence(true);
+        $task->setSilentReplay(true);
+        if (!Task::deliver($task)) {
+            throw new ApiException('消息投递任务未能接收');
+        }
+    }
+
+    private static function idempotencyPayloadHash(array $message): string
+    {
+        $canonicalMessage = self::canonicalizeIdempotencyValue($message);
+        return hash('sha256', json_encode(
+            $canonicalMessage,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        ));
+    }
+
+    private static function canonicalizeIdempotencyValue(array $value): array
+    {
+        if (!array_is_list($value)) {
+            ksort($value);
+        }
+        foreach ($value as $key => $item) {
+            if (is_array($item)) {
+                $value[$key] = self::canonicalizeIdempotencyValue($item);
+            }
+        }
+        return $value;
     }
 
     /**

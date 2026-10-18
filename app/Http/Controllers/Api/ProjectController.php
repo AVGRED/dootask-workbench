@@ -22,6 +22,7 @@ use App\Module\BillExport;
 use App\Models\FileContent;
 use App\Models\ProjectFlow;
 use App\Models\ProjectTask;
+use App\Models\ProjectMilestone;
 use App\Models\ProjectUser;
 use Illuminate\Support\Arr;
 use App\Models\AbstractModel;
@@ -42,6 +43,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\ProjectTaskFlowChange;
 use App\Models\ProjectTaskVisibilityUser;
 use App\Models\ProjectTaskTemplate;
+use App\Models\ProjectTaskTemplateRevision;
 use App\Models\ProjectTag;
 use App\Models\ProjectTaskRelation;
 use App\Models\ProjectTaskAiEvent;
@@ -311,6 +313,12 @@ class ProjectController extends AbstractController
      * @apiParam {String} [ai_auto_analyze] AI自动分析（open|close）
      * @apiParam {String} [task_template_share] 共享模板（open|close）
      * @apiParam {String} [department_owner_view] 部门负责人视角可见（open|close）
+     * @apiParam {String} [task_dependency] 任务依赖（open|close，默认开启）
+     * @apiParam {String} [task_schedule_mode] 自动排期模式（manual|automatic）
+     * @apiParam {Array} [task_schedule_workdays] 工作日（ISO weekday 1-7）
+     * @apiParam {Array} [task_schedule_holidays] 非工作日例外（YYYY-MM-DD，最多366天）
+     * @apiParam {String} [task_schedule_timezone] 排期时区
+     * @apiParam {Number} [task_schedule_buffer_days] 依赖缓冲工作日（0-30）
      *
      * @apiSuccess {Number} ret     返回状态码（1正确、0错误）
      * @apiSuccess {String} msg     返回信息（错误描述）
@@ -328,6 +336,13 @@ class ProjectController extends AbstractController
         $ai_auto_analyze = Request::input('ai_auto_analyze');
         $task_template_share = Request::input('task_template_share');
         $department_owner_view = Request::input('department_owner_view');
+        $task_dependency = Request::input('task_dependency');
+        $task_schedule_mode = Request::input('task_schedule_mode');
+        $task_schedule_workdays = Request::input('task_schedule_workdays');
+        $task_schedule_holidays = Request::input('task_schedule_holidays');
+        $hasScheduleHolidays = Request::has('task_schedule_holidays');
+        $task_schedule_timezone = Request::input('task_schedule_timezone');
+        $task_schedule_buffer_days = Request::input('task_schedule_buffer_days');
         if (mb_strlen($name) < 2) {
             return Base::retError('项目名称不可以少于2个字');
         } elseif (mb_strlen($name) > 32) {
@@ -341,9 +356,60 @@ class ProjectController extends AbstractController
                 return Base::retError('自动归档天数设置错误，范围：1-365');
             }
         }
+        $hasScheduleSettings = Request::has('task_schedule_mode')
+            || Request::has('task_schedule_workdays')
+            || $hasScheduleHolidays
+            || Request::has('task_schedule_timezone')
+            || Request::has('task_schedule_buffer_days');
+        if ($hasScheduleSettings) {
+            $bufferDays = filter_var($task_schedule_buffer_days, FILTER_VALIDATE_INT);
+            if (!in_array($task_schedule_mode, ['manual', 'automatic'], true)
+                || !is_array($task_schedule_workdays)
+                || !$task_schedule_workdays
+                || !is_string($task_schedule_timezone)
+                || !in_array($task_schedule_timezone, timezone_identifiers_list(), true)
+                || $bufferDays === false
+                || $bufferDays < 0
+                || $bufferDays > 30) {
+                return Base::retError('排期规则格式无效');
+            }
+            $normalizedWorkdays = [];
+            foreach ($task_schedule_workdays as $day) {
+                $day = filter_var($day, FILTER_VALIDATE_INT);
+                if ($day === false || $day < 1 || $day > 7) return Base::retError('排期规则格式无效');
+                $normalizedWorkdays[] = (int)$day;
+            }
+            $task_schedule_workdays = array_values(array_unique($normalizedWorkdays));
+            sort($task_schedule_workdays);
+            if ($hasScheduleHolidays) {
+                if (!is_array($task_schedule_holidays) || count($task_schedule_holidays) > 366) {
+                    return Base::retError('节假日格式无效');
+                }
+                $normalizedHolidays = [];
+                foreach ($task_schedule_holidays as $holiday) {
+                    if (!is_string($holiday) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $holiday)) {
+                        return Base::retError('节假日日期格式无效');
+                    }
+                    try {
+                        $parsedHoliday = Carbon::createFromFormat('!Y-m-d', $holiday, 'UTC');
+                    } catch (\Throwable $e) {
+                        $parsedHoliday = false;
+                    }
+                    if (!$parsedHoliday || $parsedHoliday->format('Y-m-d') !== $holiday) {
+                        return Base::retError('节假日日期格式无效');
+                    }
+                    $normalizedHolidays[] = $holiday;
+                }
+                $task_schedule_holidays = array_values(array_unique($normalizedHolidays));
+                sort($task_schedule_holidays);
+            }
+        }
         //
         $project = Project::userProject($project_id, true, true);
-        AbstractModel::transaction(function () use ($archive_days, $archive_method, $ai_auto_analyze, $task_template_share, $department_owner_view, $desc, $name, $project) {
+        $projectChanged = false;
+        AbstractModel::transaction(function () use ($archive_days, $archive_method, $ai_auto_analyze, $task_template_share, $department_owner_view, $task_dependency, $task_schedule_mode, $task_schedule_workdays, $task_schedule_holidays, $hasScheduleHolidays, $task_schedule_timezone, $task_schedule_buffer_days, $desc, $name, $project, &$projectChanged) {
+            Project::query()->whereKey($project->id)->lockForUpdate()->firstOrFail();
+            $project = Project::userProject($project->id, true, true);
             if ($project->name != $name) {
                 $project->addLog("修改项目名称", [
                     'change' => [$project->name, $name]
@@ -387,9 +453,69 @@ class ProjectController extends AbstractController
                 ]);
                 $project->department_owner_view = $department_owner_view;
             }
-            $project->save();
+            if (in_array($task_dependency, ['open', 'close'], true) && $project->task_dependency != $task_dependency) {
+                $project->addLog("修改任务依赖功能", [
+                    'change' => [$project->task_dependency ?: 'open', $task_dependency]
+                ]);
+                $project->task_dependency = $task_dependency;
+            }
+            if (in_array($task_schedule_mode, ['manual', 'automatic'], true)
+                && ($project->task_schedule_mode !== $task_schedule_mode
+                    || Base::json2array($project->task_schedule_workdays) !== $task_schedule_workdays
+                    || ($hasScheduleHolidays && Base::json2array($project->task_schedule_holidays) !== $task_schedule_holidays)
+                    || $project->task_schedule_timezone !== $task_schedule_timezone
+                    || (int)$project->task_schedule_buffer_days !== (int)$task_schedule_buffer_days)) {
+                $currentWorkdays = Base::json2array($project->task_schedule_workdays);
+                $currentWorkdays = is_array($currentWorkdays) ? $currentWorkdays : [];
+                $currentHolidays = Base::json2array($project->task_schedule_holidays);
+                $currentHolidays = is_array($currentHolidays) ? $currentHolidays : [];
+                $currentSchedule = [
+                    'mode' => $project->task_schedule_mode ?: 'manual',
+                    'workdays' => $currentWorkdays,
+                    'holidays' => $currentHolidays,
+                    'timezone' => $project->task_schedule_timezone,
+                    'buffer_days' => (int)$project->task_schedule_buffer_days,
+                ];
+                $nextSchedule = [
+                    'mode' => $task_schedule_mode,
+                    'workdays' => $task_schedule_workdays,
+                    'holidays' => $hasScheduleHolidays ? $task_schedule_holidays : $currentHolidays,
+                    'timezone' => $task_schedule_timezone,
+                    'buffer_days' => (int)$task_schedule_buffer_days,
+                ];
+                $project->addLog('修改项目排期规则', [
+                    'before' => $currentSchedule,
+                    'after' => $nextSchedule,
+                    'change' => [
+                        ['type' => 'value', 'data' => $currentSchedule['mode'] . ' → ' . $task_schedule_mode],
+                        ['type' => 'value', 'data' => implode(',', $currentWorkdays) . ' → ' . implode(',', $task_schedule_workdays)],
+                        ['type' => 'value', 'data' => count($currentHolidays) . ' → ' . count($nextSchedule['holidays']) . ' holidays'],
+                        ['type' => 'value', 'data' => ($currentSchedule['timezone'] ?: '—') . ' → ' . $task_schedule_timezone],
+                        ['type' => 'value', 'data' => $currentSchedule['buffer_days'] . ' → ' . (int)$task_schedule_buffer_days . ' workdays'],
+                    ],
+                ]);
+                $project->task_schedule_mode = $task_schedule_mode;
+                $project->task_schedule_workdays = json_encode($task_schedule_workdays);
+                if ($hasScheduleHolidays) {
+                    $project->task_schedule_holidays = json_encode($task_schedule_holidays);
+                }
+                $project->task_schedule_timezone = $task_schedule_timezone;
+                $project->task_schedule_buffer_days = (int)$task_schedule_buffer_days;
+                $project->task_schedule_revision = max(1, (int)$project->task_schedule_revision) + 1;
+            }
+            $projectChanged = $project->isDirty();
+            if ($projectChanged) {
+                $project->save();
+            }
         });
-        $project->pushMsg('update');
+        $project->refresh();
+        if ($projectChanged) {
+            try {
+                $project->pushMsg('update');
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
         //
         return Base::retSuccess('修改成功', $project);
     }
@@ -853,9 +979,12 @@ class ProjectController extends AbstractController
                         'column_id' => $item['id'],
                         'sort' => $index
                     ])) {
-                        ProjectTask::whereParentId($task_id)->whereProjectId($project->id)->change([
-                            'column_id' => $item['id'],
-                        ]);
+                        $descendantIds = $task?->subTaskDescendants()->pluck('id')->all() ?? [];
+                        if ($descendantIds) {
+                            ProjectTask::whereIn('id', $descendantIds)->whereProjectId($project->id)->change([
+                                'column_id' => $item['id'],
+                            ]);
+                        }
                     }
                     $index++;
                 }
@@ -1204,6 +1333,7 @@ class ProjectController extends AbstractController
      *
      * @apiParam {Number} [project_id]       项目ID（传入后只查询该项目内任务）
      * @apiParam {Number} [parent_id]        主任务ID（查询优先级最高）
+     * @apiParam {Number} [recursive]        parent_id 查询是否包含所有层级后代（1/0）
      * - 大于0：只查该主任务下的子任务（此时 archived 强制 all，忽略 project_id/scope）
      * - 等于-1：仅主任务（可与 project_id 组合）
      * @apiParam {String} [scope]            查询范围（仅在未指定 project_id 且 parent_id ≤ 0 时生效）
@@ -1248,6 +1378,7 @@ class ProjectController extends AbstractController
         $departmentView = UserDepartment::ownerViewContext($user, true);
         //
         $parent_id = intval(Request::input('parent_id'));
+        $recursive = Request::boolean('recursive');
         $project_id = intval(Request::input('project_id'));
         $name = Request::input('name');
         $time = Request::input('time');
@@ -1310,10 +1441,15 @@ class ProjectController extends AbstractController
         if ($parent_id > 0) {
             $isArchived = str_replace(['all', 'yes', 'no'], [null, false, true], $archived);
             $isDeleted = str_replace(['all', 'yes', 'no'], [null, false, true], $deleted);
-            ProjectTask::findForDepartmentView($parent_id, $isArchived, $isDeleted);
+            $parentTask = ProjectTask::findForDepartmentView($parent_id, $isArchived, $isDeleted);
             $scopeAll = true;
             $archived = 'all';
-            $builder->where('project_tasks.parent_id', $parent_id);
+            if ($recursive) {
+                $descendantIds = $parentTask->subTaskDescendants()->pluck('id')->all();
+                $builder->whereIn('project_tasks.id', $descendantIds);
+            } else {
+                $builder->where('project_tasks.parent_id', $parent_id);
+            }
         } elseif ($parent_id === -1) {
             $builder->where('project_tasks.parent_id', 0);
         }
@@ -1409,16 +1545,39 @@ class ProjectController extends AbstractController
             $query->on('project_task_visibility_users.task_id', '=', 'project_tasks.id');
             $query->where('project_task_visibility_users.userid', $userid);
         });
-        $builder->leftJoin('project_task_visibility_users as project_sub_task_visibility_users', function ($query) use($userid) {
-            $query->on('project_sub_task_visibility_users.task_id', '=', 'project_tasks.parent_id');
-            $query->where('project_sub_task_visibility_users.userid', $userid);
-        });
         $builder->where(function ($query) use ($userid) {
             $query->where("project_tasks.visibility", 1);
             $query->orWhere("project_users.userid", $userid);
             $query->orWhere("project_task_users.userid", $userid);
             $query->orWhere("project_task_visibility_users.userid", $userid);
-            $query->orWhere("project_sub_task_visibility_users.userid", $userid);
+            for ($depth = 1; $depth <= 5; $depth++) {
+                $query->orWhereExists(function ($ancestorQuery) use ($userid, $depth) {
+                    $parentAlias = 'project_task_ancestor_1';
+                    $ancestorQuery->selectRaw('1')->from('project_tasks as ' . $parentAlias);
+                    for ($level = 2; $level <= $depth; $level++) {
+                        $nextParentAlias = 'project_task_ancestor_' . $level;
+                        $ancestorQuery->join('project_tasks as ' . $nextParentAlias, $nextParentAlias . '.id', '=', $parentAlias . '.parent_id');
+                        $parentAlias = $nextParentAlias;
+                    }
+                    $ancestorQuery->whereColumn('project_task_ancestor_1.id', 'project_tasks.parent_id');
+                    for ($level = 1; $level <= $depth; $level++) {
+                        $ancestorAlias = 'project_task_ancestor_' . $level;
+                        $ancestorQuery->whereColumn($ancestorAlias . '.project_id', 'project_tasks.project_id')
+                            ->whereNull($ancestorAlias . '.deleted_at');
+                    }
+                    $ancestorQuery->where(function ($memberQuery) use ($userid, $parentAlias) {
+                            $memberQuery->whereExists(function ($taskUserQuery) use ($userid, $parentAlias) {
+                                $taskUserQuery->selectRaw('1')->from('project_task_users')
+                                    ->whereColumn('project_task_users.task_id', $parentAlias . '.id')
+                                    ->where('project_task_users.userid', $userid);
+                            })->orWhereExists(function ($visibilityQuery) use ($userid, $parentAlias) {
+                                $visibilityQuery->selectRaw('1')->from('project_task_visibility_users')
+                                    ->whereColumn('project_task_visibility_users.task_id', $parentAlias . '.id')
+                                    ->where('project_task_visibility_users.userid', $userid);
+                            });
+                        });
+                });
+            }
         });
         // 优化子查询汇总
         $builder->leftJoinSub(function ($query) {
@@ -2708,8 +2867,12 @@ class ProjectController extends AbstractController
      * @apiParam {String} name                  任务描述
      * @apiParam {String} [content]             任务详情
      * @apiParam {Array} [times]                计划时间（格式：开始时间,结束时间；如：2020-01-01 00:00,2020-01-01 23:59）
+     * @apiParam {String} [milestone_name]      关联项目里程碑名称（跨项目模板按目标项目同名里程碑匹配）
+     * @apiParam {Number} [estimated_minutes]   任务预估工时，单位分钟
      * @apiParam {Number} [owner]               负责人
-     * @apiParam {Array} [subtasks]             子任务（格式：[{name,owner,times}]）
+     * @apiParam {Array} [subtasks]             子任务（格式：[{name,owner,times,subtasks}]，最多50项、5层）
+     * @apiParam {Number} [template_id]         用于记录任务来源的模板ID
+     * @apiParam {Number} [template_version]    套用时读取到的模板版本；模板更新后拒绝使用旧表单
      * @apiParam {Number} [top]                 添加的任务排到列表最前面
      *
      * @apiSuccess {Number} ret     返回状态码（1正确、0错误）
@@ -2721,8 +2884,43 @@ class ProjectController extends AbstractController
         $user = User::auth();
         //
         $data = Request::input();
-        $project_id = intval($data['project_id']);
-        $column_id = $data['column_id'];
+        unset($data['template_source']); // 来源快照只能由服务端权限检查后生成
+        $subtaskCount = 0;
+        $subtaskError = null;
+        $validateSubtaskTree = function ($items, $depth = 1) use (&$validateSubtaskTree, &$subtaskCount, &$subtaskError) {
+            if (!is_array($items) || $depth > 5) {
+                $subtaskError = '子任务格式错误';
+                return;
+            }
+            foreach ($items as $item) {
+                if (!is_array($item) || !is_string($item['name'] ?? null)) {
+                    $subtaskError = '子任务格式错误';
+                    return;
+                }
+                if (++$subtaskCount > 50) {
+                    $subtaskError = '子任务格式错误，最多可添加50项';
+                    return;
+                }
+                if (!empty($item['subtasks'])) $validateSubtaskTree($item['subtasks'], $depth + 1);
+                if ($subtaskError) return;
+            }
+        };
+        if (!empty($data['subtasks'])) {
+            $validateSubtaskTree($data['subtasks']);
+            if ($subtaskError) return Base::retError($subtaskError);
+        }
+        $project_id = filter_var($data['project_id'] ?? null, FILTER_VALIDATE_INT);
+        $column_id = $data['column_id'] ?? null;
+        if ($project_id === false || $project_id <= 0
+            || ($column_id !== null && !is_int($column_id) && !is_string($column_id))) {
+            return Base::retError('参数错误');
+        }
+        if (is_string($column_id)) {
+            $column_id = trim($column_id);
+            if (mb_strlen($column_id) > 100) {
+                return Base::retError('参数错误');
+            }
+        }
         // 项目
         $project = Project::userProject($project_id);
         //
@@ -2754,6 +2952,30 @@ class ProjectController extends AbstractController
         if (empty($column)) {
             return Base::retError('任务列表不存在或已被删除');
         }
+        // 仅在当前用户有权使用模板时，将来源版本快照写入新建的主任务
+        $template = null;
+        $templateId = intval($data['template_id'] ?? 0);
+        if ($templateId > 0) {
+            $candidate = ProjectTaskTemplate::find($templateId);
+            if ($candidate) {
+                $isMember = ProjectUser::where('project_id', $candidate->project_id)
+                    ->where('userid', $user->userid)->exists();
+                $shareEnabled = ($project->task_template_share ?: 'open') === 'open';
+                if ($isMember && ($candidate->project_id == $project->id || $shareEnabled)) {
+                    $requestedVersion = filter_var($data['template_version'] ?? null, FILTER_VALIDATE_INT);
+                    if ($requestedVersion !== false && $requestedVersion !== null && $requestedVersion > 0
+                        && $requestedVersion !== max(1, intval($candidate->version))) {
+                        return Base::retError('任务模板已更新，请重新选择模板后再创建任务');
+                    }
+                    $template = $candidate;
+                    $data['template_source'] = [
+                        'id' => intval($candidate->id),
+                        'version' => max(1, intval($candidate->version)),
+                        'name' => $candidate->name,
+                    ];
+                }
+            }
+        }
         //
         $data = ProjectTask::normalizeTimes($data);
         $task = ProjectTask::addTask(array_merge($data, [
@@ -2782,18 +3004,9 @@ class ProjectController extends AbstractController
         $task->pushMsg('add', $data);
         $task->taskPush(null, 0);
 
-        // 应用任务模板使用统计（不影响主流程；非成员、模板已删除或共享模板已关闭时静默忽略）
-        $templateId = intval(Request::input('template_id', 0));
-        if ($templateId > 0) {
-            $tpl = ProjectTaskTemplate::find($templateId);
-            if ($tpl) {
-                $isMember = ProjectUser::where('project_id', $tpl->project_id)
-                    ->where('userid', $user->userid)->exists();
-                $shareEnabled = ($project->task_template_share ?: 'open') === 'open';
-                if ($isMember && ($tpl->project_id == $project->id || $shareEnabled)) {
-                    $tpl->incrementUsage();
-                }
-            }
+        // 应用任务模板使用统计
+        if ($template) {
+            $template->incrementUsage();
         }
 
         return Base::retSuccess('添加成功', $data);
@@ -2877,23 +3090,42 @@ class ProjectController extends AbstractController
         $project = Project::userProject($task->project_id);
         ProjectPermission::userTaskPermission($project, ProjectPermission::TASK_MOVE, $task);
         //
-        $parentTask = ProjectTask::withTrashed()->find($task->parent_id);
-        $visibilityUserids = [];
-        if ($task->visibility == 3) {
-            $visibilityUserids = ProjectTaskVisibilityUser::whereTaskId($task->id)->pluck('userid')->toArray();
-            if (empty($visibilityUserids) && $parentTask) {
-                $visibilityUserids = ProjectTaskVisibilityUser::whereTaskId($parentTask->id)->pluck('userid')->toArray();
-            }
-        }
+        $projectId = (int)$task->project_id;
+        $parentId = (int)$task->parent_id;
+        $parentTask = null;
         //
-        DB::transaction(function () use ($task, $parentTask, $visibilityUserids) {
-            $task->lockForUpdate();
-            $task->parent_id = 0;
-            if ($parentTask) {
-                $task->p_level = $parentTask->p_level;
-                $task->p_name = $parentTask->p_name;
-                $task->p_color = $parentTask->p_color;
+        DB::transaction(function () use ($task, $projectId, $parentId, &$parentTask) {
+            Project::query()->whereKey($projectId)->lockForUpdate()->firstOrFail();
+            $lockedTask = ProjectTask::query()->whereKey($task->id)->lockForUpdate()->firstOrFail();
+            if ((int)$lockedTask->project_id !== $projectId || (int)$lockedTask->parent_id !== $parentId) {
+                throw new ApiException('任务所属项目或父级已变化，请刷新后重试');
             }
+            $task->setRawAttributes($lockedTask->getAttributes(), true);
+            $task->unsetRelations();
+            $authorizedTask = ProjectTask::userTask($task->id);
+            $task->setRawAttributes($authorizedTask->getAttributes(), true);
+            $task->unsetRelations();
+            $project = Project::userProject($projectId);
+            ProjectPermission::userTaskPermission($project, ProjectPermission::TASK_MOVE, $task);
+            $parentTask = ProjectTask::withTrashed()
+                ->where('project_id', $projectId)
+                ->whereKey($parentId)
+                ->lockForUpdate()
+                ->first();
+            if (!$parentTask) {
+                throw new ApiException('子任务格式错误');
+            }
+            $visibilityUserids = [];
+            if ($task->visibility == 3) {
+                $visibilityUserids = ProjectTaskVisibilityUser::whereTaskId($task->id)->pluck('userid')->toArray();
+                if (empty($visibilityUserids)) {
+                    $visibilityUserids = ProjectTaskVisibilityUser::whereTaskId($parentTask->id)->pluck('userid')->toArray();
+                }
+            }
+            $task->parent_id = 0;
+            $task->p_level = $parentTask->p_level;
+            $task->p_name = $parentTask->p_name;
+            $task->p_color = $parentTask->p_color;
             $task->save();
             ProjectTaskUser::whereTaskId($task->id)->update(['task_pid' => $task->id]);
             if ($task->visibility == 3 && !empty($visibilityUserids)) {
@@ -3074,7 +3306,7 @@ class ProjectController extends AbstractController
                 if ($diff) {
                     $task->pushMsgVisibleRemove($diff);
                 }
-                $parentTask = ProjectTask::whereId($task->parent_id)->first();
+                $parentTask = ProjectTask::where('project_id', $task->project_id)->whereId($task->parent_id)->first();
                 $subUserids = ProjectTaskUser::whereTaskPid($task->parent_id)->pluck('userid')->toArray();
                 if ($parentTask && $parentTask->visibility != 1 && empty($subUserids)) {
                     $diff = array_diff($owners, $param['owner'] ?: [], $subUserids);
@@ -3115,8 +3347,18 @@ class ProjectController extends AbstractController
         }
         //
         AbstractModel::transaction(function() use ($task) {
+            $lockedTask = ProjectTask::query()->whereKey($task->id)->lockForUpdate()->firstOrFail();
+            $task->setRawAttributes($lockedTask->getAttributes(), true);
+            $task->unsetRelations();
+            // Re-check visibility and project membership after acquiring the
+            // row lock; a concurrent move or permission change may have won.
+            $authorizedTask = ProjectTask::userTask($task->id);
+            if ((int)$authorizedTask->project_id !== (int)$lockedTask->project_id) {
+                throw new ApiException('任务所属项目已变化，请刷新后重试');
+            }
+            $task->setRawAttributes($authorizedTask->getAttributes(), true);
+            $task->unsetRelations();
             if (empty($task->dialog_id)) {
-                $task->lockForUpdate();
                 $dialog = WebSocketDialog::createGroup($task->name, $task->relationUserids(), 'task');
                 if ($dialog) {
                     $task->dialog_id = $dialog->id;
@@ -3390,7 +3632,7 @@ class ProjectController extends AbstractController
     /**
      * @api {get} api/project/task/move 任务移动
      *
-     * @apiDescription 需要token身份（限：项目、任务负责人）
+     * @apiDescription 需要token身份。同项目移动须有源项目任务移动权限；跨项目移动还须有目标项目添加任务权限。
      * @apiVersion 1.0.0
      * @apiGroup project
      * @apiName task__move
@@ -3429,11 +3671,29 @@ class ProjectController extends AbstractController
         $project = Project::userProject($task->project_id);
         ProjectPermission::userTaskPermission($project, ProjectPermission::TASK_MOVE, $task);
         //
-        if ($task->project_id == $project_id && $task->column_id == $column_id) {
+        $normalizeUserIds = static function (array $userIds): array {
+            $userIds = array_values(array_unique(array_filter(array_map('intval', $userIds), fn ($userid) => $userid > 0)));
+            sort($userIds, SORT_NUMERIC);
+            return $userIds;
+        };
+        $sameFlow = $flow_item_id > 0
+            ? (int)$task->flow_item_id === $flow_item_id
+            : ((int)$task->flow_item_id === 0
+                && ($completed === null || (bool)$task->complete_at === $completed));
+        $sameOwners = $normalizeUserIds($owner) === $normalizeUserIds(
+            ProjectTaskUser::whereTaskId($task_id)->whereOwner(1)->pluck('userid')->all()
+        );
+        $sameAssists = $normalizeUserIds($assist) === $normalizeUserIds(
+            ProjectTaskUser::whereTaskId($task_id)->whereOwner(0)->pluck('userid')->all()
+        );
+        if ($task->project_id == $project_id && $task->column_id == $column_id && $sameFlow && $sameOwners && $sameAssists) {
             return Base::retSuccess('移动成功', ['id' => $task_id]);
         }
         //
         $project = Project::userProject($project_id);
+        if ((int)$task->project_id !== (int)$project->id) {
+            ProjectPermission::userTaskPermission($project, ProjectPermission::TASK_ADD);
+        }
         $column = ProjectColumn::whereProjectId($project->id)->whereId($column_id)->first();
         if (empty($column)) {
             return Base::retError('列表不存在');
@@ -3458,7 +3718,7 @@ class ProjectController extends AbstractController
             $mainTask['project_name'] = Project::whereId($mainTask['project_id'])->value('name');
             $data[] = $mainTask;
             //
-            $subTasks = ProjectTask::whereParentId($task_id)->get();
+            $subTasks = $task->subTaskDescendants();
             foreach ($subTasks as $subTask) {
                 $data[] = [
                     'id' => $subTask->id,
@@ -3549,9 +3809,8 @@ class ProjectController extends AbstractController
         //
         $newTask = AbstractModel::transaction(function () use ($task, $project, $column, $flowItem, $owner, $assist, $completed) {
             /** @var ProjectTask $task */
-            $copy = $task->copyTask();
-            $copy->project_id = $project->id;
-            $copy->column_id = $column->id;
+            $copyWillBeOpen = $flowItem ? $flowItem->status !== 'end' : !$completed;
+            $copy = $task->copyTask($project->id, $column->id, 0, false, $copyWillBeOpen);
             $copy->sort = intval(ProjectTask::whereColumnId($column->id)->orderByDesc('sort')->value('sort')) + 1;
             $copy->flow_item_id = 0;
             $copy->flow_item_name = '';
@@ -3892,7 +4151,7 @@ class ProjectController extends AbstractController
     /**
      * @api {get} api/project/task/template_list 任务模板列表
      *
-     * @apiDescription 需要token身份
+     * @apiDescription 需要token身份，且调用者必须是目标项目成员。
      * @apiVersion 1.0.0
      * @apiGroup project
      * @apiName task__template_list
@@ -3908,9 +4167,10 @@ class ProjectController extends AbstractController
         User::auth();
         //
         $projectId = intval(Request::input('project_id'));
-        if (!$projectId) {
+        if ($projectId <= 0) {
             return Base::retError('参数错误');
         }
+        Project::userProject($projectId);
         $templates = ProjectTaskTemplate::where('project_id', $projectId)
             ->orderBy('sort')
             ->orderByDesc('id')
@@ -3926,11 +4186,11 @@ class ProjectController extends AbstractController
      * @apiGroup project
      * @apiName task__template_visible
      *
-     * @apiParam {Number} [current_project_id]  当前项目 ID（用于排序优先；可空）
+     * @apiParam {Number} [current_project_id]  当前项目 ID（调用者须是项目成员；用于排序优先；可空）
      *
      * @apiSuccess {Number} ret  返回状态码（1 正确、0 错误）
      * @apiSuccess {String} msg  返回信息
-     * @apiSuccess {Object[]} data 模板列表，每条包含 project_id, project_name, name, title, content, sort, is_default, userid, use_count, last_used_at
+     * @apiSuccess {Object[]} data 模板列表，每条包含 project_id, project_name, name, title, content, milestone_name, subtasks, version, sort, is_default, userid, use_count, last_used_at, updated_at
      */
     public function task__template_visible()
     {
@@ -3938,7 +4198,7 @@ class ProjectController extends AbstractController
         $currentProjectId = intval(Request::input('current_project_id', 0));
 
         $projectIds = ProjectUser::where('userid', $user->userid)->pluck('project_id');
-        $currentProject = $currentProjectId > 0 ? Project::find($currentProjectId) : null;
+        $currentProject = $currentProjectId > 0 ? Project::userProject($currentProjectId) : null;
         if ($currentProject && ($currentProject->task_template_share ?: 'open') === 'close') {
             $projectIds = collect($projectIds)->filter(fn($id) => intval($id) === $currentProjectId)->values();
         }
@@ -3947,7 +4207,7 @@ class ProjectController extends AbstractController
             ->whereIn('project_id', $projectIds)
             ->orderByRaw('project_id = ? DESC', [$currentProjectId])
             ->orderBy('sort')
-            ->orderBy('id')
+            ->orderByDesc('id')
             ->get()
             ->map(function ($tpl) {
                 return [
@@ -3957,11 +4217,16 @@ class ProjectController extends AbstractController
                     'name' => $tpl->name,
                     'title' => $tpl->title,
                     'content' => $tpl->content,
+                    'milestone_name' => $tpl->milestone_name,
+                    'estimated_minutes' => $tpl->estimated_minutes,
+                    'subtasks' => $tpl->subtasks ?: [],
+                    'version' => max(1, intval($tpl->version)),
                     'sort' => $tpl->sort,
                     'is_default' => $tpl->is_default,
                     'userid' => $tpl->userid,
                     'use_count' => $tpl->use_count,
                     'last_used_at' => $tpl->last_used_at,
+                    'updated_at' => $tpl->updated_at,
                 ];
             });
 
@@ -3977,12 +4242,12 @@ class ProjectController extends AbstractController
      * @apiName task__template_search
      *
      * @apiParam {String} [keyword]    关键字（在 name/title/content 上模糊匹配）
-     * @apiParam {Number} [current_project_id] 当前项目 ID（共享模板关闭时仅返回本项目模板）
+     * @apiParam {Number} [current_project_id] 当前项目 ID（调用者须是项目成员；共享模板关闭时仅返回本项目模板）
      * @apiParam {Number} [page=1]     页码
      * @apiParam {Number} [page_size=20] 每页条数（最大 50）
      *
      * @apiSuccess {Number} ret       返回状态码
-     * @apiSuccess {Object} data      含 total / page / page_size / items
+     * @apiSuccess {Object} data      含 total / page / page_size / items；item包含milestone_name、estimated_minutes、subtasks、version和updated_at
      */
     public function task__template_search()
     {
@@ -3993,7 +4258,7 @@ class ProjectController extends AbstractController
         $pageSize = min(50, max(1, intval(Request::input('page_size', 20))));
 
         $projectIds = ProjectUser::where('userid', $user->userid)->pluck('project_id');
-        $currentProject = $currentProjectId > 0 ? Project::find($currentProjectId) : null;
+        $currentProject = $currentProjectId > 0 ? Project::userProject($currentProjectId) : null;
         if ($currentProject && ($currentProject->task_template_share ?: 'open') === 'close') {
             $projectIds = collect($projectIds)->filter(fn($id) => intval($id) === $currentProjectId)->values();
         }
@@ -4014,6 +4279,7 @@ class ProjectController extends AbstractController
         $items = $q->orderByDesc('use_count')
             ->orderByDesc('last_used_at')
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->forPage($page, $pageSize)
             ->get()
             ->map(function ($tpl) {
@@ -4024,10 +4290,15 @@ class ProjectController extends AbstractController
                     'name' => $tpl->name,
                     'title' => $tpl->title,
                     'content' => $tpl->content,
+                    'milestone_name' => $tpl->milestone_name,
+                    'estimated_minutes' => $tpl->estimated_minutes,
+                    'subtasks' => $tpl->subtasks ?: [],
+                    'version' => max(1, intval($tpl->version)),
                     'use_count' => $tpl->use_count,
                     'userid' => $tpl->userid,
                     'user_name' => $tpl->user->nickname ?? '',
                     'last_used_at' => $tpl->last_used_at,
+                    'updated_at' => $tpl->updated_at,
                 ];
             });
 
@@ -4052,6 +4323,9 @@ class ProjectController extends AbstractController
      * @apiParam {String} name                      模板名称
      * @apiParam {String} title                     任务标题
      * @apiParam {String} content                   任务内容
+     * @apiParam {Object[]} [subtasks]               子任务模板树，最多50项、5层，支持里程碑、负责人策略和相对父任务开始日期的偏移
+     * @apiParam {String} [milestone_name]           主任务默认关联的项目里程碑名称
+     * @apiParam {Number} [estimated_minutes]         主任务预估工时，单位分钟
      *
      * @apiSuccess {Number} ret     返回状态码（1正确、0错误）
      * @apiSuccess {String} msg     返回信息（错误描述）
@@ -4065,12 +4339,132 @@ class ProjectController extends AbstractController
         if (!$projectId) {
             return Base::retError('参数错误');
         }
-        Project::userProject($projectId, true, true);
+        $project = Project::userProject($projectId, true, true);
         //
         $id = intval(Request::input('id', 0));
         $name = trim(Request::input('name', ''));
         $title = trim(Request::input('title', ''));
         $content = trim(Request::input('content', ''));
+        $rawMilestoneName = Request::input('milestone_name', '');
+        $estimatedMinutes = Request::input('estimated_minutes');
+        if ($rawMilestoneName === null) $rawMilestoneName = '';
+        if (!is_string($rawMilestoneName)) return Base::retError('模板里程碑格式错误');
+        $milestoneName = trim($rawMilestoneName);
+        if ($estimatedMinutes !== null && $estimatedMinutes !== '') {
+            $estimatedMinutes = filter_var($estimatedMinutes, FILTER_VALIDATE_INT);
+            if ($estimatedMinutes === false || $estimatedMinutes < 0 || $estimatedMinutes > 1000000) return Base::retError('预估工时须为 0 至 1000000 分钟');
+        } else {
+            $estimatedMinutes = null;
+        }
+        $hasSubtasks = Request::has('subtasks');
+        $subtasks = Request::input('subtasks', []);
+        $normalizedSubtasks = [];
+        if ($hasSubtasks) {
+            if (!is_array($subtasks)) return Base::retError('子任务格式错误');
+            $subtaskCount = 0;
+            $subtaskError = null;
+            $normalizeSubtasks = function ($items, $depth = 1) use (&$normalizeSubtasks, &$subtaskCount, &$subtaskError) {
+                if (!is_array($items) || $depth > 5) {
+                    $subtaskError = '子任务格式错误';
+                    return [];
+                }
+                $normalized = [];
+                foreach ($items as $subtask) {
+                    if (is_string($subtask)) $subtask = ['name' => $subtask];
+                    if (!is_array($subtask) || !is_string($subtask['name'] ?? null)) {
+                        $subtaskError = '子任务格式错误';
+                        return [];
+                    }
+                    $subtaskName = trim($subtask['name']);
+                    if ($subtaskName === '') continue;
+                    if (mb_strlen($subtaskName) > 255) {
+                        $subtaskError = '子任务名称最多255个字符';
+                        return [];
+                    }
+                    if (++$subtaskCount > 50) {
+                        $subtaskError = '子任务格式错误，最多可添加50项';
+                        return [];
+                    }
+                    $ownerStrategy = $subtask['owner_strategy'] ?? 'current';
+                    if (!in_array($ownerStrategy, ['current', 'parent'], true)) {
+                        $subtaskError = '子任务格式错误';
+                        return [];
+                    }
+                    $startOffset = $subtask['start_offset_days'] ?? null;
+                    $endOffset = $subtask['end_offset_days'] ?? null;
+                    $startOffset = $startOffset === '' ? null : $startOffset;
+                    $endOffset = $endOffset === '' ? null : $endOffset;
+                    if (($startOffset === null) !== ($endOffset === null)) {
+                        $subtaskError = '子任务格式错误';
+                        return [];
+                    }
+                    if ($startOffset !== null || $endOffset !== null) {
+                        if (!is_numeric($startOffset) || !is_numeric($endOffset) ||
+                            intval($startOffset) != $startOffset || intval($endOffset) != $endOffset ||
+                            intval($startOffset) < 0 || intval($endOffset) < intval($startOffset) || intval($endOffset) > 3650) {
+                            $subtaskError = '子任务格式错误';
+                            return [];
+                        }
+                        $startOffset = intval($startOffset);
+                        $endOffset = intval($endOffset);
+                    }
+                    $children = $subtask['children'] ?? [];
+                    $subtaskMilestone = $subtask['milestone_name'] ?? '';
+                    if (!is_string($subtaskMilestone)) {
+                        $subtaskError = '子任务格式错误';
+                        return [];
+                    }
+                    $subtaskMilestone = trim($subtaskMilestone);
+                    $normalized[] = [
+                        'name' => $subtaskName,
+                        'milestone_name' => $subtaskMilestone ?: null,
+                        'owner_strategy' => $ownerStrategy,
+                        'start_offset_days' => $startOffset,
+                        'end_offset_days' => $endOffset,
+                        'children' => $normalizeSubtasks($children, $depth + 1),
+                    ];
+                    if ($subtaskError) return [];
+                }
+                return $normalized;
+            };
+            $normalizedSubtasks = $normalizeSubtasks($subtasks);
+            if ($subtaskError) return Base::retError($subtaskError);
+        }
+        $collectTemplateMilestones = function ($mainName, $items) {
+            $names = is_string($mainName) && trim($mainName) !== '' ? [trim($mainName)] : [];
+            $collectChildren = function ($children) use (&$collectChildren, &$names) {
+                if (!is_array($children)) return;
+                foreach ($children as $item) {
+                    if (!is_array($item)) continue;
+                    if (is_string($item['milestone_name'] ?? null) && trim($item['milestone_name']) !== '') {
+                        $names[] = trim($item['milestone_name']);
+                    }
+                    $collectChildren($item['children'] ?? []);
+                }
+            };
+            $collectChildren(is_array($items) ? $items : []);
+            return array_values(array_unique($names));
+        };
+        $milestoneNames = $collectTemplateMilestones($milestoneName, $normalizedSubtasks);
+        $validateTemplateMilestones = function (array $milestoneNames) use ($projectId) {
+            if (!$milestoneNames) return null;
+            $validMilestoneNames = ProjectMilestone::where('project_id', $projectId)
+                ->whereIn('name', $milestoneNames)
+                ->pluck('name')->unique()->all();
+            if (array_diff($milestoneNames, $validMilestoneNames)) {
+                return '模板引用的里程碑不存在，请刷新后重试';
+            }
+            $duplicateMilestoneNames = ProjectMilestone::where('project_id', $projectId)
+                ->whereIn('name', $milestoneNames)
+                ->groupBy('name')
+                ->havingRaw('COUNT(*) > 1')
+                ->pluck('name')->all();
+            if ($duplicateMilestoneNames) {
+                return '模板关联的里程碑名称重复，请先重命名后再保存';
+            }
+            return null;
+        };
+        if ($milestoneError = $validateTemplateMilestones($milestoneNames)) return Base::retError($milestoneError);
         if (empty($name)) {
             return Base::retError('请输入模板名称');
         }
@@ -4082,25 +4476,100 @@ class ProjectController extends AbstractController
             'name' => $name,
             'title' => $title,
             'content' => $content,
-            'userid' => $user->userid
         ];
+        if (Request::has('milestone_name')) {
+            $data['milestone_name'] = $milestoneName ?: null;
+        }
+        if (Request::has('estimated_minutes')) {
+            $data['estimated_minutes'] = $estimatedMinutes;
+        }
+        if ($hasSubtasks) {
+            $data['subtasks'] = $normalizedSubtasks;
+        }
         if ($id > 0) {
-            $template = ProjectTaskTemplate::where('id', $id)
-                ->where('project_id', $projectId)
-                ->first();
-            if (!$template) {
+            $result = DB::transaction(function () use ($id, $projectId, $data, $user, $validateTemplateMilestones, $collectTemplateMilestones) {
+                $lockedProject = Project::query()->whereKey($projectId)->lockForUpdate()->first();
+                if (!$lockedProject) {
+                    throw new ApiException('项目不存在或已被删除');
+                }
+                Project::userProject($projectId, true, true);
+                $template = ProjectTaskTemplate::where('id', $id)
+                    ->where('project_id', $projectId)
+                    ->lockForUpdate()
+                    ->first();
+                if (!$template) {
+                    return null;
+                }
+                $candidateMainMilestone = array_key_exists('milestone_name', $data)
+                    ? $data['milestone_name']
+                    : $template->milestone_name;
+                $candidateSubtasks = array_key_exists('subtasks', $data)
+                    ? $data['subtasks']
+                    : ($template->subtasks ?: []);
+                $candidateMilestoneNames = $collectTemplateMilestones($candidateMainMilestone, $candidateSubtasks);
+                if ($milestoneError = $validateTemplateMilestones($candidateMilestoneNames)) {
+                    throw new ApiException($milestoneError);
+                }
+                $previous = [
+                    'template_id' => $template->id,
+                    'project_id' => $template->project_id,
+                    'version' => max(1, intval($template->version)),
+                    'name' => $template->name,
+                    'title' => $template->title,
+                    'content' => $template->content,
+                    'milestone_name' => $template->milestone_name,
+                    'estimated_minutes' => $template->estimated_minutes,
+                    'subtasks' => $template->subtasks,
+                    'changed_by' => $user->userid,
+                ];
+                $template->fill($data);
+                $contentChanged = $template->isDirty(['name', 'title', 'content', 'milestone_name', 'estimated_minutes', 'subtasks']);
+                if ($contentChanged) {
+                    ProjectTaskTemplateRevision::firstOrCreate(
+                        ['template_id' => $template->id, 'version' => $previous['version']],
+                        $previous
+                    );
+                    $template->version = $previous['version'] + 1;
+                }
+                $template->save();
+                return ['template' => $template, 'changed' => $contentChanged];
+            });
+            if (!$result) {
                 return Base::retError('模板不存在或已被删除');
             }
-            $template->update($data);
+            $template = $result['template'];
+            $changed = $result['changed'];
         } else {
-            $templateCount = ProjectTaskTemplate::where('project_id', $projectId)->count();
-            if ($templateCount >= 50) {
+            $template = DB::transaction(function () use ($projectId, $data, $user, $validateTemplateMilestones, $milestoneNames) {
+                $lockedProject = Project::query()->whereKey($projectId)->lockForUpdate()->first();
+                if (!$lockedProject) {
+                    throw new ApiException('项目不存在或已被删除');
+                }
+                Project::userProject($projectId, true, true);
+                if ($milestoneError = $validateTemplateMilestones($milestoneNames)) {
+                    throw new ApiException($milestoneError);
+                }
+                if (ProjectTaskTemplate::where('project_id', $projectId)->count() >= 50) {
+                    return null;
+                }
+                $maxSort = ProjectTaskTemplate::where('project_id', $projectId)->max('sort');
+                $template = ProjectTaskTemplate::createInstance(array_merge($data, [
+                    'userid' => $user->userid,
+                    'sort' => is_numeric($maxSort) ? intval($maxSort) + 1 : 0
+                ]));
+                $template->save();
+                return $template;
+            });
+            if (!$template) {
                 return Base::retError('每个项目最多添加50个模板');
             }
-            $maxSort = ProjectTaskTemplate::where('project_id', $projectId)->max('sort');
-            $template = ProjectTaskTemplate::create(array_merge($data, [
-                'sort' => is_numeric($maxSort) ? intval($maxSort) + 1 : 0
-            ]));
+            $changed = true;
+        }
+        if ($changed) {
+            $project->addLog($id > 0 ? '更新任务模板' : '创建任务模板', [
+                'change' => [$template->name],
+            ], $user->userid);
+            $project->pushMsg('taskTemplateUpdate', ['template_id' => (int)$template->id]);
         }
         return Base::retSuccess('保存成功', $template);
     }
@@ -4129,31 +4598,50 @@ class ProjectController extends AbstractController
             return Base::retError('参数错误');
         }
         $project = Project::userProject($projectId, true, true);
-        $index = 0;
-        $handled = [];
-        foreach ($list as $templateId) {
-            $templateId = intval($templateId);
-            if ($templateId <= 0) continue;
-            $updated = ProjectTaskTemplate::where('project_id', $projectId)
-                ->where('id', $templateId)
-                ->update(['sort' => $index]);
-            if ($updated) {
-                $handled[] = $templateId;
-                $index++;
+        DB::transaction(function () use ($projectId, $list) {
+            $lockedProject = Project::query()->whereKey($projectId)->lockForUpdate()->first();
+            if (!$lockedProject) {
+                throw new ApiException('项目不存在或已被删除');
             }
-        }
-        $others = ProjectTaskTemplate::where('project_id', $projectId)
-            ->when(!empty($handled), function ($query) use ($handled) {
-                $query->whereNotIn('id', $handled);
-            })
-            ->orderBy('sort')
-            ->orderByDesc('id')
-            ->pluck('id');
-        foreach ($others as $templateId) {
-            ProjectTaskTemplate::where('id', $templateId)->update(['sort' => $index]);
-            $index++;
-        }
+            Project::userProject($projectId, true, true);
+
+            $existingIds = ProjectTaskTemplate::where('project_id', $projectId)
+                ->orderBy('sort')
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            $existingSet = array_fill_keys($existingIds, true);
+            $orderedIds = [];
+            $seen = [];
+
+            foreach ($list as $templateId) {
+                if (!is_int($templateId) && !is_string($templateId)) {
+                    continue;
+                }
+                $templateId = filter_var($templateId, FILTER_VALIDATE_INT);
+                if ($templateId === false || $templateId <= 0 || !isset($existingSet[$templateId]) || isset($seen[$templateId])) {
+                    continue;
+                }
+                $orderedIds[] = $templateId;
+                $seen[$templateId] = true;
+            }
+
+            foreach ($existingIds as $templateId) {
+                if (!isset($seen[$templateId])) {
+                    $orderedIds[] = $templateId;
+                }
+            }
+
+            foreach ($orderedIds as $sort => $templateId) {
+                ProjectTaskTemplate::where('project_id', $projectId)
+                    ->whereKey($templateId)
+                    ->update(['sort' => $sort]);
+            }
+        });
         $project->addLog('调整模板排序');
+        $project->pushMsg('taskTemplateUpdate');
         return Base::retSuccess('排序已保存');
     }
 
@@ -4183,8 +4671,27 @@ class ProjectController extends AbstractController
         if (!$template) {
             return Base::retError('模板不存在或已被删除');
         }
-        Project::userProject($template->project_id, true, true);
-        $template->delete();
+        $project = Project::userProject($template->project_id, true, true);
+        $deleted = DB::transaction(function () use ($template) {
+            $lockedProject = Project::query()->whereKey($template->project_id)->lockForUpdate()->first();
+            if (!$lockedProject) {
+                throw new ApiException('项目不存在或已被删除');
+            }
+            Project::userProject((int)$template->project_id, true, true);
+            $lockedTemplate = ProjectTaskTemplate::where('project_id', $template->project_id)
+                ->whereKey($template->id)
+                ->lockForUpdate()
+                ->first();
+            if (!$lockedTemplate) return null;
+            ProjectTaskTemplateRevision::where('project_id', $lockedTemplate->project_id)
+                ->where('template_id', $lockedTemplate->id)
+                ->delete();
+            $lockedTemplate->delete();
+            return ['id' => (int)$lockedTemplate->id, 'name' => $lockedTemplate->name];
+        });
+        if (!$deleted) return Base::retError('模板不存在或已被删除');
+        $project->addLog('删除任务模板', ['change' => [$deleted['name']]]);
+        $project->pushMsg('taskTemplateUpdate', ['template_id' => $deleted['id']]);
         return Base::retSuccess('删除成功');
     }
 
@@ -4212,22 +4719,35 @@ class ProjectController extends AbstractController
         if (!$id || !$projectId) {
             return Base::retError('参数错误');
         }
-        Project::userProject($projectId, true, true);
+        $project = Project::userProject($projectId, true, true);
         //
-        $template = ProjectTaskTemplate::where('id', $id)
-            ->where('project_id', $projectId)
-            ->first();
-        if (!$template) {
-            return Base::retError('模板不存在或已被删除');
-        }
-        if ($template->is_default) {
-            $template->update(['is_default' => false]);
-            return Base::retSuccess('取消成功');
-        }
-        //
-        ProjectTaskTemplate::where('project_id', $projectId)->update(['is_default' => false]);
-        $template->update(['is_default' => true]);
-        return Base::retSuccess('设置成功');
+        $result = DB::transaction(function () use ($id, $projectId) {
+            $lockedProject = Project::whereKey($projectId)->lockForUpdate()->first();
+            if (!$lockedProject) {
+                throw new ApiException('项目不存在或已被删除');
+            }
+            Project::userProject($projectId, true, true);
+            $template = ProjectTaskTemplate::where('id', $id)
+                ->where('project_id', $projectId)
+                ->lockForUpdate()
+                ->first();
+            if (!$template) return null;
+            $isDefault = (bool)$template->is_default;
+            if ($isDefault) {
+                $template->update(['is_default' => false]);
+                return ['template' => $template, 'is_default' => false];
+            }
+            ProjectTaskTemplate::where('project_id', $projectId)->update(['is_default' => false]);
+            $template->update(['is_default' => true]);
+            return ['template' => $template, 'is_default' => true];
+        });
+        if (!$result) return Base::retError('模板不存在或已被删除');
+        $template = $result['template'];
+        $project->addLog('修改任务模板默认状态', [
+            'change' => [$template->name, $result['is_default'] ? '默认' : '非默认'],
+        ]);
+        $project->pushMsg('taskTemplateUpdate', ['template_id' => (int)$template->id]);
+        return Base::retSuccess($result['is_default'] ? '设置成功' : '取消成功');
     }
 
     /**
