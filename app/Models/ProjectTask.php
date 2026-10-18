@@ -118,6 +118,12 @@ class ProjectTask extends AbstractModel
 {
     use SoftDeletes;
 
+    /**
+     * Upper bound for walking a task tree. New subtasks are limited to five levels,
+     * but legacy trees can be deeper; this guard only stops cycles and runaway data.
+     */
+    private const MAX_TRAVERSAL_DEPTH = 20;
+
     protected $appends = [
         'file_num',
         'msg_num',
@@ -583,8 +589,12 @@ class ProjectTask extends AbstractModel
             if ($children->isEmpty()) {
                 break;
             }
-            if (++$depth > 5) {
-                throw new ApiException('子任务格式错误');
+            // Creation caps subtask nesting at five levels, but data written before
+            // that rule may be deeper. Traversal must still work for those trees
+            // (copy, move, delete, visibility), so the guard is a cycle/blow-up
+            // protection rather than the product limit.
+            if (++$depth > self::MAX_TRAVERSAL_DEPTH) {
+                throw new ApiException('任务层级过深，无法处理');
             }
             $descendants = $descendants->concat($children);
             if ($maxCount !== null && $descendants->count() > $maxCount) {
@@ -1689,7 +1699,9 @@ class ProjectTask extends AbstractModel
         $syncTime = $options['sync_time'] ?? false;
         $updateProject = $options['update_project'] ?? false;
 
-        self::taskSubtreeDescendants($this->id, 50);
+        // Copy what already exists. The 50-item rule is enforced when subtasks are
+        // created, not when an existing (possibly legacy) tree is duplicated.
+        self::taskSubtreeDescendants($this->id);
         $newSubTasks = [];
         $subTasks = self::where('project_id', $this->project_id)->whereParentId($this->id)->get();
         if ($subTasks->isEmpty()) {
