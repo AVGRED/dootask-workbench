@@ -11,7 +11,7 @@
                 :style="$A.generateColorVarStyle(item.flow_item_color, [10], 'flow-item-custom-color', taskItemStyle(item))">
                 <template v-if="taskItemVisible(`${openKey}_${item.id}`)">
                     <em v-if="item.p_name" class="priority-color" :style="{backgroundColor:item.p_color}"></em>
-                    <Col span="12" :class="['row-name', item.complete_at ? 'complete' : '']">
+                    <Col :span="nameSpan" :class="['row-name', item.complete_at ? 'complete' : '']">
                         <Icon
                             v-if="(item.sub_num > 0 && item.sub_top !== true) || (item.parent_id === 0 && fastAddTask)"
                             :class="['sub-icon', taskOpen[item.id] ? 'active' : '']"
@@ -46,7 +46,7 @@
                             </div>
                         </div>
                     </Col>
-                    <Col span="3" class="row-column">
+                    <Col v-if="tableFields.includes('column')" span="3" class="row-column">
                         <EDropdown
                             trigger="click"
                             size="small"
@@ -61,7 +61,7 @@
                             </EDropdownMenu>
                         </EDropdown>
                     </Col>
-                    <Col span="3" class="row-priority">
+                    <Col v-if="tableFields.includes('priority')" span="3" class="row-priority">
                         <EDropdown
                             trigger="click"
                             size="small"
@@ -80,9 +80,9 @@
                             </EDropdownMenu>
                         </EDropdown>
                     </Col>
-                    <Col span="3" class="row-user">
+                    <Col v-if="tableFields.includes('owner')" span="3" class="row-user">
                         <ul @click="openTask(item)">
-                            <li v-for="(user, keyu) in ownerUser(item.task_user)" :key="keyu" v-if="keyu < 3">
+                            <li v-for="user in ownerUser(item.task_user).slice(0, 3)" :key="user.userid">
                                 <UserAvatar :userid="user.userid" size="32" :borderWidth="2" :borderColor="item.color" :showName="ownerUser(item.task_user).length === 1"/>
                             </li>
                             <li v-if="!readonly && ownerUser(item.task_user).length === 0" class="no-owner">
@@ -90,7 +90,7 @@
                             </li>
                         </ul>
                     </Col>
-                    <Col span="3" class="row-time">
+                    <Col v-if="tableFields.includes('due')" span="3" class="row-time">
                         <ETooltip
                             v-if="!item.complete_at && item.end_at"
                             :class="['task-time', item.today ? 'today' : '', item.overdue ? 'overdue' : '']"
@@ -101,6 +101,9 @@
                         </ETooltip>
                         <div v-else-if="showCompleteAt && item.complete_at" :title="item.complete_at">{{completeAtFormat(item.complete_at)}}</div>
                     </Col>
+                    <Col v-if="tableFields.includes('estimate')" span="3" class="row-estimate">
+                        <div @click="openTask(item)">{{formatWorkMinutes(item.estimated_minutes)}}</div>
+                    </Col>
                 </template>
             </Row>
             <TaskRow
@@ -110,6 +113,7 @@
                 :fast-add-task="!readonly && item.parent_id===0 && fastAddTask"
                 :open-key="openKey"
                 @command="dropTask"
+                :table-fields="tableFields"
                 :readonly="readonly"/>
         </div>
         <TaskAddSimple v-if="!readonly && (fastAddTask || parentId > 0)" :parent-id="parentId" row-mode @on-priority="onPriority"/>
@@ -156,6 +160,10 @@ export default {
         readonly: {
             type: Boolean,
             default: false
+        },
+        tableFields: {
+            type: Array,
+            default: () => ['column', 'priority', 'owner', 'due']
         }
     },
     data() {
@@ -180,6 +188,10 @@ export default {
     computed: {
         ...mapState(['cacheTasks', 'taskPriority', 'cacheColumns', 'taskLatestId']),
 
+        nameSpan() {
+            return 24 - this.tableFields.length * 3;
+        },
+
         subTask() {
             return function(task_id) {
                 return this.cacheTasks.filter(task => {
@@ -201,6 +213,12 @@ export default {
         }
     },
     methods: {
+        formatWorkMinutes(minutes) {
+            if (minutes === null || minutes === undefined || minutes === '') return '-';
+            const value = Number(minutes) || 0;
+            return `${Math.floor(value / 60)}${this.$L('小时')} ${value % 60}${this.$L('分钟')}`;
+        },
+
         columnName(column_id) {
             const column = this.cacheColumns.find(({id}) => id == column_id)
             return column ? column.name : '';

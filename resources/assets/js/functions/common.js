@@ -2387,6 +2387,16 @@ const timezone = require("dayjs/plugin/timezone");
             return dayjs(v);
         },
 
+        /** Parse a date-time string as wall time in the supplied IANA timezone. */
+        dayjsTz(value, timezone) {
+            return dayjs.tz(value, timezone);
+        },
+
+        /** Create a UTC Day.js value for timezone-independent calendar arithmetic. */
+        dayjsUtc(value = undefined) {
+            return typeof value === 'undefined' ? dayjs.utc() : dayjs.utc(value);
+        },
+
         /**
          * 时间对象（减去时区差）
          * @param v

@@ -6,6 +6,7 @@ import emitter from "./events";
 import axios from "axios";
 
 const dialogDraftState = { timer: {}, subTemp: null }
+let taskTemplateRequestSequence = 0
 
 // 撤回消息本地保留（重新编辑用），过期自动清除
 const dialogWithdrawState = {
@@ -2251,7 +2252,7 @@ export default {
                 dispatch("getTaskContent", data.id);
             }
             if (updateMarking.is_update_subtask === true) {
-                dispatch("getTaskForParent", data.id).catch(() => {})
+                dispatch("getTaskForParent", {parent_id: data.id, recursive: 1}).catch(() => {})
             }
             //
             state.cacheDialogs.some(dialog => {
@@ -2281,30 +2282,34 @@ export default {
     forgetTask({commit, state, dispatch}, data) {
         $A.syncDispatch("forgetTask", data)
         //
-        const ids = ($A.isArray(data.id) ? data.id : [data.id]).filter(id => id != state.taskArchiveView);
+        const ids = new Set(($A.isArray(data.id) ? data.id : [data.id]).filter(id => id != state.taskArchiveView));
+        const queue = Array.from(ids);
+        while (queue.length > 0) {
+            const parentId = queue.shift();
+            state.cacheTasks.forEach(task => {
+                if (task.parent_id == parentId && !ids.has(task.id)) {
+                    ids.add(task.id);
+                    queue.push(task.id);
+                }
+            });
+        }
         const parent_ids = [];
         const project_ids = [];
-        ids.some(id => {
+        ids.forEach(id => {
             const index = state.cacheTasks.findIndex(task => task.id == id);
             if (index > -1) {
-                if (state.cacheTasks[index].parent_id) {
-                    parent_ids.push(state.cacheTasks[index].parent_id)
+                const parentId = state.cacheTasks[index].parent_id;
+                if (parentId && !ids.has(parentId)) {
+                    parent_ids.push(parentId)
                 }
                 project_ids.push(state.cacheTasks[index].project_id)
                 commit("task/splice", {index})
             }
-            state.cacheTasks.filter(task => task.parent_id == id).some(childTask => {
-                let cIndex = state.cacheTasks.findIndex(task => task.id == childTask.id);
-                if (cIndex > -1) {
-                    project_ids.push(childTask.project_id)
-                    commit("task/splice", {index: cIndex})
-                }
-            })
         })
         Array.from(new Set(parent_ids)).some(id => dispatch("getTaskOne", id).catch(() => {}))
         Array.from(new Set(project_ids)).some(id => dispatch("getProjectOne", id).catch(() => {}))
         //
-        if (ids.includes(state.taskId)) {
+        if (ids.has(state.taskId)) {
             state.taskId = 0;
         }
     },
@@ -2428,7 +2433,7 @@ export default {
                 //
                 if (data.next_page_url) {
                     requestData.page = data.current_page + 1
-                    if (data.current_page % 30 === 0) {
+                    if (data.current_page % 30 === 0 && !requestData.recursive) {
                         $A.modalConfirm({
                             content: "数据已超过" + data.to + "条，是否继续加载？",
                             onOk: () => {
@@ -2570,9 +2575,12 @@ export default {
      * @param parent_id
      * @returns {Promise<unknown>}
      */
-    getTaskForParent({state, dispatch}, parent_id) {
+    getTaskForParent({dispatch}, parent_id) {
+        const requestData = $A.isJson(parent_id)
+            ? {...parent_id}
+            : {parent_id};
         return new Promise(function (resolve, reject) {
-            dispatch("getTasks", {parent_id}).then(resolve).catch(reject)
+            dispatch("getTasks", requestData).then(resolve).catch(reject)
         })
     },
 
@@ -2799,6 +2807,15 @@ export default {
         if ($A.isJson(task)) {
             if (task.parent_id > 0) {
                 task_id = task.parent_id;
+                const visited = new Set([Number(task.id)]);
+                while (task_id > 0 && !visited.has(Number(task_id))) {
+                    visited.add(Number(task_id));
+                    const parentTask = state.cacheTasks.find(item => Number(item.id) === Number(task_id));
+                    if (!parentTask || parentTask.parent_id <= 0) {
+                        break;
+                    }
+                    task_id = parentTask.parent_id;
+                }
             } else {
                 task_id = task.id;
             }
@@ -2826,7 +2843,7 @@ export default {
             }).then(() => {
                 dispatch("getTaskContent", task_id);
                 dispatch("getTaskFiles", task_id);
-                dispatch("getTaskForParent", task_id).catch(() => {});
+                dispatch("getTaskForParent", {parent_id: task_id, recursive: 1}).catch(() => {});
                 dispatch("saveTaskBrowse", task_id);
             }).catch(({msg}) => {
                 $A.modalWarning({
@@ -3324,6 +3341,7 @@ export default {
      * @returns {Promise<void>}
      */
     async updateTaskTemplates({state, dispatch}, currentProjectId) {
+        const requestSequence = ++taskTemplateRequestSequence
         const project = (state.cacheProjects || []).find(({id}) => id == currentProjectId)
         if (project && project.task_template_share === 'close') {
             const {data} = await dispatch("call", {
@@ -3332,7 +3350,9 @@ export default {
                     project_id: currentProjectId || 0,
                 },
             })
-            state.taskTemplates = Array.isArray(data) ? data : []
+            if (requestSequence === taskTemplateRequestSequence) {
+                state.taskTemplates = Array.isArray(data) ? data : []
+            }
             return
         }
         const {data} = await dispatch("call", {
@@ -3341,7 +3361,9 @@ export default {
                 current_project_id: currentProjectId || 0,
             },
         })
-        state.taskTemplates = Array.isArray(data) ? data : []
+        if (requestSequence === taskTemplateRequestSequence) {
+            state.taskTemplates = Array.isArray(data) ? data : []
+        }
     },
 
     /** *****************************************************************************************/
@@ -5046,6 +5068,9 @@ export default {
                                         dispatch("getProjectOne", data.id).catch(() => {})
                                         dispatch("getTaskForProject", data.id).catch(() => {})
                                         break;
+                                    case 'taskTemplateUpdate':
+                                        emitter.emit('projectTaskTemplateUpdate', data.id, data.template_id)
+                                        break;
                                     case 'delete':
                                     case 'archived':
                                         dispatch("forgetProject", data);
@@ -5091,6 +5116,10 @@ export default {
                                     case 'archived':    // 归档
                                     case 'recovery':    // 恢复（归档）
                                         dispatch("saveTask", data)
+                                        break;
+                                    case 'work':
+                                        dispatch("saveTask", data)
+                                        emitter.emit('taskWorkUpdate', data.id)
                                         break;
                                     case 'dialog':
                                         dispatch("saveTask", data)

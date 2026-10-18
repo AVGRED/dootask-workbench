@@ -18,13 +18,13 @@
                             </UserAvatarTip>
                             <Badge v-if="(windowWidth <= 980 || projectData.cacheParameter.chat) && projectUser.length > 0" type="normal" :overflow-count="999" :count="projectData.project_user.length"/>
                         </li>
-                        <template v-if="!(windowWidth <= 980 || projectData.cacheParameter.chat) && projectUser.length > 0" v-for="item in projectUser">
-                            <li v-if="item.userid === -1" class="more">
+                        <template v-for="item in (windowWidth > 980 && !projectData.cacheParameter.chat ? projectUser : [])">
+                            <li v-if="item.userid === -1" :key="item.userid" class="more">
                                 <ETooltip :disabled="$isEEUIApp || windowTouch" :content="$L('共(*)个成员', projectData.project_user.length)">
                                     <Icon type="ios-more"/>
                                 </ETooltip>
                             </li>
-                            <li v-else :class="{'is-deputy': isDeputyUid(item.userid)}">
+                            <li v-else :key="item.userid" :class="{'is-deputy': isDeputyUid(item.userid)}">
                                 <UserAvatarTip :userid="item.userid" :size="36" :borderWidth="2" :openDelay="0">
                                     <p v-if="isDeputyUid(item.userid)">{{$L('项目管理员')}}</p>
                                 </UserAvatarTip>
@@ -54,6 +54,7 @@
                         <Icon class="menu-icon" type="ios-more" />
                         <EDropdownMenu v-if="isDepartmentReadonly" slot="dropdown" class="project-panel-project-menu-dropdown">
                             <EDropdownItem command="favorite">{{$L(projectData.favorited ? '取消收藏' : '收藏项目')}}</EDropdownItem>
+                            <EDropdownItem command="milestones" divided>{{$L('项目里程碑')}}</EDropdownItem>
                             <EDropdownItem command="log" divided>{{$L('项目动态')}}</EDropdownItem>
                             <EDropdownItem command="archived_task">{{$L('已归档任务')}}</EDropdownItem>
                             <EDropdownItem command="deleted_task">{{$L('已删除任务')}}</EDropdownItem>
@@ -64,6 +65,7 @@
                             <EDropdownItem command="task_template">{{$L('任务模板')}}</EDropdownItem>
                             <EDropdownItem command="task_tag">{{$L('任务标签')}}</EDropdownItem>
                             <EDropdownItem command="workflow">{{$L('工作流设置')}}</EDropdownItem>
+                            <EDropdownItem command="milestones">{{$L('项目里程碑')}}</EDropdownItem>
                             <EDropdownItem command="user" divided>{{$L('成员管理')}}</EDropdownItem>
                             <EDropdownItem command="invite">{{$L('邀请链接')}}</EDropdownItem>
                             <EDropdownItem command="favorite" divided>{{$L(projectData.favorited ? '取消收藏' : '收藏项目')}}</EDropdownItem>
@@ -79,6 +81,7 @@
                         </EDropdownMenu>
                         <EDropdownMenu v-else slot="dropdown">
                             <EDropdownItem command="task_tag">{{$L('任务标签')}}</EDropdownItem>
+                            <EDropdownItem command="milestones">{{$L('项目里程碑')}}</EDropdownItem>
                             <EDropdownItem command="favorite" divided>{{$L(projectData.favorited ? '取消收藏' : '收藏项目')}}</EDropdownItem>
                             <EDropdownItem command="log">{{$L('项目动态')}}</EDropdownItem>
                             <EDropdownItem command="archived_task">{{$L('已归档任务')}}</EDropdownItem>
@@ -115,6 +118,63 @@
                         </span>
                     </ProjectFlowFilterDropdown>
                 </div>
+                <Select
+                    v-model="selectedTaskViewId"
+                    class="project-task-view-select"
+                    clearable
+                    :disabled="taskViewsLoading"
+                    :placeholder="$L('任务视图')"
+                    @on-change="applyTaskView">
+                    <Option v-for="item in taskViews" :key="item.id" :value="item.id" :label="`${item.name}${item.visibility === 'project' ? ' · '+$L('共享') : ''}${item.is_default ? ' · '+$L('默认') : ''}`"/>
+                </Select>
+                <div v-if="taskViewsLoadFailed" class="project-task-views-load-state">
+                    <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
+                    <Button size="small" type="text" :disabled="taskViewsLoading" @click="loadTaskViews">{{$L('重试')}}</Button>
+                </div>
+                <EDropdown v-if="!isDepartmentReadonly" class="project-task-view-actions" trigger="click" transfer @command="taskViewCommand">
+                    <button type="button" class="project-task-view-button"><Icon type="ios-bookmarks-outline"/></button>
+                    <EDropdownMenu slot="dropdown">
+                        <EDropdownItem command="save">{{$L('保存当前为个人视图')}}</EDropdownItem>
+                        <EDropdownItem v-if="isOwnerOrDeputy" command="save_shared">{{$L('保存为项目共享视图')}}</EDropdownItem>
+                        <EDropdownItem divided disabled>{{$L('常用视图')}}</EDropdownItem>
+                        <EDropdownItem command="preset_my_undone">{{$L('我的未完成')}}</EDropdownItem>
+                        <EDropdownItem command="preset_overdue">{{$L('逾期任务')}}</EDropdownItem>
+                        <EDropdownItem command="preset_due_week">{{$L('本周到期')}}</EDropdownItem>
+                        <EDropdownItem command="preset_unscheduled">{{$L('未排期')}}</EDropdownItem>
+                        <EDropdownItem command="preset_due_next_week">{{$L('下周到期')}}</EDropdownItem>
+                        <EDropdownItem command="preset_near_milestone">{{$L('近期交付')}}</EDropdownItem>
+                        <EDropdownItem v-if="selectedTaskView" command="copy" divided>{{$L('复制视图')}}</EDropdownItem>
+                        <EDropdownItem v-if="selectedTaskView && selectedTaskView.can_edit" command="update">{{$L('更新当前视图定义')}}</EDropdownItem>
+                        <EDropdownItem v-if="selectedTaskView && selectedTaskView.can_edit" command="rename">{{$L('重命名视图')}}</EDropdownItem>
+                        <EDropdownItem v-if="selectedTaskView && !selectedTaskView.is_default" command="default">{{$L('设为默认视图')}}</EDropdownItem>
+                        <EDropdownItem v-if="selectedTaskView && selectedTaskView.can_edit" command="delete" divided style="color:#f40">{{$L('删除视图')}}</EDropdownItem>
+                    </EDropdownMenu>
+                </EDropdown>
+                <EDropdown v-if="tabTypeActive === 'table'" class="project-task-view-actions" trigger="click" transfer @command="toggleTaskTableField">
+                    <button type="button" class="project-task-view-button"><Icon type="ios-eye-outline"/></button>
+                    <EDropdownMenu slot="dropdown">
+                        <EDropdownItem v-for="field in taskTableFieldOptions" :key="field.key" :command="field.key">
+                            {{ tableFields.includes(field.key) ? '✓ ' : '' }}{{ $L(field.label) }}
+                        </EDropdownItem>
+                    </EDropdownMenu>
+                </EDropdown>
+                <DatePicker
+                    v-model="taskDateRange"
+                    class="project-task-date-filter"
+                    type="daterange"
+                    format="yyyy-MM-dd"
+                    :editable="false"
+                    clearable
+                    :placeholder="$L('计划时间')"/>
+                <Select
+                    v-if="milestoneList.length > 0"
+                    v-model="milestoneFilterId"
+                    class="project-milestone-filter"
+                    clearable
+                    filterable
+                    :placeholder="$L('按里程碑筛选')">
+                    <Option v-for="item in milestoneList" :key="item.id" :value="item.id" :label="item.name"/>
+                </Select>
                 <ProjectTableGroupDropdown
                     v-if="tabTypeActive === 'table'"
                     v-model="tableGroupsOpen"
@@ -134,6 +194,16 @@
                     <div @click="tabTypeChange('gantt')" :class="{ 'active': tabTypeActive === 'gantt'}"><i class="taskfont">&#xe797;</i></div>
                 </div>
             </div>
+        </div>
+        <button v-if="milestoneList.length > 0" type="button" class="project-milestone-overview" @click="openMilestoneOverview">
+            <span class="project-milestone-overview-title"><Icon type="md-flag"/> {{$L('近期交付')}}</span>
+            <strong>{{milestoneOverview.next ? milestoneOverview.next.name : $L('暂无进行中的里程碑')}}</strong>
+            <span v-if="milestoneOverview.next && milestoneOverview.next.target_at">{{milestoneOverview.next.target_at}}</span>
+            <span>{{$L('完成率')}} {{milestoneOverview.progress}}%</span>
+            <span v-if="milestoneOverview.overdue > 0" class="project-milestone-overview-risk">{{$L('逾期任务')}} {{milestoneOverview.overdue}}</span>
+        </button>
+        <div v-if="tabTypeActive === 'gantt'" class="project-capacity-launch">
+            <Button size="small" type="text" @click="openCapacityOverview">{{$L('成员工时汇总')}}</Button>
         </div>
         <div
             v-if="tabTypeActive === 'column'"
@@ -158,7 +228,7 @@
                         :class="['column-head', column.color ? 'custom-color' : '']"
                         :style="column.color ? {backgroundColor: column.color} : {}">
                         <div class="column-head-title">
-                            <AutoTip v-html="transformEmojiToHtml(column.name)"></AutoTip>
+                            <AutoTip><span v-html="transformEmojiToHtml(column.name)"></span></AutoTip>
                             <em>({{panelTask(column.tasks).length}})</em>
                         </div>
                         <div class="column-head-icon">
@@ -306,13 +376,13 @@
             @on-scroll="handleTaskScroll">
             <div class="project-table-head">
                 <Row class="task-row">
-                    <Col span="12">
+                    <Col :span="tableNameSpan">
                         <div class="ellipsis"># {{$L('任务名称')}}</div>
                     </Col>
-                    <Col span="3">
+                    <Col v-if="tableFields.includes('column')" span="3">
                         <div class="ellipsis">{{$L('列表')}}</div>
                     </Col>
-                    <Col span="3">
+                    <Col v-if="tableFields.includes('priority')" span="3">
                         <div class="sort" @click="onSort('level')">
                             <div class="head-title">{{$L('优先级')}}</div>
                             <div class="head-sort">
@@ -321,10 +391,10 @@
                             </div>
                         </div>
                     </Col>
-                    <Col span="3">
+                    <Col v-if="tableFields.includes('owner')" span="3">
                         <div class="ellipsis">{{$L('负责人')}}</div>
                     </Col>
-                    <Col span="3">
+                    <Col v-if="tableFields.includes('due')" span="3">
                         <div class="sort" @click="onSort('end_at')">
                             <div class="head-title">{{$L('到期时间')}}</div>
                             <div class="head-sort">
@@ -333,26 +403,27 @@
                             </div>
                         </div>
                     </Col>
+                    <Col v-if="tableFields.includes('estimate')" span="3">
+                        <div class="ellipsis">{{$L('预估工时')}}</div>
+                    </Col>
                 </Row>
             </div>
             <!--我的任务-->
             <div v-if="visibleTableGroups.includes('my')" data-table-group="my" :class="['project-table-body', !projectData.cacheParameter.showMy ? 'project-table-hide' : '']">
                 <Row class="task-row">
-                    <Col span="12" class="row-title">
+                    <Col :span="tableNameSpan" class="row-title">
                         <i class="taskfont" @click="toggleParameter('showMy')">&#xe689;</i>
                         <div class="row-h1">{{$L('我的任务')}}</div>
                         <div class="row-num">({{myList.length}})</div>
                     </Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
+                    <Col v-for="field in tableFields" :key="field" span="3"></Col>
                 </Row>
                 <TaskRow
                     v-if="projectData.cacheParameter.showMy"
                     :list="transforTasks(myList)"
                     :task-visibilitys="taskRowVisibilitys"
                     :readonly="isDepartmentReadonly"
+                    :table-fields="tableFields"
                     open-key="my"
                     @on-priority="addTaskOpen"
                     fast-add-task/>
@@ -361,21 +432,19 @@
             <!--协助的任务-->
             <div v-if="visibleTableGroups.includes('help')" data-table-group="help" :class="['project-table-body', !projectData.cacheParameter.showHelp ? 'project-table-hide' : '']">
                 <Row class="task-row">
-                    <Col span="12" class="row-title">
+                    <Col :span="tableNameSpan" class="row-title">
                         <i class="taskfont" @click="toggleParameter('showHelp')">&#xe689;</i>
                         <div class="row-h1">{{$L('协助的任务')}}</div>
                         <div class="row-num">({{helpList.length}})</div>
                     </Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
+                    <Col v-for="field in tableFields" :key="field" span="3"></Col>
                 </Row>
                 <TaskRow
                     v-if="projectData.cacheParameter.showHelp"
                     :list="helpList"
                     :task-visibilitys="taskRowVisibilitys"
                     :readonly="isDepartmentReadonly"
+                    :table-fields="tableFields"
                     open-key="help"
                     @on-priority="addTaskOpen"/>
                 <div v-if="projectData.cacheParameter.showHelp && !helpList.length" class="project-table-empty">{{$L('暂无任务')}}</div>
@@ -383,21 +452,19 @@
             <!--未完成任务-->
             <div v-if="visibleTableGroups.includes('undone')" data-table-group="undone" :class="['project-table-body', !projectData.cacheParameter.showUndone ? 'project-table-hide' : '']">
                 <Row class="task-row">
-                    <Col span="12" class="row-title">
+                    <Col :span="tableNameSpan" class="row-title">
                         <i class="taskfont" @click="toggleParameter('showUndone')">&#xe689;</i>
                         <div class="row-h1">{{$L('未完成任务')}}</div>
                         <div class="row-num">({{unList.length}})</div>
                     </Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
+                    <Col v-for="field in tableFields" :key="field" span="3"></Col>
                 </Row>
                 <TaskRow
                     v-if="projectData.cacheParameter.showUndone"
                     :list="unList"
                     :task-visibilitys="taskRowVisibilitys"
                     :readonly="isDepartmentReadonly"
+                    :table-fields="tableFields"
                     open-key="undone"
                     @on-priority="addTaskOpen"/>
                 <div v-if="projectData.cacheParameter.showUndone && !unList.length" class="project-table-empty">{{$L('暂无任务')}}</div>
@@ -405,16 +472,15 @@
             <!--已完成任务-->
             <div v-if="visibleTableGroups.includes('completed')" data-table-group="completed" :class="['project-table-body', !projectData.cacheParameter.showCompleted ? 'project-table-hide' : '']">
                 <Row class="task-row">
-                    <Col span="12" class="row-title">
+                    <Col :span="tableNameSpan" class="row-title">
                         <i class="taskfont" @click="toggleParameter('showCompleted')">&#xe689;</i>
                         <div class="row-h1">{{$L('已完成任务')}}</div>
                         <div class="row-num">({{completedList.length}})</div>
                     </Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
-                    <Col span="3">
+                    <Col v-for="field in tableFields" :key="field" span="3">
+                        <template v-if="field === 'due'">
                         <div class="ellipsis">{{projectData.cacheParameter.showCompleted ? $L('完成时间') : ''}}</div>
+                        </template>
                     </Col>
                 </Row>
                 <TaskRow
@@ -422,6 +488,7 @@
                     :list="completedList"
                     :task-visibilitys="taskRowVisibilitys"
                     :readonly="isDepartmentReadonly"
+                    :table-fields="tableFields"
                     open-key="completed"
                     @on-priority="addTaskOpen"
                     showCompleteAt/>
@@ -433,21 +500,19 @@
                 :data-table-group="group.key"
                 :class="['project-table-body', !projectData.cacheParameter[group.expandedKey] ? 'project-table-hide' : '']">
                 <Row class="task-row">
-                    <Col span="12" class="row-title">
+                    <Col :span="tableNameSpan" class="row-title">
                         <i class="taskfont" @click="toggleParameter(group.expandedKey)">&#xe689;</i>
                         <div class="row-h1">{{$L(group.title)}}</div>
                         <div class="row-num">({{group.tasks.length}})</div>
                     </Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
-                    <Col span="3"></Col>
+                    <Col v-for="field in tableFields" :key="field" span="3"></Col>
                 </Row>
                 <TaskRow
                     v-if="projectData.cacheParameter[group.expandedKey]"
                     :list="group.tasks"
                     :task-visibilitys="taskRowVisibilitys"
                     :readonly="isDepartmentReadonly"
+                    :table-fields="tableFields"
                     :open-key="group.key"
                     @on-priority="addTaskOpen"/>
                 <div v-if="projectData.cacheParameter[group.expandedKey] && !group.tasks.length" class="project-table-empty">{{$L('暂无任务')}}</div>
@@ -455,7 +520,7 @@
         </Scrollbar>
         <div v-else-if="tabTypeActive === 'gantt'" class="project-gantt">
             <!--甘特图-->
-            <ProjectGantt :projectColumn="columnList" :flowFilter="flowFilter" :readonly="isDepartmentReadonly"/>
+            <ProjectGantt :projectId="projectId" :projectColumn="columnList" :flowFilter="flowFilter" :searchText="searchText" :readonly="isDepartmentReadonly" :can-manage-schedule="isOwnerOrDeputy && !isDepartmentReadonly" :dependency-enabled="projectData.task_dependency !== 'close'" :schedule-mode="projectData.task_schedule_mode || 'manual'" :project-timezone="projectScheduleTimezone"/>
         </div>
 
         <!--项目设置-->
@@ -505,6 +570,44 @@
                     <div v-if="settingData.task_template_share === 'open'" class="form-tip">{{$L('开启后，添加任务时可使用其他项目共享的任务模板。')}}</div>
                     <div v-else class="form-tip">{{$L('关闭后，添加任务时仅加载本项目模板，不显示其他项目共享模板。')}}</div>
                 </FormItem>
+                <FormItem :label="$L('任务依赖')" prop="task_dependency">
+                    <RadioGroup v-model="settingData.task_dependency">
+                        <Radio label="open">{{$L('开启')}}</Radio>
+                        <Radio label="close">{{$L('关闭')}}</Radio>
+                    </RadioGroup>
+                    <div v-if="settingData.task_dependency === 'open'" class="form-tip">{{$L('开启后可设置任务前置/后置关系，并在甘特图中查看依赖。')}}</div>
+                    <div v-else class="form-tip">{{$L('关闭后本项目不再展示或修改任务依赖。')}}</div>
+                </FormItem>
+                <FormItem :label="$L('自动排期')" prop="task_schedule_mode">
+                    <RadioGroup v-model="settingData.task_schedule_mode">
+                        <Radio label="manual">{{$L('手动排期')}}</Radio>
+                        <Radio label="automatic">{{$L('依赖预演')}}</Radio>
+                    </RadioGroup>
+                    <div class="form-tip">{{$L('依赖预演会在调整甘特图任务后计算后续任务时间；确认前不会修改任务。')}}</div>
+                </FormItem>
+                <FormItem :label="$L('节假日例外')" prop="task_schedule_holidays">
+                    <Input v-model="settingData.task_schedule_holidays" type="textarea" :autosize="{minRows: 2, maxRows: 5}" :placeholder="$L('每行填写一个日期，例如 2026-10-01')"/>
+                    <div class="form-tip">{{$L('这些日期即使落在工作日中也按休息日计算，最多366个日期。')}}</div>
+                </FormItem>
+                <template v-if="settingData.task_schedule_mode === 'automatic'">
+                    <FormItem :label="$L('工作日')" prop="task_schedule_workdays">
+                        <CheckboxGroup v-model="settingData.task_schedule_workdays">
+                            <Checkbox :label="1">{{$L('星期一')}}</Checkbox>
+                            <Checkbox :label="2">{{$L('星期二')}}</Checkbox>
+                            <Checkbox :label="3">{{$L('星期三')}}</Checkbox>
+                            <Checkbox :label="4">{{$L('星期四')}}</Checkbox>
+                            <Checkbox :label="5">{{$L('星期五')}}</Checkbox>
+                            <Checkbox :label="6">{{$L('星期六')}}</Checkbox>
+                            <Checkbox :label="7">{{$L('星期日')}}</Checkbox>
+                        </CheckboxGroup>
+                    </FormItem>
+                    <FormItem :label="$L('排期时区')" prop="task_schedule_timezone">
+                        <Input v-model="settingData.task_schedule_timezone" :placeholder="$L('例如 Asia/Shanghai')"/>
+                    </FormItem>
+                    <FormItem :label="$L('依赖缓冲工作日')" prop="task_schedule_buffer_days">
+                        <Input v-model="settingData.task_schedule_buffer_days" type="number" :min="0" :max="30"/>
+                    </FormItem>
+                </template>
                 <FormItem v-if="systemConfig.department_owner_project_view === 'open'" :label="$L('负责人视角')" prop="department_owner_view">
                     <RadioGroup v-model="settingData.department_owner_view">
                         <Radio label="open">{{$L('开启')}}</Radio>
@@ -519,6 +622,175 @@
                 <Button type="primary" :loading="settingLoad > 0" @click="onSetting">{{$L('保存')}}</Button>
             </div>
         </DrawerOverlay>
+
+        <!--项目里程碑-->
+        <Modal v-model="capacityShow" :title="$L('成员工时汇总')" :mask-closable="false" :width="capacityModalWidth">
+            <div class="project-capacity-overview">
+                <div class="project-capacity-filter">
+                    <DatePicker v-model="capacityRange" type="daterange" format="yyyy-MM-dd" :editable="false" @on-change="invalidateCapacitySummary"/>
+                    <Button type="primary" :loading="capacityLoading" @click="loadCapacityOverview">{{$L('查询')}}</Button>
+                    <Button v-if="capacitySummary.members && capacitySummary.members.length" :disabled="capacityLoading || !capacitySummaryMatchesSelection()" @click="exportCapacityCsv">{{$L('导出')}}</Button>
+                </div>
+                <p class="form-tip">{{$L('计划工时按任务负责人分摊；实际工时按登记日期汇总。结果仅统计所选期间及有完整计划时间的主任务。')}}</p>
+                <p v-if="capacitySummaryMatchesSelection() && capacitySummary.capacity_baseline" class="form-tip">{{$L('工作日')}} · 8 {{$L('小时')}} · {{capacitySummary.capacity_baseline.timezone}}</p>
+                <div v-if="capacityLoadFailed" class="project-capacity-load-state">
+                    <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
+                    <Button size="small" type="text" :disabled="capacityLoading" @click="loadCapacityOverview">{{$L('重试')}}</Button>
+                </div>
+                <div v-else-if="capacityLoading && !capacitySummary.members" class="form-tip">{{$L('加载中...')}}</div>
+                <div v-if="capacitySummaryMatchesSelection() && capacitySummary.totals" class="project-capacity-totals">
+                    <span>{{$L('预估')}} {{formatWorkMinutes(capacitySummary.totals.estimated_minutes)}}</span>
+                    <span>{{$L('已登记')}} {{formatWorkMinutes(capacitySummary.totals.logged_minutes)}}</span>
+                    <span>{{$L('剩余')}} {{formatWorkMinutes(capacitySummary.totals.remaining_minutes)}}</span>
+                    <span v-if="capacitySummary.totals.overrun_minutes > 0">{{$L('超出')}} {{formatWorkMinutes(capacitySummary.totals.overrun_minutes)}}</span>
+                </div>
+                <Table v-if="!capacityLoadFailed && capacitySummaryMatchesSelection() && capacitySummary.members" :columns="capacityColumns" :data="capacitySummary.members" :loading="capacityLoading"/>
+            </div>
+        </Modal>
+
+        <Modal v-model="milestoneShow" :title="$L('项目里程碑')" :mask-closable="false" width="680">
+            <div class="project-milestone-manager">
+                <div class="project-milestone-manager-toolbar">
+                    <p class="form-tip">{{$L('里程碑用于标记项目交付目标；任务可以关联一个里程碑。')}}</p>
+                    <Button size="small" type="text" :loading="milestoneLoading" @click="loadMilestones">{{$L('重新加载')}}</Button>
+                </div>
+                <Form v-if="milestoneCanManage" :model="milestoneForm" v-bind="formOptions" @submit.native.prevent>
+                    <FormItem :label="$L('名称')">
+                        <Input v-model="milestoneForm.name" :maxlength="100" :placeholder="$L('请输入里程碑名称')"/>
+                    </FormItem>
+                    <FormItem :label="$L('说明')">
+                        <Input v-model="milestoneForm.description" type="textarea" :autosize="{ minRows: 2, maxRows: 3 }" :maxlength="500" :placeholder="$L('选填')"/>
+                    </FormItem>
+                    <FormItem :label="$L('负责人')">
+                        <UserSelect v-model="milestoneForm.owner_userids" :project-id="projectId" :multiple-max="1" :title="$L('选择负责人')"/>
+                    </FormItem>
+                    <FormItem :label="$L('目标日期')">
+                        <DatePicker v-model="milestoneForm.target_at" type="date" format="yyyy-MM-dd" :placeholder="$L('选填')" clearable transfer/>
+                    </FormItem>
+                    <FormItem :label="$L('提醒')">
+                        <Select v-model="milestoneForm.reminder_days" :disabled="!milestoneForm.target_at" style="width:180px">
+                            <Option :value="-1">{{$L('关闭提醒')}}</Option>
+                            <Option :value="0">{{$L('目标日期当天提醒')}}</Option>
+                            <Option :value="1">{{$L('提前(*)天提醒', 1)}}</Option>
+                            <Option :value="3">{{$L('提前(*)天提醒', 3)}}</Option>
+                            <Option :value="7">{{$L('提前(*)天提醒', 7)}}</Option>
+                        </Select>
+                        <div class="form-tip">{{$L('提醒默认关闭；设置目标日期后可开启，并通过项目群聊发送一次弱提醒。')}}</div>
+                    </FormItem>
+                    <FormItem :label="$L('状态')">
+                        <Select v-model="milestoneForm.status" style="width:180px">
+                            <Option value="open">{{$L('进行中')}}</Option>
+                            <Option value="completed">{{$L('已完成')}}</Option>
+                        </Select>
+                    </FormItem>
+                    <div class="adaption">
+                        <Button v-if="milestoneForm.id" type="default" :disabled="milestoneSaving" @click="resetMilestoneForm">{{$L('取消编辑')}}</Button>
+                        <Button type="primary" :loading="milestoneSaving" @click="saveMilestone">{{$L(milestoneForm.id ? '保存修改' : '添加里程碑')}}</Button>
+                    </div>
+                </Form>
+                <div v-if="milestoneLoading" class="form-tip">{{$L('加载中...')}}</div>
+                <div v-else-if="milestoneLoadFailed" class="project-capacity-load-state">
+                    <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
+                    <Button size="small" type="text" :disabled="milestoneLoading" @click="loadMilestones">{{$L('重试')}}</Button>
+                </div>
+                <div v-else-if="milestoneList.length === 0" class="form-tip">{{$L('暂无里程碑')}}</div>
+                <Draggable
+                    v-else
+                    class="project-milestone-list"
+                    tag="ul"
+                    :list="milestoneList"
+                    :animation="150"
+                    :disabled="!milestoneCanManage || milestoneSortSaving"
+                    item-key="id"
+                    handle=".project-milestone-drag-handle"
+                    @end="saveMilestoneSort">
+                    <li v-for="item in milestoneList" :key="item.id">
+                        <div class="project-milestone-main">
+                            <div class="project-milestone-heading">
+                                <strong>{{item.name}}</strong>
+                                <UserAvatar v-if="item.owner_userid" :userid="item.owner_userid" :size="20" showName/>
+                                <span v-if="item.target_at">{{item.target_at}}</span>
+                                <Tag :color="item.status === 'completed' ? 'success' : 'default'">{{$L(item.status === 'completed' ? '已完成' : '进行中')}}</Tag>
+                            </div>
+                            <p v-if="item.description">{{item.description}}</p>
+                            <div class="project-milestone-stats">
+                                <span>{{$L('关联任务')}} {{item.task_count || 0}}</span>
+                                <span>{{$L('已完成')}} {{item.completed_count || 0}}</span>
+                                <span>{{$L('逾期')}} {{item.overdue_count || 0}}</span>
+                                <span>{{$L('完成率')}} {{item.progress_percent || 0}}%</span>
+                                <Button size="small" type="text" :loading="milestoneTaskLoading && milestoneTaskId === item.id" @click="toggleMilestoneTasks(item)">{{$L(milestoneTaskId === item.id ? '收起任务' : '查看任务')}}</Button>
+                            </div>
+                            <div v-if="milestoneCanManage && item.reminder_days >= 0 && item.target_at" class="project-milestone-reminder-state">
+                                <template v-if="item.reminded_at">{{$L('已发送')}} · {{item.reminded_at}}</template>
+                                <template v-else-if="item.reminder_attempt_count">
+                                    {{$L('重试次数')}} {{item.reminder_attempt_count}} · {{item.reminder_last_attempt_at}} ·
+                                    {{$L(item.reminder_last_error_code === 'bot_unavailable' ? '提醒机器人不可用' : item.reminder_last_error_code === 'chat_unavailable' ? '项目群聊不可用' : '提醒消息投递失败')}}
+                                </template>
+                                <template v-else>{{$L('等待提醒')}}</template>
+                                <Button size="small" type="text" @click="openReminderAttempts(item)">{{$L('提醒记录')}}</Button>
+                            </div>
+                            <div v-if="item.flow_statuses && item.flow_statuses.length" class="project-milestone-statuses">
+                                <Tag v-for="status in item.flow_statuses" :key="status.name" :color="status.color || 'default'">{{status.name}} {{status.count}}</Tag>
+                            </div>
+                            <div v-if="milestoneTaskId === item.id" class="project-milestone-tasks">
+                                <div v-if="milestoneTaskLoading && milestoneTasks.length === 0" class="form-tip">{{$L('加载中...')}}</div>
+                                <div v-else-if="milestoneTaskLoadFailed" class="project-capacity-load-state">
+                                    <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
+                                    <Button size="small" type="text" :disabled="milestoneTaskLoading" @click="loadMilestoneTasks(milestoneTasks.length === 0)">{{$L('重试')}}</Button>
+                                </div>
+                                <div v-else-if="milestoneTasks.length === 0" class="form-tip">{{$L('没有关联任务')}}</div>
+                                <ul v-else>
+                                    <li v-for="task in milestoneTasks" :key="task.id" @click="openMilestoneTask(task)">
+                                        <span class="project-milestone-task-name">#{{task.id}} {{task.name}}</span>
+                                        <span class="project-milestone-task-meta">
+                                            <Tag v-if="task.complete_at" color="success">{{$L('已完成')}}</Tag>
+                                            <Tag v-else-if="task.flow_item_name" :color="task.flow_item_color || 'default'">{{task.flow_item_name}}</Tag>
+                                            <Tag v-else-if="task.overdue" color="error">{{$L('逾期')}}</Tag>
+                                            <span v-if="task.column_name">{{task.column_name}}</span>
+                                            <span v-if="task.end_at">{{task.end_at.slice(0, 10)}}</span>
+                                        </span>
+                                    </li>
+                                </ul>
+                                <Button v-if="!milestoneTaskLoadFailed && milestoneTasks.length < milestoneTaskTotal" size="small" long :loading="milestoneTaskLoading" @click="loadMilestoneTasks(false)">{{$L('加载更多')}}</Button>
+                            </div>
+                        </div>
+                        <div v-if="milestoneCanManage" class="project-milestone-actions">
+                            <span class="project-milestone-drag-handle" :title="$L('拖拽调整排序')"><Icon type="md-menu" /></span>
+                            <Button size="small" @click="editMilestone(item)">{{$L('编辑')}}</Button>
+                            <Poptip confirm :title="$L('删除后将解除该里程碑与所有任务的关联，确定继续吗？')" :ok-text="$L('删除')" :cancel-text="$L('取消')" @on-ok="deleteMilestone(item)">
+                                <Button size="small" type="error">{{$L('删除')}}</Button>
+                            </Poptip>
+                        </div>
+                    </li>
+                </Draggable>
+            </div>
+            <div slot="footer" class="adaption">
+                <Button type="default" @click="milestoneShow=false">{{$L('关闭')}}</Button>
+            </div>
+        </Modal>
+
+        <Modal v-model="reminderAttemptsShow" :title="$L('提醒记录')" :mask-closable="false" width="600">
+            <div class="project-milestone-reminder-attempts">
+                <p v-if="reminderAttemptsMilestoneName" class="form-tip">{{reminderAttemptsMilestoneName}}</p>
+                <div v-if="reminderAttemptsLoading && reminderAttempts.length === 0" class="form-tip">{{$L('加载中...')}}</div>
+                <div v-else-if="reminderAttemptsLoadFailed" class="project-capacity-load-state">
+                    <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
+                    <Button size="small" type="text" :disabled="reminderAttemptsLoading" @click="loadReminderAttempts(false)">{{$L('重试')}}</Button>
+                </div>
+                <div v-else-if="reminderAttempts.length === 0" class="form-tip">{{$L('没有提醒记录')}}</div>
+                <ul v-else>
+                    <li v-for="attempt in reminderAttempts" :key="attempt.id">
+                        <span>{{attempt.attempted_at}}</span>
+                        <strong>{{reminderAttemptStatus(attempt.status)}}</strong>
+                        <span v-if="attempt.result_code">{{attempt.result_code}}</span>
+                    </li>
+                </ul>
+                <Button v-if="!reminderAttemptsLoadFailed && reminderAttempts.length < reminderAttemptsTotal" size="small" long :loading="reminderAttemptsLoading" @click="loadReminderAttempts(true)">{{$L('加载更多')}}</Button>
+            </div>
+            <div slot="footer" class="adaption">
+                <Button type="default" @click="reminderAttemptsShow=false">{{$L('关闭')}}</Button>
+            </div>
+        </Modal>
 
         <!--项目权限-->
         <DrawerOverlay
@@ -688,7 +960,6 @@
 <script>
 import {debounce} from "lodash";
 import Draggable from 'vuedraggable'
-import TaskPriority from "./TaskPriority";
 import {mapGetters, mapState} from "vuex";
 import TaskAddSimple from "./TaskAddSimple";
 import TaskRow from "./TaskRow";
@@ -731,7 +1002,6 @@ export default {
         TaskRow,
         Draggable,
         TaskAddSimple,
-        TaskPriority,
         TaskDeleted,
         TaskTag,
         ProjectGantt,
@@ -765,6 +1035,54 @@ export default {
             settingShow: false,
             settingData: {},
             settingLoad: 0,
+
+            milestoneShow: false,
+            capacityShow: false,
+            capacityLoading: false,
+            capacityLoadFailed: false,
+            capacityRequestKey: 0,
+            capacityRange: [$A.dayjs().startOf('month').toDate(), $A.dayjs().endOf('month').toDate()],
+            capacityRangeProjectId: 0,
+            capacitySummary: {},
+            capacitySummaryRangeKey: '',
+            capacityColumns: [
+                {title: this.$L('成员'), key: 'user', render: (h, {row}) => h('span', row.user && row.user.name || `#${row.userid}`)},
+                {title: this.$L('任务数'), key: 'task_count', width: 80},
+                {title: this.$L('预估工时'), key: 'estimated_minutes', render: (h, {row}) => h('span', {
+                    attrs: {title: `${this.$L('工作日')} · 8 ${this.$L('小时')}`},
+                }, `${this.formatWorkMinutes(row.estimated_minutes)} / ${row.capacity_member ? this.formatWorkMinutes(row.available_minutes) : '—'} (${row.capacity_utilization_percent === null ? '—' : `${row.capacity_utilization_percent}%`})`)},
+                {title: this.$L('已登记'), key: 'logged_minutes', render: (h, {row}) => h('span', this.formatWorkMinutes(row.logged_minutes))},
+                {title: this.$L('剩余'), key: 'remaining_minutes', render: (h, {row}) => h('span', this.formatWorkMinutes(row.remaining_minutes))},
+            ],
+            milestoneLoading: false,
+            milestoneLoadFailed: false,
+            reminderAttemptsShow: false,
+            reminderAttemptsLoading: false,
+            reminderAttemptsLoadFailed: false,
+            reminderAttemptsRequestKey: 0,
+            reminderAttemptsMilestoneId: 0,
+            reminderAttemptsMilestoneName: '',
+            reminderAttempts: [],
+            reminderAttemptsTotal: 0,
+            reminderAttemptsPage: 0,
+            milestoneSaving: false,
+            milestoneSortSaving: false,
+            milestoneCanManage: false,
+            milestoneList: [],
+            milestoneForm: {id: 0, name: '', description: '', owner_userids: [], target_at: '', status: 'open', reminder_days: -1},
+            milestoneFilterId: null,
+            taskDateRange: [],
+            tableFields: ['column', 'priority', 'owner', 'due'],
+            milestoneTaskId: 0,
+            milestoneTasks: [],
+            milestoneTaskTotal: 0,
+            milestoneTaskPage: 1,
+            milestoneTaskLoading: false,
+            milestoneTaskLoadFailed: false,
+            taskViews: [],
+            taskViewsLoading: false,
+            taskViewsLoadFailed: false,
+            selectedTaskViewId: '',
 
             permissionShow: false,
             permissionShowData: {},
@@ -801,6 +1119,7 @@ export default {
     },
 
     mounted() {
+        emitter.on('projectMilestonesUpdate', this.onProjectMilestonesUpdate);
         this.nowInterval = setInterval(() => {
             this.nowTime = $A.dayjs().unix();
             this.tableToday = $A.daytz().format('YYYY-MM-DD');
@@ -808,6 +1127,7 @@ export default {
     },
 
     destroyed() {
+        emitter.off('projectMilestonesUpdate', this.onProjectMilestonesUpdate);
         this.cancelTableGroupScroll();
         clearInterval(this.nowInterval);
     },
@@ -832,6 +1152,14 @@ export default {
 
         ...mapGetters(['aiVisible', 'projectData', 'transforTasks']),
 
+        projectScheduleTimezone() {
+            return this.projectData.task_schedule_timezone || $A.timezoneName || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        },
+
+        capacityModalWidth() {
+            return this.windowWidth < 800 ? '96%' : 720;
+        },
+
         tabTypeActive() {
             return this.projectData.cacheParameter.menuType
         },
@@ -840,8 +1168,26 @@ export default {
             return projectTableGroups;
         },
 
+        taskTableFieldOptions() {
+            return [
+                {key: 'column', label: '列表'},
+                {key: 'priority', label: '优先级'},
+                {key: 'owner', label: '负责人'},
+                {key: 'due', label: '到期时间'},
+                {key: 'estimate', label: '预估工时'},
+            ];
+        },
+
+        tableNameSpan() {
+            return 24 - this.tableFields.length * 3;
+        },
+
         visibleTableGroups() {
             return normalizeProjectTableGroups(this.projectData.cacheParameter.tableGroups);
+        },
+
+        selectedTaskView() {
+            return this.taskViews.find(item => Number(item.id) === Number(this.selectedTaskViewId)) || null;
         },
 
         tableWeekRanges() {
@@ -1012,12 +1358,21 @@ export default {
         },
 
         allTask() {
-            const {cacheTasks, projectId} = this;
+            const {cacheTasks, projectId, milestoneFilterId, taskDateRange} = this;
             return cacheTasks.filter(task => {
                 if (task.archived_at || !task.created_at) {
                     return false;
                 }
-                return task.project_id == projectId
+                if (task.project_id != projectId) return false;
+                if (Number(milestoneFilterId) && Number(task.milestone_id) !== Number(milestoneFilterId)) return false;
+                if (Array.isArray(taskDateRange) && taskDateRange.length === 2 && taskDateRange[0] && taskDateRange[1]) {
+                    const startAt = task.start_at || task.end_at;
+                    const endAt = task.end_at || task.start_at;
+                    if (!startAt || !endAt) return false;
+                    if ($A.dayjs(endAt).isBefore($A.dayjs(taskDateRange[0]).startOf('day')) ||
+                        $A.dayjs(startAt).isAfter($A.dayjs(taskDateRange[1]).endOf('day'))) return false;
+                }
+                return true;
             })
         },
 
@@ -1271,9 +1626,31 @@ export default {
             const count = allTask.filter(task => taskMatchesProjectFlowFilter(task, flowFilter)).length;
             return {title: `${parts.join(' / ')} (${count})`, class: 'active'};
         },
+
+        milestoneOverview() {
+            const openMilestones = this.milestoneList.filter(item => item.status === 'open');
+            const today = $A.dayjs().format('YYYY-MM-DD');
+            const next = openMilestones.slice().sort((a, b) => {
+                const aDate = a.target_at || '9999-12-31';
+                const bDate = b.target_at || '9999-12-31';
+                return aDate.localeCompare(bDate) || Number(a.id) - Number(b.id);
+            }).find(item => item.target_at >= today) || openMilestones.find(item => item.target_at) || openMilestones[0] || null;
+            const taskCount = this.milestoneList.reduce((total, item) => total + Number(item.task_count || 0), 0);
+            const completedCount = this.milestoneList.reduce((total, item) => total + Number(item.completed_count || 0), 0);
+            return {
+                next,
+                progress: taskCount > 0 ? Math.floor(completedCount / taskCount * 100) : 0,
+                overdue: this.milestoneList.reduce((total, item) => total + Number(item.overdue_count || 0), 0),
+            };
+        },
     },
 
     watch: {
+        'milestoneForm.target_at'(value) {
+            if (!value && this.milestoneForm.reminder_days >= 0) {
+                this.milestoneForm.reminder_days = -1;
+            }
+        },
         tabTypeActive(type) {
             if (type !== 'table') {
                 this.tableGroupsOpen = false;
@@ -1289,11 +1666,59 @@ export default {
         },
         projectId: {
             handler(id) {
+                this.capacityRequestKey++;
+                this.capacityLoading = false;
+                this.capacitySummary = {};
+                this.capacitySummaryRangeKey = '';
+                this.capacityLoadFailed = false;
+                this.capacityShow = false;
                 this.cancelTableGroupScroll();
                 this.tableGroupsOpen = false;
+                this._taskViewRequestKey = (this._taskViewRequestKey || 0) + 1;
+                this.taskViews = [];
+                this.taskViewsLoading = false;
+                this.taskViewsLoadFailed = false;
+                this.selectedTaskViewId = '';
+                this.flowFilter = emptyProjectFlowFilter();
+                this.searchText = '';
+                this.milestoneFilterId = null;
+                this.taskDateRange = [];
+                this.tableFields = ['column', 'priority', 'owner', 'due'];
+                this.milestoneList = [];
+                this.milestoneCanManage = false;
+                this._milestoneTaskRequestKey = (this._milestoneTaskRequestKey || 0) + 1;
+                this.milestoneTaskId = 0;
+                this.milestoneTasks = [];
+                this.milestoneTaskTotal = 0;
+                this.milestoneTaskLoading = false;
+                this.milestoneTaskLoadFailed = false;
+                this.milestoneLoadFailed = false;
+                this.capacitySummary = {};
+                this.capacityLoadFailed = false;
+                this._milestoneSaveRequestKey = (this._milestoneSaveRequestKey || 0) + 1;
+                this.milestoneSaving = false;
+                this._milestoneSortRequestKey = (this._milestoneSortRequestKey || 0) + 1;
+                this.milestoneSortSaving = false;
+                this.milestoneShow = false;
+                this.reminderAttemptsRequestKey++;
+                this.reminderAttemptsShow = false;
+                this.reminderAttemptsLoading = false;
+                this.reminderAttemptsMilestoneId = 0;
+                this.reminderAttemptsMilestoneName = '';
+                this.reminderAttempts = [];
+                this.reminderAttemptsTotal = 0;
+                this.reminderAttemptsPage = 0;
+                this.reminderAttemptsLoadFailed = false;
+                this.resetMilestoneForm();
                 if (id > 0) {
                     this.getFlowData();
+                    this.loadMilestones().then(() => {
+                        if (id === this.projectId) this.loadTaskViews();
+                    });
                     this.handleColumnDebounce();
+                } else {
+                    this.taskViews = [];
+                    this.selectedTaskViewId = '';
                 }
             },
             immediate: true,
@@ -1308,6 +1733,9 @@ export default {
             this.handleColumnDebounce();
         },
         searchText() {
+            this.handleColumnDebounce(true);
+        },
+        taskDateRange() {
             this.handleColumnDebounce(true);
         },
         windowWidth() {
@@ -1656,9 +2084,11 @@ export default {
 
         onSetting() {
             this.settingLoad++;
+            const settingData = {...this.settingData};
+            settingData.task_schedule_holidays = this.parseScheduleHolidays(settingData.task_schedule_holidays);
             this.$store.dispatch("call", {
                 url: 'project/update',
-                data: Object.assign(this.settingData, {
+                data: Object.assign(settingData, {
                     project_id: this.projectId
                 }),
             }).then(({data, msg}) => {
@@ -1670,6 +2100,398 @@ export default {
             }).finally(_ => {
                 this.settingLoad--;
             });
+        },
+
+        parseScheduleWorkdays(value) {
+            let days = value;
+            if (typeof days === 'string') {
+                try { days = JSON.parse(days); } catch (e) { days = null; }
+            }
+            return Array.isArray(days) && days.length
+                ? [...new Set(days.map(Number).filter(day => Number.isInteger(day) && day >= 1 && day <= 7))]
+                : [1, 2, 3, 4, 5];
+        },
+
+        parseScheduleHolidays(value) {
+            let dates = value;
+            if (typeof dates === 'string') {
+                try {
+                    const parsed = JSON.parse(dates);
+                    dates = Array.isArray(parsed) ? parsed : dates;
+                } catch (e) {}
+                if (typeof dates === 'string') dates = dates.split(/[\s,;]+/);
+            }
+            if (!Array.isArray(dates)) return [];
+            return [...new Set(dates.map(date => String(date).trim()).filter(Boolean))].sort();
+        },
+
+        async loadMilestones() {
+            const requestKey = this._milestoneRequestKey = (this._milestoneRequestKey || 0) + 1;
+            const projectId = this.projectId;
+            this.milestoneLoading = true;
+            this.milestoneLoadFailed = false;
+            try {
+                const {data} = await this.$store.dispatch("call", {
+                    url: 'projectmilestone/lists',
+                    data: {project_id: projectId},
+                });
+                if (requestKey !== this._milestoneRequestKey || projectId !== this.projectId) return;
+                this.milestoneList = data.milestones || [];
+                this.milestoneCanManage = !!data.can_manage;
+                if (!this.milestoneList.some(item => Number(item.id) === Number(this.milestoneFilterId))) {
+                    const missingMilestone = Number(this.milestoneFilterId) || 0;
+                    this.milestoneFilterId = null;
+                    if (missingMilestone && this.selectedTaskViewId) {
+                        $A.messageWarning(this.$L('视图中的里程碑已不可用，已清除该筛选'));
+                    }
+                }
+                if (this.milestoneTaskId && !this.milestoneList.some(item => Number(item.id) === Number(this.milestoneTaskId))) {
+                    this.milestoneTaskId = 0;
+                    this.milestoneTasks = [];
+                    this.milestoneTaskTotal = 0;
+                }
+                if (!this.milestoneCanManage) this.resetMilestoneForm();
+            } catch (e) {
+                if (requestKey === this._milestoneRequestKey) this.milestoneLoadFailed = true;
+            } finally {
+                if (requestKey === this._milestoneRequestKey) this.milestoneLoading = false;
+            }
+        },
+
+        openReminderAttempts(item) {
+            if (!this.milestoneCanManage || !item || !item.id) return;
+            this.reminderAttemptsRequestKey++;
+            this.reminderAttemptsShow = true;
+            this.reminderAttemptsMilestoneId = Number(item.id);
+            this.reminderAttemptsMilestoneName = item.name || '';
+            this.reminderAttempts = [];
+            this.reminderAttemptsTotal = 0;
+            this.reminderAttemptsPage = 0;
+            this.reminderAttemptsLoadFailed = false;
+            this.loadReminderAttempts(false);
+        },
+
+        async loadReminderAttempts(append = false) {
+            if (this.reminderAttemptsLoading && append) return;
+            const projectId = Number(this.projectId);
+            const milestoneId = Number(this.reminderAttemptsMilestoneId);
+            if (!projectId || !milestoneId) return;
+            const requestKey = ++this.reminderAttemptsRequestKey;
+            const page = append ? this.reminderAttemptsPage + 1 : 1;
+            this.reminderAttemptsLoading = true;
+            this.reminderAttemptsLoadFailed = false;
+            try {
+                const {data} = await this.$store.dispatch('call', {
+                    url: 'projectmilestone/reminderattempts',
+                    method: 'post',
+                    data: {project_id: projectId, milestone_id: milestoneId, page, per_page: 20},
+                });
+                if (requestKey !== this.reminderAttemptsRequestKey
+                    || projectId !== Number(this.projectId)
+                    || milestoneId !== Number(this.reminderAttemptsMilestoneId)) return;
+                this.reminderAttempts = append
+                    ? [...this.reminderAttempts, ...(data.items || [])]
+                    : (data.items || []);
+                this.reminderAttemptsTotal = Number(data.total) || 0;
+                this.reminderAttemptsPage = Number(data.page) || page;
+            } catch (e) {
+                if (requestKey === this.reminderAttemptsRequestKey
+                    && projectId === Number(this.projectId)
+                    && milestoneId === Number(this.reminderAttemptsMilestoneId)) {
+                    this.reminderAttemptsLoadFailed = true;
+                }
+            } finally {
+                if (requestKey === this.reminderAttemptsRequestKey) this.reminderAttemptsLoading = false;
+            }
+        },
+
+        reminderAttemptStatus(status) {
+            if (status === 'sent') return this.$L('已发送');
+            if (status === 'bot_unavailable') return this.$L('提醒机器人不可用');
+            if (status === 'chat_unavailable') return this.$L('项目群聊不可用');
+            return this.$L('提醒消息投递失败');
+        },
+
+        onProjectMilestonesUpdate(projectId) {
+            if (Number(projectId) !== Number(this.projectId)) return;
+            this.loadMilestones();
+            if (this.milestoneTaskId) {
+                this._milestoneTaskRequestKey = (this._milestoneTaskRequestKey || 0) + 1;
+                this.milestoneTaskLoading = false;
+                this.milestoneTaskPage = 1;
+                this.loadMilestoneTasks(true);
+            }
+        },
+
+        openMilestoneOverview() {
+            this.milestoneShow = true;
+            this.loadMilestones();
+        },
+
+        openCapacityOverview() {
+            const projectId = Number(this.projectId);
+            if (projectId !== this.capacityRangeProjectId) {
+                const timezone = this.projectData.task_schedule_timezone || $A.timezoneName || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+                const today = $A.dayjs().tz(timezone);
+                const asLocalDate = date => new Date(date.year(), date.month(), date.date());
+                if (today.isValid()) {
+                    this.capacityRange = [asLocalDate(today.startOf('month')), asLocalDate(today.endOf('month'))];
+                }
+                this.capacityRangeProjectId = projectId;
+            }
+            this.capacityShow = true;
+            this.loadCapacityOverview();
+        },
+
+        formatWorkMinutes(minutes) {
+            const value = Number(minutes) || 0;
+            const hours = Math.floor(value / 60);
+            const remainder = value % 60;
+            return `${hours}${this.$L('小时')} ${remainder}${this.$L('分钟')}`;
+        },
+
+        capacitySummaryMatchesSelection() {
+            if (!this.capacitySummaryRangeKey) return false;
+            const [fromValue, toValue] = this.capacityRange || [];
+            if (!fromValue || !toValue) return false;
+            const from = $A.dayjs(fromValue);
+            const to = $A.dayjs(toValue);
+            if (!from.isValid() || !to.isValid()) return false;
+            const key = `${Number(this.projectId)}|${from.format('YYYY-MM-DD')}|${to.format('YYYY-MM-DD')}`;
+            return key === this.capacitySummaryRangeKey;
+        },
+
+        invalidateCapacitySummary() {
+            this.capacityRequestKey++;
+            this.capacityLoading = false;
+            this.capacityLoadFailed = false;
+            this.capacitySummary = {};
+            this.capacitySummaryRangeKey = '';
+        },
+
+        async loadCapacityOverview() {
+            const requestKey = ++this.capacityRequestKey;
+            this.capacityLoading = false;
+            this.capacitySummary = {};
+            this.capacitySummaryRangeKey = '';
+            this.capacityLoadFailed = false;
+            const [fromValue, toValue] = this.capacityRange || [];
+            if (!fromValue || !toValue) return;
+            const fromDate = $A.dayjs(fromValue).startOf('day');
+            const toDate = $A.dayjs(toValue).startOf('day');
+            const utcDay = date => Date.UTC(date.year(), date.month(), date.date());
+            if (!fromDate.isValid() || !toDate.isValid()) {
+                $A.modalError(this.$L('日期范围无效'));
+                return;
+            }
+            const dayDifference = (utcDay(toDate) - utcDay(fromDate)) / 86400000;
+            if (dayDifference > 92) {
+                this.capacityLoadFailed = false;
+                $A.modalError(this.$L('日期范围最多 93 天'));
+                return;
+            }
+            this.capacityLoading = true;
+            this.capacityLoadFailed = false;
+            const projectId = Number(this.projectId);
+            try {
+                const {data} = await this.$store.dispatch('call', {
+                    url: 'projecttaskwork/capacity',
+                    data: {project_id: projectId, from: $A.dayjs(fromValue).format('YYYY-MM-DD'), to: $A.dayjs(toValue).format('YYYY-MM-DD')},
+                });
+                if (requestKey === this.capacityRequestKey && projectId === Number(this.projectId)) {
+                    this.capacitySummary = data;
+                    this.capacitySummaryRangeKey = `${projectId}|${fromDate.format('YYYY-MM-DD')}|${toDate.format('YYYY-MM-DD')}`;
+                }
+            } catch (e) {
+                if (requestKey === this.capacityRequestKey && projectId === Number(this.projectId)) {
+                    this.capacitySummary = {};
+                    this.capacitySummaryRangeKey = '';
+                    this.capacityLoadFailed = true;
+                }
+            } finally {
+                if (requestKey === this.capacityRequestKey) this.capacityLoading = false;
+            }
+        },
+
+        exportCapacityCsv() {
+            if (!this.capacitySummaryMatchesSelection() || this.capacityLoading) return;
+            const members = this.capacitySummary.members;
+            if (!Array.isArray(members) || members.length === 0) return;
+            const [fromValue, toValue] = this.capacityRange || [];
+            if (!fromValue || !toValue) return;
+            const columns = [
+                this.$L('成员'),
+                this.$L('任务数'),
+                `${this.$L('预估工时')} / ${this.$L('工作日')} (8 ${this.$L('小时')})`,
+                this.$L('已登记'),
+                this.$L('剩余'),
+                this.$L('超出'),
+            ];
+            const escape = value => {
+                let text = String(value ?? '');
+                if (/^\s*[=+\-@]/.test(text)) text = `'${text}`;
+                return `"${text.replace(/"/g, '""')}"`;
+            };
+            const rows = members.map(row => [
+                row.user && row.user.name || `#${row.userid}`,
+                row.task_count,
+                `${this.formatWorkMinutes(row.estimated_minutes)} / ${row.capacity_member ? this.formatWorkMinutes(row.available_minutes) : '—'} (${row.capacity_utilization_percent == null ? '—' : `${row.capacity_utilization_percent}%`})`,
+                this.formatWorkMinutes(row.logged_minutes),
+                this.formatWorkMinutes(row.remaining_minutes),
+                this.formatWorkMinutes(row.overrun_minutes),
+            ]);
+            const csv = `\uFEFF${[columns, ...rows].map(row => row.map(escape).join(',')).join('\r\n')}`;
+            const blobUrl = window.URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = `project-capacity-${$A.dayjs(fromValue).format('YYYY-MM-DD')}-${$A.dayjs(toValue).format('YYYY-MM-DD')}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 0);
+        },
+
+        async toggleMilestoneTasks(item) {
+            this._milestoneTaskRequestKey = (this._milestoneTaskRequestKey || 0) + 1;
+            this.milestoneTaskLoading = false;
+            if (Number(this.milestoneTaskId) === Number(item.id)) {
+                this.milestoneTaskId = 0;
+                this.milestoneTasks = [];
+                this.milestoneTaskTotal = 0;
+                return;
+            }
+            this.milestoneTaskId = item.id;
+            this.milestoneTasks = [];
+            this.milestoneTaskTotal = 0;
+            this.milestoneTaskPage = 1;
+            await this.loadMilestoneTasks(true);
+        },
+
+        async loadMilestoneTasks(reset = false) {
+            const milestoneId = Number(this.milestoneTaskId);
+            if (!milestoneId || this.milestoneTaskLoading) return;
+            const requestKey = this._milestoneTaskRequestKey = (this._milestoneTaskRequestKey || 0) + 1;
+            const projectId = this.projectId;
+            const page = reset ? 1 : this.milestoneTaskPage + 1;
+            this.milestoneTaskLoading = true;
+            this.milestoneTaskLoadFailed = false;
+            try {
+                const {data} = await this.$store.dispatch("call", {
+                    url: 'projectmilestone/tasks',
+                    data: {project_id: projectId, milestone_id: milestoneId, page, per_page: 30},
+                });
+                if (requestKey !== this._milestoneTaskRequestKey || projectId !== this.projectId || milestoneId !== Number(this.milestoneTaskId)) return;
+                this.milestoneTasks = reset ? (data.list || []) : [...this.milestoneTasks, ...(data.list || [])];
+                this.milestoneTaskTotal = Number(data.total) || 0;
+                this.milestoneTaskPage = Number(data.page) || page;
+            } catch (e) {
+                if (requestKey === this._milestoneTaskRequestKey) this.milestoneTaskLoadFailed = true;
+            } finally {
+                if (requestKey === this._milestoneTaskRequestKey) this.milestoneTaskLoading = false;
+            }
+        },
+
+        openMilestoneTask(task) {
+            const cachedTask = this.cacheTasks.find(item => Number(item.id) === Number(task.id));
+            this.openTask(cachedTask || {id: Number(task.id), project_id: this.projectId});
+        },
+
+        resetMilestoneForm() {
+            this.milestoneForm = {id: 0, name: '', description: '', owner_userids: [], target_at: '', status: 'open', reminder_days: -1};
+        },
+
+        editMilestone(item) {
+            if (!this.milestoneCanManage || !item || !this.milestoneList.some(({id}) => Number(id) === Number(item.id))) return;
+            this.milestoneForm = {
+                ...item,
+                owner_userids: item.owner_userid ? [Number(item.owner_userid)] : [],
+                target_at: item.target_at ? $A.dayjs(item.target_at).toDate() : '',
+            };
+        },
+
+        async saveMilestone() {
+            if (this.milestoneSaving) return;
+            if (!this.milestoneForm.name.trim()) {
+                $A.modalError(this.$L('请输入里程碑名称'));
+                return;
+            }
+            const projectId = this.projectId;
+            const form = {...this.milestoneForm};
+            const submittedForm = JSON.stringify(form);
+            const requestKey = this._milestoneSaveRequestKey = (this._milestoneSaveRequestKey || 0) + 1;
+            this.milestoneSaving = true;
+            try {
+                const targetAt = form.target_at
+                    ? $A.dayjs(form.target_at).format('YYYY-MM-DD')
+                    : '';
+                const {data} = await this.$store.dispatch("call", {
+                    url: 'projectmilestone/save',
+                    data: {
+                        project_id: projectId,
+                        milestone_id: form.id || 0,
+                        name: form.name,
+                        description: form.description,
+                        target_at: targetAt,
+                        status: form.status,
+                        reminder_days: form.reminder_days,
+                        owner_userid: Number(form.owner_userids[0]) || 0,
+                    },
+                });
+                emitter.emit('projectMilestonesUpdate', projectId);
+                if (requestKey === this._milestoneSaveRequestKey && projectId === this.projectId) {
+                    if (JSON.stringify(this.milestoneForm) === submittedForm) {
+                        this.resetMilestoneForm();
+                    } else if (!form.id && data && data.id) {
+                        // Keep edits made while the create request was in flight attached to
+                        // the newly created milestone instead of creating a duplicate.
+                        this.$set(this.milestoneForm, 'id', Number(data.id));
+                    }
+                }
+            } catch ({msg}) {
+                if (projectId === this.projectId) $A.modalError(msg);
+            } finally {
+                if (requestKey === this._milestoneSaveRequestKey) this.milestoneSaving = false;
+            }
+        },
+
+        async deleteMilestone(item) {
+            if (!this.milestoneCanManage || !item || !this.milestoneList.some(({id}) => Number(id) === Number(item.id))) return;
+            const projectId = this.projectId;
+            const milestoneId = Number(item.id);
+            try {
+                await this.$store.dispatch("call", {
+                    url: 'projectmilestone/delete',
+                    data: {project_id: projectId, milestone_id: milestoneId},
+                });
+                if (projectId === this.projectId && Number(this.milestoneForm.id) === milestoneId) this.resetMilestoneForm();
+                emitter.emit('projectMilestonesUpdate', projectId);
+            } catch ({msg}) {
+                if (projectId === this.projectId) $A.modalError(msg);
+            }
+        },
+
+        async saveMilestoneSort() {
+            if (!this.milestoneCanManage || this.milestoneSortSaving) return;
+            const projectId = this.projectId;
+            const requestKey = this._milestoneSortRequestKey = (this._milestoneSortRequestKey || 0) + 1;
+            this.milestoneSortSaving = true;
+            try {
+                const {msg} = await this.$store.dispatch("call", {
+                    url: 'projectmilestone/sort',
+                    data: {project_id: projectId, milestones: this.milestoneList.map(item => Number(item.id))},
+                });
+                if (requestKey === this._milestoneSortRequestKey && projectId === this.projectId) {
+                    $A.messageSuccess(msg);
+                    emitter.emit('projectMilestonesUpdate', projectId);
+                }
+            } catch ({msg}) {
+                if (requestKey === this._milestoneSortRequestKey && projectId === this.projectId) {
+                    $A.modalError(msg);
+                    await this.loadMilestones();
+                }
+            } finally {
+                if (requestKey === this._milestoneSortRequestKey) this.milestoneSortSaving = false;
+            }
         },
 
         onUser() {
@@ -1775,12 +2597,17 @@ export default {
         },
 
         projectDropdown(name) {
-            if (this.isDepartmentReadonly && !['favorite', 'log', 'archived_task', 'deleted_task'].includes(name)) {
+            if (this.isDepartmentReadonly && !['favorite', 'milestones', 'log', 'archived_task', 'deleted_task'].includes(name)) {
                 return;
             }
             switch (name) {
                 case "favorite":
                     this.toggleProjectFavorite();
+                    break;
+
+                case "milestones":
+                    this.milestoneShow = true;
+                    this.loadMilestones();
                     break;
 
                 case "setting":
@@ -1791,6 +2618,12 @@ export default {
                         archive_days: this.projectData.archive_days,
                         ai_auto_analyze: this.projectData.ai_auto_analyze || 'open',
                         task_template_share: this.projectData.task_template_share || 'open',
+                        task_dependency: this.projectData.task_dependency || 'open',
+                        task_schedule_mode: this.projectData.task_schedule_mode || 'manual',
+                        task_schedule_workdays: this.parseScheduleWorkdays(this.projectData.task_schedule_workdays),
+                        task_schedule_holidays: this.parseScheduleHolidays(this.projectData.task_schedule_holidays).join('\n'),
+                        task_schedule_timezone: this.projectData.task_schedule_timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+                        task_schedule_buffer_days: Number(this.projectData.task_schedule_buffer_days) || 0,
                         department_owner_view: this.projectData.department_owner_view || 'open'
                     });
                     this.settingShow = true;
@@ -1969,6 +2802,238 @@ export default {
         flowFilterClear(key) {
             this.flowFilter = key ? {...this.flowFilter, [key]: []} : emptyProjectFlowFilter();
             this.handleColumnDebounce(true);
+        },
+
+        async loadTaskViews() {
+            const projectId = this.projectId;
+            const requestKey = this._taskViewRequestKey = (this._taskViewRequestKey || 0) + 1;
+            this.taskViewsLoading = true;
+            this.taskViewsLoadFailed = false;
+            try {
+                const {data} = await this.$store.dispatch('call', {
+                    url: 'projecttaskview/lists',
+                    data: {project_id: projectId},
+                });
+                if (requestKey !== this._taskViewRequestKey || this.projectId !== projectId) return;
+                this.taskViews = Array.isArray(data) ? data : [];
+                const defaultView = this.taskViews.find(item => item.is_default);
+                if (defaultView && this._taskViewAppliedProject !== projectId) {
+                    this._taskViewAppliedProject = projectId;
+                    this.applyTaskView(defaultView.id);
+                } else if (this.selectedTaskViewId && !this.taskViews.some(item => Number(item.id) === Number(this.selectedTaskViewId))) {
+                    this.selectedTaskViewId = '';
+                }
+            } catch (e) {
+                console.warn(e);
+                if (requestKey === this._taskViewRequestKey && this.projectId === projectId) this.taskViewsLoadFailed = true;
+            } finally {
+                if (requestKey === this._taskViewRequestKey) this.taskViewsLoading = false;
+            }
+        },
+
+        captureTaskView() {
+            const normalizedRange = Array.isArray(this.taskDateRange)
+                ? $A.newDateString(this.taskDateRange, 'YYYY-MM-DD')
+                : [];
+            return {
+                flow: JSON.parse(JSON.stringify(this.flowFilter)),
+                milestone_id: Number(this.milestoneFilterId) || 0,
+                date_range: normalizedRange[0] && normalizedRange[1]
+                    ? {from: normalizedRange[0], to: normalizedRange[1]}
+                    : {},
+                keyword: this.searchText,
+                completed: !!this.projectData.cacheParameter.completedTask,
+                tab: this.tabTypeActive,
+                sort: {field: this.sortField, type: this.sortType},
+                table_groups: [...this.visibleTableGroups],
+                table_fields: [...this.tableFields],
+            };
+        },
+
+        toggleTaskTableField(field) {
+            const available = this.taskTableFieldOptions.map(item => item.key);
+            if (!available.includes(field)) return;
+            const selected = new Set(this.tableFields);
+            selected.has(field) ? selected.delete(field) : selected.add(field);
+            this.tableFields = available.filter(key => selected.has(key));
+            this.handleColumnDebounce(true);
+        },
+
+        applyTaskView(viewId) {
+            const view = this.taskViews.find(item => Number(item.id) === Number(viewId));
+            if (!view) {
+                this.selectedTaskViewId = '';
+                return;
+            }
+            this.selectedTaskViewId = view.id;
+            this.applyTaskViewDefinition(view.definition || {});
+        },
+
+        async applyTaskViewPreset(preset) {
+            if (preset === 'near_milestone') {
+                const projectId = this.projectId;
+                if (this.milestoneLoading) await this.loadMilestones();
+                if (projectId !== this.projectId) return;
+                const milestone = this.milestoneOverview.next;
+                if (!milestone) {
+                    $A.messageWarning(this.$L('暂无进行中的里程碑'));
+                    return;
+                }
+                this.selectedTaskViewId = '';
+                this.applyTaskViewDefinition({
+                    flow: {flows: [], tags: [], users: []},
+                    milestone_id: milestone.id,
+                    keyword: '',
+                    completed: false,
+                    tab: 'table',
+                    sort: {field: 'end_at', type: 'asc'},
+                    table_groups: [],
+                });
+                return;
+            }
+            const groups = {
+                my_undone: ['my'],
+                overdue: ['overdue'],
+                due_week: ['dueThisWeek'],
+                unscheduled: ['unscheduled'],
+                due_next_week: ['dueNextWeek'],
+            };
+            if (!groups[preset]) return;
+            this.selectedTaskViewId = '';
+            this.applyTaskViewDefinition({
+                flow: {flows: [], tags: [], users: []},
+                milestone_id: 0,
+                keyword: '',
+                completed: false,
+                tab: 'table',
+                sort: {field: 'end_at', type: 'asc'},
+                table_groups: groups[preset],
+            });
+        },
+
+        applyTaskViewDefinition(definition) {
+            const flow = definition.flow || {};
+            this.flowFilter = {
+                flows: Array.isArray(flow.flows) ? flow.flows : [],
+                tags: Array.isArray(flow.tags) ? flow.tags : [],
+                users: Array.isArray(flow.users) ? flow.users : [],
+            };
+            const milestoneId = Number(definition.milestone_id) || 0;
+            if (milestoneId && !this.milestoneLoading && !this.milestoneList.some(item => Number(item.id) === milestoneId)) {
+                this.milestoneFilterId = null;
+                $A.messageWarning(this.$L('视图中的里程碑已不可用，已清除该筛选'));
+            } else {
+                this.milestoneFilterId = milestoneId || null;
+            }
+            this.searchText = definition.keyword || '';
+            const dateRange = definition.date_range || {};
+            this.taskDateRange = typeof dateRange.from === 'string' && typeof dateRange.to === 'string' && dateRange.from <= dateRange.to
+                ? [dateRange.from, dateRange.to]
+                : [];
+            const availableFields = this.taskTableFieldOptions.map(item => item.key);
+            this.tableFields = Array.isArray(definition.table_fields)
+                ? availableFields.filter(field => definition.table_fields.includes(field))
+                : availableFields;
+            this.sortField = definition.sort?.field === 'level' ? 'level' : 'end_at';
+            this.sortType = definition.sort?.type === 'asc' ? 'asc' : 'desc';
+            if (!!this.projectData.cacheParameter.completedTask !== !!definition.completed) {
+                this.$store.dispatch('forgetTaskCompleteTemp', true);
+            }
+            const tableGroups = normalizeProjectTableGroups(definition.table_groups);
+            const expandedGroups = Object.fromEntries(this.tableGroupOptions
+                .filter(group => tableGroups.includes(group.key))
+                .map(group => [group.expandedKey, true]));
+            this.$store.dispatch('toggleProjectParameter', {
+                project_id: this.projectId,
+                key: {
+                    completedTask: !!definition.completed,
+                    menuType: ['column', 'table', 'gantt'].includes(definition.tab) ? definition.tab : 'column',
+                    tableGroups,
+                    ...expandedGroups,
+                },
+            });
+            this.handleColumnDebounce(true);
+        },
+
+        taskViewCommand(command) {
+            if (typeof command === 'string' && command.startsWith('preset_')) {
+                this.applyTaskViewPreset(command.slice('preset_'.length));
+            } else if (command === 'update' && this.selectedTaskView) {
+                const view = this.selectedTaskView;
+                const projectId = this.projectId;
+                this.saveTaskView(view.name, view.visibility, this.captureTaskView(), view.id, projectId);
+            } else if (command === 'save' || command === 'save_shared' || command === 'copy') {
+                const source = command === 'copy' ? this.selectedTaskView : null;
+                const visibility = command === 'save_shared' ? 'project' : (source?.visibility === 'project' && this.isOwnerOrDeputy ? 'project' : 'personal');
+                const projectId = this.projectId;
+                const definition = source ? source.definition : this.captureTaskView();
+                $A.modalInput({
+                    title: command === 'copy' ? this.$L('复制视图') : this.$L('保存任务视图'),
+                    placeholder: this.$L('输入视图名称'),
+                    value: source ? `${source.name} - ${this.$L('副本')}` : '',
+                    onOk: name => {
+                        if (Number(projectId) !== Number(this.projectId)) {
+                            $A.messageWarning(this.$L('操作失败'));
+                            return;
+                        }
+                        if (!name || !name.trim()) return this.$L('请输入视图名称');
+                        return this.saveTaskView(name.trim(), visibility, definition, 0, projectId);
+                    },
+                });
+            } else if (command === 'rename' && this.selectedTaskView) {
+                const view = this.selectedTaskView;
+                const projectId = this.projectId;
+                $A.modalInput({
+                    title: this.$L('重命名视图'),
+                    value: view.name,
+                    placeholder: this.$L('输入视图名称'),
+                    onOk: name => {
+                        if (Number(projectId) !== Number(this.projectId)) {
+                            $A.messageWarning(this.$L('操作失败'));
+                            return;
+                        }
+                        if (!name || !name.trim()) return this.$L('请输入视图名称');
+                        return this.saveTaskView(name.trim(), view.visibility, view.definition, view.id, projectId);
+                    },
+                });
+            } else if (command === 'default' && this.selectedTaskView) {
+                const projectId = this.projectId;
+                const viewId = this.selectedTaskView.id;
+                this.$store.dispatch('call', {url: 'projecttaskview/setdefault', data: {project_id: projectId, view_id: viewId}, method: 'post'})
+                    .then(({msg}) => {
+                        if (this.projectId !== projectId) return;
+                        $A.messageSuccess(msg);
+                        this.loadTaskViews();
+                    })
+                    .catch(e => $A.modalError(e));
+            } else if (command === 'delete' && this.selectedTaskView) {
+                const view = this.selectedTaskView;
+                const projectId = this.projectId;
+                $A.modalConfirm({content: this.$L('确定删除视图“(*)”吗？', view.name), onOk: () => {
+                    if (Number(projectId) !== Number(this.projectId)) return;
+                    this.$store.dispatch('call', {url: 'projecttaskview/delete', data: {project_id: projectId, view_id: view.id}, method: 'post'})
+                        .then(({msg}) => {
+                            if (this.projectId !== projectId) return;
+                            $A.messageSuccess(msg);
+                            this.selectedTaskViewId = '';
+                            this.loadTaskViews();
+                        })
+                        .catch(e => $A.modalError(e));
+                }});
+            }
+        },
+
+        saveTaskView(name, visibility, definition, viewId = 0, projectId = this.projectId) {
+            return this.$store.dispatch('call', {
+                url: 'projecttaskview/save',
+                data: {project_id: projectId, view_id: viewId, name, visibility, definition},
+                method: 'post',
+            }).then(({data, msg}) => {
+                if (this.projectId !== projectId) return;
+                $A.messageSuccess(msg);
+                this.loadTaskViews();
+                this.selectedTaskViewId = data.id;
+            }).catch(e => $A.modalError(e));
         },
 
         inviteCopy() {

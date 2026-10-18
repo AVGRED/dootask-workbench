@@ -268,7 +268,29 @@ export default {
         },
 
         async onConfirm() {
-            if (!this.isCopy && this.task.project_id == this.cascader[0] && this.task.column_id == this.cascader[1]) {
+            const sameIds = (left, right) => {
+                const normalize = ids => [...new Set((ids || []).map(Number).filter(id => id > 0))].sort((a, b) => a - b);
+                const normalizedLeft = normalize(left);
+                const normalizedRight = normalize(right);
+                return normalizedLeft.length === normalizedRight.length
+                    && normalizedLeft.every((id, index) => id === normalizedRight[index]);
+            };
+            const flowItemId = Number(this.updateData.flow.flow_item_id || 0);
+            const sameFlow = flowItemId > 0
+                ? flowItemId === Number(this.task.flow_item_id || 0)
+                : Number(this.task.flow_item_id || 0) === 0
+                    && (!this.updateData.flow.flow_item_status
+                        || Boolean(this.updateData.flow.complete_at) === Boolean(this.task.complete_at));
+            const sameOwners = sameIds(
+                this.updateData.owner_userids,
+                (this.task.task_user || []).filter(user => user.owner).map(user => user.userid)
+            );
+            const sameAssists = sameIds(
+                this.updateData.assist_userids,
+                (this.task.task_user || []).filter(user => !user.owner).map(user => user.userid)
+            );
+            if (!this.isCopy && this.task.project_id == this.cascader[0] && this.task.column_id == this.cascader[1]
+                && sameFlow && sameOwners && sameAssists) {
                 $A.messageError(this.$L('未变更移动项'));
                 return;
             }
@@ -290,7 +312,30 @@ export default {
                 data: callData
             }).then(({data, msg}) => {
                 this.loadIng--;
-                this.$store.dispatch("saveTask", data);
+                if (this.isCopy) {
+                    this.$store.dispatch("saveTask", data);
+                } else if (Array.isArray(data) && data.length > 0) {
+                    const rootTask = data[0];
+                    this.$store.dispatch("saveTask", rootTask);
+                    const placementChanged = Number(this.task.project_id) !== Number(rootTask.project_id)
+                        || Number(this.task.column_id) !== Number(rootTask.column_id);
+                    if (placementChanged) {
+                        const movedSubtaskIds = data.slice(1).map(task => task.id);
+                        if (movedSubtaskIds.length > 0) {
+                            // Drop stale source-project members/statuses from cache first;
+                            // the recursive read below reapplies the caller's visibility rules.
+                            this.$store.dispatch("forgetTask", {id: movedSubtaskIds});
+                        }
+                        this.$store.dispatch("getTaskForParent", {
+                            parent_id: rootTask.id,
+                            recursive: 1,
+                            timerange: "0,0",
+                        }).catch(() => {});
+                    }
+                    this.$store.dispatch("getTaskOne", rootTask.id).catch(() => {});
+                } else {
+                    this.$store.dispatch("saveTask", data);
+                }
                 $A.messageSuccess(msg);
                 this.close()
             }).catch(({msg, ret}) => {

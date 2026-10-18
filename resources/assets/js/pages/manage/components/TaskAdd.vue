@@ -92,6 +92,9 @@
                     type="datetimerange"
                     @on-change="taskTimeChange(addData)"/>
             </FormItem>
+            <FormItem :label="$L('预估工时')">
+                <InputNumber v-model="addData.estimated_minutes" :min="0" :max="1000000" :step="30" :placeholder="$L('分钟')" />
+            </FormItem>
             <FormItem :label="$L('负责人')" >
                 <UserSelect
                     v-model="addData.owner"
@@ -100,6 +103,7 @@
                     :title="$L('选择任务负责人')"
                     :project-id="addData.project_id"
                     :avatar-size="24"
+                    @input="syncTemplateSubtaskOwners"
                     border/>
             </FormItem>
             <FormItem :label="$L('协助人员')" >
@@ -138,39 +142,49 @@
             <div class="subtasks">
                 <div v-if="addData.subtasks.length > 0" class="sublist">
                     <Row>
-                        <Col span="12">{{$L('任务描述')}}</Col>
+                        <Col span="12">
+                            <Checkbox v-model="allSubtasksSelected" :indeterminate="hasPartialSubtaskSelection">{{$L('全选')}}</Checkbox>
+                            {{$L('任务描述')}}
+                        </Col>
                         <Col span="8">{{$L('计划时间')}}</Col>
                         <Col span="4">{{$L('负责人')}}</Col>
                     </Row>
-                    <Row v-for="(item, key) in addData.subtasks" :key="key">
+                    <Row v-for="row in subtaskRows" :key="row.path">
                         <Col span="12">
-                            <Input
-                                v-model="item.name"
-                                :maxlength="255"
-                                clearable
-                                @on-clear="addData.subtasks.splice(key, 1)"/>
+                            <div class="subtask-name-row" :style="{paddingLeft: `${row.depth * 16}px`}">
+                                <Checkbox v-model="row.item._createSubtask" @on-change="onSubtaskSelectionChange(row, $event)">{{$L('创建')}}</Checkbox>
+                                <Input
+                                    v-model="row.item.name"
+                                    :maxlength="255"
+                                    clearable
+                                    @on-clear="removeTaskSubtask(row)"/>
+                                <Button type="text" icon="md-add" :disabled="!canAddTaskChild(row)" @click="addTaskSubtask(row.item)"/>
+                                <Button type="text" icon="md-close" @click="removeTaskSubtask(row)"/>
+                            </div>
                         </Col>
-                        <Col span="8" :title="timeTitle(item.times)">
+                        <Col span="8" :title="timeTitle(row.item.times)">
                             <DatePicker
-                                v-model="item.times"
+                                v-model="row.item.times"
                                 :options="timeOptions"
                                 :editable="false"
                                 :placeholder="$L('选择时间')"
                                 format="yyyy/MM/dd HH:mm"
                                 type="datetimerange"
-                                @on-change="taskTimeChange(item)"/>
+                                @on-change="taskTimeChange(row.item)"/>
                         </Col>
                         <Col span="4">
                             <UserSelect
-                                v-model="item.owner"
+                                v-model="row.item.owner"
                                 contextmenu-remove
-                                :multiple-max="1"
+                                :multiple-max="10"
                                 :title="$L('选择负责人')"
                                 :project-id="addData.project_id"
                                 :avatar-size="24"
+                                @input="row.item._templateOwnerStrategy = 'custom'"
                                 border/>
                         </Col>
                     </Row>
+                    <Button v-if="subtaskRows.length < 50" size="small" icon="md-add" @click="addTaskSubtask()">{{$L('添加子任务')}}</Button>
                 </div>
                 <Input
                     type="text"
@@ -236,6 +250,8 @@ export default {
                 project_id: 0,
                 column_id: 0,
                 times: [],
+                milestone_name: '',
+                estimated_minutes: null,
                 subtasks: [],
                 // 优先级
                 p_level: 0,
@@ -268,7 +284,10 @@ export default {
             addContinue: false,
 
             templateActiveID: 0,
-            templateCompareData: {name: '', content: ''},
+            activeTemplateSource: null,
+            templateApplySequence: 0,
+            templateLoadSequence: 0,
+            templateCompareData: {name: '', content: '', estimated_minutes: null, subtasks: []},
             templateBrowserVisible: false,
         }
     },
@@ -282,7 +301,7 @@ export default {
         await this.initProjectData();
         this.$nextTick(() => {
             this.$refs.input.focus();
-            this.templateCompareData = {name: this.addData.name, content: this.addData.content};
+            this.templateCompareData = this.captureTemplateCompareData();
         })
         this.isMounted = true
     },
@@ -302,6 +321,24 @@ export default {
         taskTemplateShareEnabled() {
             const project = (this.cacheProjects || []).find(({id}) => id == this.addData.project_id)
             return !project || project.task_template_share !== 'close'
+        },
+
+        allSubtasksSelected: {
+            get() {
+                return this.subtaskRows.length > 0 && this.subtaskRows.every(({item}) => item._createSubtask !== false)
+            },
+            set(selected) {
+                this.subtaskRows.forEach(({item}) => this.$set(item, '_createSubtask', selected))
+            },
+        },
+
+        hasPartialSubtaskSelection() {
+            return this.subtaskRows.some(({item}) => item._createSubtask === false)
+                && this.subtaskRows.some(({item}) => item._createSubtask !== false)
+        },
+
+        subtaskRows() {
+            return this.flattenSubtasks(this.addData.subtasks)
         },
 
         taskDays() {
@@ -369,9 +406,17 @@ export default {
             }
         },
         'addData.project_id'(projectId) {
+            const requestSequence = ++this.templateLoadSequence;
+            ++this.templateApplySequence;
+            this.templateActiveID = 0;
+            this.activeTemplateSource = null;
             if (projectId > 0) {
                 $A.IDBSave("cacheAddTaskProjectId", projectId);
-                this.$store.dispatch("updateTaskTemplates", projectId).then(this.setTaskDefaultTemplate)
+                this.$store.dispatch("updateTaskTemplates", projectId).then(() => {
+                    if (requestSequence === this.templateLoadSequence && projectId == this.addData.project_id) {
+                        this.setTaskDefaultTemplate()
+                    }
+                })
             }
         },
         'addData.column_id'(columnId) {
@@ -454,6 +499,103 @@ export default {
         async taskTimeChange(data) {
             const times = $A.newDateString(data.times, "YYYY-MM-DD HH:mm");
             this.$set(data, 'times', await this.$store.dispatch("taskDefaultTime", times))
+            if (data === this.addData) {
+                await this.applyTemplateSubtaskDates()
+            } else {
+                this.$set(data, '_templateSchedule', false)
+                await this.applyTemplateSubtaskDates(data.children, data.times)
+            }
+        },
+
+        flattenSubtasks(items, depth = 0, rows = [], ancestors = [], path = 'subtask') {
+            (items || []).forEach((item, index) => {
+                const currentPath = `${path}.${index}`
+                rows.push({item, depth, ancestors, path: currentPath})
+                this.flattenSubtasks(item.children, depth + 1, rows, [...ancestors, item], currentPath)
+            })
+            return rows
+        },
+
+        canAddTaskChild(row) {
+            return row.depth < 4 && this.subtaskRows.length < 50
+        },
+
+        addTaskSubtask(parent = null) {
+            const subtask = {name: '', owner: [this.userId], times: [], children: [], _createSubtask: true}
+            if (parent && !Array.isArray(parent.children)) this.$set(parent, 'children', [])
+            ;(parent ? parent.children : this.addData.subtasks).push(subtask)
+        },
+
+        removeTaskSubtask(row) {
+            const {item, ancestors} = row
+            const list = ancestors.length ? (ancestors[ancestors.length - 1].children || []) : this.addData.subtasks
+            const index = list.indexOf(item)
+            if (index !== -1) list.splice(index, 1)
+        },
+
+        onSubtaskSelectionChange(row, selected) {
+            if (selected) {
+                row.ancestors.forEach(parent => this.$set(parent, '_createSubtask', true))
+                return
+            }
+            const deselectChildren = items => (items || []).forEach(item => {
+                this.$set(item, '_createSubtask', false)
+                deselectChildren(item.children)
+            })
+            deselectChildren(row.item.children)
+        },
+
+        serializeTaskSubtasks(items, parentOwner) {
+            return (items || [])
+                .filter(item => item._createSubtask !== false && item.name && item.name.trim())
+                .map(item => {
+                    const owner = item._templateOwnerStrategy === 'parent'
+                        ? [...(parentOwner || [])]
+                        : [...(item.owner || [])]
+                    const subtask = {
+                        name: item.name.trim(),
+                        milestone_name: item.milestone_name || '',
+                        owner,
+                        times: item.times || [],
+                        subtasks: this.serializeTaskSubtasks(item.children, owner),
+                    }
+                    return subtask
+                })
+        },
+
+        syncTemplateSubtaskOwners(subtasks = this.addData.subtasks, parentOwner = this.addData.owner) {
+            const owner = Array.isArray(parentOwner) ? [...parentOwner] : [];
+            (subtasks || []).forEach(subtask => {
+                if (subtask._templateOwnerStrategy === 'parent') {
+                    this.$set(subtask, 'owner', [...owner])
+                }
+                this.syncTemplateSubtaskOwners(subtask.children, subtask.owner)
+            })
+        },
+
+        async applyTemplateSubtaskDates(subtasks = this.addData.subtasks, parentTimes = this.addData.times || []) {
+            const hasParentRange = Array.isArray(parentTimes) && parentTimes.length === 2 && parentTimes[0] && parentTimes[1]
+            for (const subtask of (subtasks || [])) {
+                if (subtask._templateSchedule) {
+                    if (!hasParentRange) {
+                        this.$set(subtask, 'times', [])
+                    } else {
+                        const startOffset = Number(subtask._templateSchedule.start_offset_days)
+                        const endOffset = Number(subtask._templateSchedule.end_offset_days)
+                        const parentStart = $A.daytz(parentTimes[0])
+                        const parentEnd = $A.daytz(parentTimes[1])
+                        const childStart = parentStart.clone().add(startOffset, 'day')
+                        const childEnd = parentStart.clone().add(endOffset, 'day')
+                            .hour(parentEnd.hour()).minute(parentEnd.minute()).second(parentEnd.second())
+                        const times = [childStart.format('YYYY-MM-DD HH:mm'), childEnd.format('YYYY-MM-DD HH:mm')]
+                        this.$set(subtask, 'times', await this.$store.dispatch('taskDefaultTime', times))
+                    }
+                }
+                const childParentTimes = Array.isArray(subtask.times) && subtask.times.length === 2 && subtask.times[0] && subtask.times[1]
+                    ? subtask.times
+                    : parentTimes
+                await this.applyTemplateSubtaskDates(subtask.children, childParentTimes)
+            }
         },
 
         taskTimeOpenChange(val) {
@@ -487,6 +629,7 @@ export default {
                     name: this.subName.trim(),
                     owner: [this.userId],
                     times: [],
+                    _createSubtask: true,
                 });
                 this.subName = '';
             }
@@ -599,13 +742,16 @@ export default {
             }
 
             this.loadIng++;
-            const currentTemplate = this.templateActiveID
-                ? (this.taskTemplates || []).find(item => item.id === this.templateActiveID)
-                : null;
-            const templateId = currentTemplate && (this.taskTemplateShareEnabled || currentTemplate.project_id == this.addData.project_id)
-                ? this.templateActiveID
-                : 0;
-            this.$store.dispatch("taskAdd", Object.assign({}, this.addData, {template_id: templateId})).then(({msg}) => {
+            const selectedTemplate = this.activeTemplateSource;
+            const templateCanBeRecorded = selectedTemplate
+                && (this.taskTemplateShareEnabled || selectedTemplate.project_id == this.addData.project_id);
+            const taskData = {
+                ...this.addData,
+                template_id: templateCanBeRecorded ? selectedTemplate.id : 0,
+                template_version: templateCanBeRecorded ? selectedTemplate.version : 0,
+                subtasks: this.serializeTaskSubtasks(this.addData.subtasks, this.addData.owner),
+            }
+            this.$store.dispatch("taskAdd", taskData).then(({msg}) => {
                 $A.messageSuccess(msg);
                 if (continued === true) {
                     this.addData = Object.assign({}, this.addData, this.templateCompareData, {subtasks: []});
@@ -678,29 +824,96 @@ export default {
             this.setTaskTemplate(item)
         },
 
-        setTaskTemplate(item, force = false) {
+        async setTaskTemplate(item, force = false) {
             if (!this.taskTemplateShareEnabled && item.project_id != this.addData.project_id) {
                 return;
             }
+            const targetProjectId = this.addData.project_id;
             if (force) {
+                const applySequence = ++this.templateApplySequence;
+                const projectId = this.addData.project_id;
                 this.templateActiveID = item.id;
-                this.addData.name = item.title;
-                this.addData.content = nostyle(item.content, {sanitize: false});
+                this.activeTemplateSource = {
+                    id: Number(item.id),
+                    version: Number(item.version) || 1,
+                    project_id: Number(item.project_id),
+                    name: item.name || '',
+                };
+                this.addData.name = item.title || '';
+                this.addData.content = nostyle(item.content || '', {sanitize: false});
+                this.addData.milestone_name = item.milestone_name || '';
+                this.addData.estimated_minutes = item.estimated_minutes == null ? null : Number(item.estimated_minutes);
+                this.addData.subtasks = this.mapTemplateSubtasks(Array.isArray(item.subtasks) ? item.subtasks : [], this.addData.owner)
+                this.syncTemplateSubtaskOwners()
+                await this.applyTemplateSubtaskDates()
+                if (applySequence !== this.templateApplySequence || projectId != this.addData.project_id) return;
+                if (this.addData.subtasks.length > 0) this.advanced = true;
                 this.$nextTick(() => {
                     this.$refs.input.focus();
-                    this.templateCompareData = {name: this.addData.name, content: this.addData.content};
+                    this.templateCompareData = this.captureTemplateCompareData();
                 });
                 return;
             }
+            const currentSubtasks = this.captureSubtaskSelection(this.addData.subtasks || [])
+            const previousSubtasks = this.templateCompareData.subtasks || []
             if ((this.addData.name !== this.templateCompareData.name && this.addData.name !== '') ||
-                (this.addData.content !== this.templateCompareData.content && this.addData.content !== '')) {
+                (this.addData.content !== this.templateCompareData.content && this.addData.content !== '') ||
+                (this.addData.milestone_name !== this.templateCompareData.milestone_name && this.addData.milestone_name !== '') ||
+                this.addData.estimated_minutes !== this.templateCompareData.estimated_minutes ||
+                JSON.stringify(currentSubtasks) !== JSON.stringify(previousSubtasks)) {
                 $A.modalConfirm({
                     content: '当前已有修改的内容，是否要覆盖？',
-                    onOk: () => this.setTaskTemplate(item, true)
+                    onOk: () => {
+                        if (targetProjectId == this.addData.project_id) this.setTaskTemplate(item, true)
+                    }
                 });
             } else {
                 this.setTaskTemplate(item, true);
             }
+        },
+
+        mapTemplateSubtasks(items, parentOwner = this.addData.owner) {
+            const owner = Array.isArray(parentOwner) ? [...parentOwner] : []
+            return (items || [])
+                .map(subtask => typeof subtask === 'string' ? {name: subtask} : subtask)
+                .filter(subtask => typeof subtask?.name === 'string' && subtask.name.trim())
+                .map(subtask => {
+                        const ownerStrategy = subtask.owner_strategy === 'parent' ? 'parent' : 'current'
+                        const hasSchedule = Number.isInteger(subtask.start_offset_days) && Number.isInteger(subtask.end_offset_days)
+                        const subtaskOwner = ownerStrategy === 'parent' ? owner : [this.userId]
+                        return {
+                            name: subtask.name.trim(),
+                            milestone_name: subtask.milestone_name || '',
+                            owner: [...subtaskOwner],
+                            times: [],
+                            _createSubtask: true,
+                            _templateOwnerStrategy: ownerStrategy,
+                            _templateSchedule: hasSchedule ? {
+                                start_offset_days: subtask.start_offset_days,
+                                end_offset_days: subtask.end_offset_days,
+                            } : false,
+                            children: this.mapTemplateSubtasks(subtask.children, subtaskOwner),
+                        }
+                    })
+        },
+
+        captureTemplateCompareData() {
+            return {
+                name: this.addData.name,
+                content: this.addData.content,
+                milestone_name: this.addData.milestone_name,
+                estimated_minutes: this.addData.estimated_minutes,
+                subtasks: this.captureSubtaskSelection(this.addData.subtasks || []),
+            }
+        },
+
+        captureSubtaskSelection(items) {
+            return (items || []).map(item => ({
+                    name: item.name || '',
+                    milestone_name: item.milestone_name || '',
+                    selected: item._createSubtask !== false,
+                    children: this.captureSubtaskSelection(item.children),
+                })).filter(item => item.name)
         },
 
         setTaskDefaultTemplate() {
@@ -782,10 +995,10 @@ export default {
                 }
             }
 
-            const subtasks = (this.addData.subtasks || [])
-                .map(item => (item && item.name ? item.name.trim() : ''))
+            const subtasks = this.subtaskRows
+                .map(({item, depth}) => `${'  '.repeat(depth)}${item.name || ''}`.trimEnd())
                 .filter(Boolean)
-                .slice(0, 8);
+                .slice(0, 20);
             if (subtasks.length > 0) {
                 prompts.push('## 当前子任务');
                 subtasks.forEach((name, index) => {
@@ -845,6 +1058,7 @@ export default {
                     name,
                     owner: [...mainOwner],
                     times: [],
+                    _createSubtask: true,
                 }));
                 this.$set(this.addData, 'subtasks', subtasks);
                 this.advanced = true;

@@ -44,6 +44,29 @@
                     class="gantt-timeline"
                     @scroll="timelineScrollListener"
                     @mouseenter="mouseType='timeline'">
+                    <svg v-if="dependencyPaths.length" class="gantt-dependencies" :height="lists.length * 40">
+                        <defs>
+                            <marker id="gantt-dependency-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                                <path d="M0,0 L8,4 L0,8 z" />
+                            </marker>
+                            <marker id="gantt-dependency-arrow-conflict" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                                <path d="M0,0 L8,4 L0,8 z" />
+                            </marker>
+                        </defs>
+                        <path
+                            v-for="path in dependencyPaths"
+                            :key="path.id"
+                            :d="path.d"
+                            :class="{'is-conflict': path.conflict}"
+                            :marker-end="path.conflict ? 'url(#gantt-dependency-arrow-conflict)' : 'url(#gantt-dependency-arrow)'"/>
+                    </svg>
+                    <svg v-if="milestoneLines.length" class="gantt-milestones" :height="lists.length * 40">
+                        <g v-for="milestone in milestoneLines" :key="milestone.id">
+                            <line :x1="milestone.x" :x2="milestone.x" y1="0" :y2="lists.length * 40"/>
+                            <path :d="`M ${milestone.x - 5} 0 L ${milestone.x} 5 L ${milestone.x + 5} 0 L ${milestone.x} -5 Z`"/>
+                            <text :x="milestone.x + 7" y="13">{{milestone.name}}</text>
+                        </g>
+                    </svg>
                     <li v-for="(item, key) in lists" :key="key" :data-id="item.id">
                         <div
                             class="timeline-item"
@@ -65,6 +88,18 @@ export default {
     props: {
         lists: {
             type: Array
+        },
+        dependencies: {
+            type: Array,
+            default: () => []
+        },
+        milestones: {
+            type: Array,
+            default: () => []
+        },
+        projectTimezone: {
+            type: String,
+            default: ''
         },
         menuWidth: {
             type: Number,
@@ -138,7 +173,7 @@ export default {
             return function(index) {
                 let mouseDay = mouseWidth == 0 ? 0 : mouseWidth / dateWidth;
                 //今天00:00:00
-                let nowDay = $A.daytz().startOf('day');
+                let nowDay = this.ganttNow().startOf('day');
                 //当前时间
                 let curDay = nowDay.clone().add(mouseDay * 86400, 'second');
                 //当月最后一天
@@ -161,7 +196,7 @@ export default {
             return function(index) {
                 let mouseDay = mouseWidth == 0 ? 0 : mouseWidth / dateWidth;
                 //开始位置时间（今天00:00:00）
-                let nowDay = $A.daytz().startOf('day');
+                let nowDay = this.ganttNow().startOf('day');
                 //当前时间
                 let curDay = nowDay.clone().add(Math.floor(mouseDay), 'day');
                 //
@@ -186,7 +221,7 @@ export default {
                     mouseData--;
                 }
                 let j = mouseWidth == 0 ? index - 1 : mouseData;
-                let date = $A.daytz().add(j, 'day');
+                let date = this.ganttNow().add(j, 'day');
                 if ([0, 6].indexOf(date.day()) !== -1) {
                     style.backgroundColor = '#f9fafb';
                 }
@@ -208,7 +243,7 @@ export default {
                     mouseData--;
                 }
                 let j = mouseWidth == 0 ? index - 1 : mouseData;
-                let date = $A.daytz().add(j, 'day');
+                let date = this.ganttNow().add(j, 'day');
                 if (type == 'day') {
                     return date.date();
                 } else if (type == 'week') {
@@ -224,7 +259,7 @@ export default {
                 const {start, end} = item.time;
                 const {style, moveX, moveW} = item;
                 //开始位置时间戳（今天00:00:00时间戳）
-                let nowTime = $A.daytz().startOf('day').valueOf();
+                let nowTime = this.ganttNow().startOf('day').valueOf();
                 //距离开始位置多少天
                 let diffStartDay = (start - nowTime) / 1000 / 60 / 60 / 24;
                 let diffEndDay = (end - nowTime) / 1000 / 60 / 60 / 24;
@@ -254,8 +289,64 @@ export default {
                 return customStyle
             }
         },
+        dependencyPaths() {
+            const rowById = new Map(this.lists.map((item, index) => [Number(item.id), index]));
+            const millisPerPixel = 86400000 / this.dateWidth;
+            const previewSchedule = (task) => {
+                const moveX = typeof task.moveX === 'number' ? task.moveX : 0;
+                const moveW = typeof task.moveW === 'number' ? task.moveW : 0;
+                return {
+                    start: task.time.start + moveX * millisPerPixel,
+                    end: task.time.end + (moveX + moveW) * millisPerPixel,
+                };
+            };
+            return this.dependencies.reduce((paths, edge) => {
+                const fromIndex = rowById.get(Number(edge.predecessor_task_id));
+                const toIndex = rowById.get(Number(edge.successor_task_id));
+                if (fromIndex === undefined || toIndex === undefined) {
+                    return paths;
+                }
+                const from = this.lists[fromIndex];
+                const to = this.lists[toIndex];
+                const fromStyle = this.itemStyle(from);
+                const toStyle = this.itemStyle(to);
+                const startX = parseFloat(fromStyle.left) + parseFloat(fromStyle.width);
+                const endX = parseFloat(toStyle.left);
+                const startY = fromIndex * 40 + 20;
+                const endY = toIndex * 40 + 20;
+                const middleX = startX + (endX - startX) / 2;
+                const predecessorSchedule = previewSchedule(from);
+                const successorSchedule = previewSchedule(to);
+                const conflict = !from.notime && !to.notime
+                    && successorSchedule.start < predecessorSchedule.end;
+                paths.push({
+                    id: edge.id,
+                    d: `M ${startX} ${startY} H ${middleX} V ${endY} H ${endX}`,
+                    conflict,
+                });
+                return paths;
+            }, []);
+        },
+        milestoneLines() {
+            const now = this.ganttNow().startOf('day').valueOf();
+            return this.milestones.reduce((lines, milestone) => {
+                if (!milestone.target_at) return lines;
+                const target = $A.dayjsUtc(milestone.target_at).startOf('day').valueOf();
+                const x = this.dateWidth * ((target - now) / 86400000) - this.mouseWidth;
+                if (x >= -100 && x <= this.ganttWidth + 100) {
+                    lines.push({id: milestone.id, name: milestone.name, x});
+                }
+                return lines;
+            }, []);
+        },
     },
     methods: {
+        ganttNow() {
+            const timezone = this.projectTimezone || $A.timezoneName || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+            const now = $A.dayjs().tz(timezone);
+            return $A.dayjsUtc(Date.UTC(now.year(), now.month(), now.date(), now.hour(), now.minute(), now.second()));
+        },
+
         itemScrollListener(e) {
             if (this.mouseType == 'timeline') {
                 return;
@@ -437,7 +528,7 @@ export default {
         },
         scrollPosition(pos) {
             //今天00:00:00
-            let nowDay = $A.daytz().startOf('day').valueOf();
+            let nowDay = this.ganttNow().startOf('day').valueOf();
             //一个宽度的时间
             let oneWidthTime = 86400000 / this.dateWidth;
             //

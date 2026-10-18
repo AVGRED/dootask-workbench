@@ -85,7 +85,15 @@ export default {
         },
 
         taskInfo() {
-            return this.cacheTasks.find(({id}) => id === this.taskId) || {}
+            let task = this.cacheTasks.find(({id}) => id === this.taskId) || {};
+            const visited = new Set();
+            while (task.parent_id > 0 && !visited.has(Number(task.id))) {
+                visited.add(Number(task.id));
+                const parentTask = this.cacheTasks.find(({id}) => Number(id) === Number(task.parent_id));
+                if (!parentTask) break;
+                task = parentTask;
+            }
+            return task;
         }
     },
     watch: {
@@ -105,10 +113,25 @@ export default {
             this.$store.dispatch("getTaskOne", {
                 task_id: this.taskId,
                 archived: 'all'
-            }).then(() => {
-                this.$store.dispatch("getTaskContent", this.taskId);
-                this.$store.dispatch("getTaskFiles", this.taskId);
-                this.$store.dispatch("getTaskForParent", this.taskId).catch(() => {})
+            }).then(async ({data}) => {
+                let rootTask = data;
+                const visited = new Set([Number(rootTask.id)]);
+                while (rootTask.parent_id > 0 && !visited.has(Number(rootTask.parent_id))) {
+                    const parentId = Number(rootTask.parent_id);
+                    visited.add(parentId);
+                    let parentTask = this.cacheTasks.find(({id}) => Number(id) === parentId);
+                    if (!parentTask) {
+                        const parentResult = await this.$store.dispatch("getTaskOne", {
+                            task_id: parentId,
+                            archived: 'all'
+                        });
+                        parentTask = parentResult.data;
+                    }
+                    rootTask = parentTask;
+                }
+                this.$store.dispatch("getTaskContent", rootTask.id);
+                this.$store.dispatch("getTaskFiles", rootTask.id);
+                this.$store.dispatch("getTaskForParent", {parent_id: rootTask.id, recursive: 1}).catch(() => {})
                 this.$store.dispatch("getTaskPriority", 1000)
             }).catch(({msg}) => {
                 $A.modalError({

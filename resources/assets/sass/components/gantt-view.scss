@@ -269,11 +269,66 @@
                 overflow-x: hidden;
                 overflow-y: auto;
 
+                .gantt-dependencies {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    z-index: 2;
+                    overflow: visible;
+                    pointer-events: none;
+
+                    path {
+                        fill: none;
+                        stroke: #667085;
+                        stroke-width: 1.5;
+                    }
+
+                    marker path {
+                        fill: #667085;
+                        stroke: none;
+                    }
+
+                    marker#gantt-dependency-arrow-conflict path {
+                        fill: #dc3545;
+                    }
+
+                    path.is-conflict {
+                        stroke: #dc3545;
+                    }
+                }
+
+                .gantt-milestones {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    z-index: 2;
+                    overflow: visible;
+                    pointer-events: none;
+
+                    line {
+                        stroke: rgba(234, 153, 0, 0.7);
+                        stroke-width: 1;
+                        stroke-dasharray: 4 3;
+                    }
+
+                    path {
+                        fill: #eaa000;
+                    }
+
+                    text {
+                        fill: #9a6500;
+                        font-size: 11px;
+                    }
+                }
+
                 > li {
                     cursor: default;
                     height: 40px;
                     border-bottom: 1px solid rgba(237, 241, 242, 0.75);
                     position: relative;
+                    z-index: 3;
 
                     .timeline-item {
                         position: absolute;

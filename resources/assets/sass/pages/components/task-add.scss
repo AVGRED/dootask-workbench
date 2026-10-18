@@ -279,6 +279,22 @@
                 }
             }
             .sublist {
+                .subtask-name-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+
+                    .ivu-checkbox-wrapper {
+                        flex: none;
+                        margin-right: 0;
+                    }
+
+                    .ivu-input-wrapper {
+                        flex: 1;
+                        min-width: 0;
+                    }
+                }
+
                 .ivu-row {
                     margin-bottom: 12px;
                     > div {

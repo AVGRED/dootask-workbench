@@ -356,6 +356,32 @@
                     &.user {
                         margin-top: 1px;
                     }
+                    &.task-work {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 8px;
+                        .task-work-summary, .task-work-add, .task-work-log {
+                            display: flex;
+                            align-items: center;
+                            flex-wrap: wrap;
+                            gap: 8px;
+                        }
+                        .task-work-log {
+                            padding: 5px 8px;
+                            border-radius: 4px;
+                            background: var(--background-color-light, #f7f8fa);
+                        }
+                        .task-work-load-error, .task-work-load-state {
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            gap: 8px;
+                            color: var(--text-color-secondary, #8c8c8c);
+                        }
+                        .task-work-load-error {
+                            color: #ad6800;
+                        }
+                    }
                     &.file {
                         > li {
                             cursor: pointer;
@@ -531,6 +557,30 @@
                                 animation: animation-icon-loading 0.6s infinite linear;
                             }
                         }
+                        > li.subtask-item {
+                            flex-wrap: wrap;
+                            width: 100%;
+                            box-sizing: border-box;
+
+                            > .subtask-children {
+                                flex: 0 0 100%;
+                                width: 100%;
+                                min-width: 0;
+                                box-sizing: border-box;
+                                margin: 2px 0 4px 22px;
+                                padding-left: 10px;
+                                border-left: 1px solid rgba(128, 128, 128, 0.2);
+
+                                > li.subtask-add-item {
+                                    margin: 0;
+                                    min-height: 26px;
+                                    .add-input,
+                                    .add-button {
+                                        margin-top: 0;
+                                    }
+                                }
+                            }
+                        }
                     }
                     &.priority {
                         .task-priority {
@@ -621,6 +671,12 @@
                                     text-overflow: ellipsis;
                                     white-space: nowrap;
                                 }
+
+                                .dependency-schedule-warning {
+                                    margin-left: 6px;
+                                    color: #ed4014;
+                                    flex-shrink: 0;
+                                }
                             }
 
                             .related-project,
@@ -699,6 +755,24 @@
 
                             .ivu-tag {
                                 margin-left: 8px;
+                            }
+                        }
+                    }
+                    &.item-task-dependencies {
+                        .dependency-add {
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                            margin-top: 8px;
+
+                            .dependency-direction {
+                                width: 148px;
+                                flex-shrink: 0;
+                            }
+
+                            .dependency-task-select {
+                                flex: 1;
+                                min-width: 120px;
                             }
                         }
                     }
@@ -1157,7 +1231,8 @@ body.window-portrait {
                 .items {
                     .ivu-form-item {
                         &.item-subtask,
-                        &.item-related-task {
+                        &.item-related-task,
+                        &.item-task-dependencies {
                             display: flex;
                             flex-direction: column;
                             .ivu-form-item-content {
@@ -1173,6 +1248,16 @@ body.window-portrait {
                                             margin-top: -2px;
                                         }
                                     }
+                                }
+                            }
+                        }
+                        &.item-task-dependencies {
+                            .dependency-add {
+                                flex-wrap: wrap;
+
+                                .dependency-direction,
+                                .dependency-task-select {
+                                    width: 100%;
                                 }
                             }
                         }

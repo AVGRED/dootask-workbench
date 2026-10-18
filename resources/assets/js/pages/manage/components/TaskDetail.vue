@@ -1,6 +1,6 @@
 <template>
     <!--子任务-->
-    <li v-if="ready && isSubTask">
+    <li v-if="ready && isSubTask" class="subtask-item">
         <div v-if="!isDepartmentReadonly" class="subtask-icon">
             <TaskMenu
                 :ref="`taskMenu_${taskDetail.id}`"
@@ -62,6 +62,33 @@
             :project-id="taskDetail.project_id"
             :disabled="isDepartmentReadonly"
             :before-submit="onOwner"/>
+        <ul v-if="subList.length > 0 || !isDepartmentReadonly" class="item-content subtask subtask-children">
+            <TaskDetail
+                v-for="(task, key) in subList"
+                :ref="`subTask_${task.id}`"
+                :key="key"
+                :task-id="task.id"
+                :open-task="task"
+                :main-end-at="taskDetail.end_at"
+                :can-update-blur="canUpdateBlur"/>
+            <li v-if="!isDepartmentReadonly" class="subtask-add-item">
+                <Input
+                    v-if="addsubShow"
+                    v-model="addsubName"
+                    ref="addsub"
+                    class="add-input"
+                    :placeholder="$L('+ 输入子任务，回车添加子任务')"
+                    :icon="addsubLoad > 0 ? 'ios-loading' : ''"
+                    :class="{loading: addsubLoad > 0}"
+                    enterkeyhint="done"
+                    @on-blur="addsubChackClose"
+                    @on-keydown="addsubKeydown"/>
+                <div v-else class="add-button" @click="addsubOpen">
+                    <i class="taskfont">&#xe6f2;</i>
+                    <span>{{$L('添加子任务')}}</span>
+                </div>
+            </li>
+        </ul>
     </li>
     <!--主任务-->
     <div
@@ -93,6 +120,9 @@
                     <p v-if="projectName"><span>{{projectName}}</span></p>
                     <p v-if="columnName"><span>{{columnName}}</span></p>
                     <p v-if="taskDetail.id"><span>{{taskDetail.id}}</span></p>
+                    <p v-if="taskDetail.source_template_id" class="template-source">
+                        <span>{{$L('来自(*)', taskDetail.source_template_name)}} · v{{taskDetail.source_template_version}}</span>
+                    </p>
                 </div>
                 <div class="function">
                     <ETooltip v-if="$Electron" :disabled="$isEEUIApp || windowTouch" :content="$L('独立窗口显示')">
@@ -300,6 +330,57 @@
                             </li>
                         </ul>
                     </FormItem>
+                    <FormItem v-if="milestoneOptions.length > 0 || taskDetail.milestone_id || milestoneLoading || milestoneLoadFailed">
+                        <div class="item-label" slot="label">
+                            <i class="taskfont">&#xe6e8;</i>{{$L('里程碑')}}
+                        </div>
+                        <div v-if="milestoneLoadFailed" class="task-work-load-error" role="alert">
+                            <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
+                            <Button size="small" type="text" :disabled="milestoneLoading" @click="loadProjectMilestones">{{$L('重试')}}</Button>
+                        </div>
+                        <Select
+                            v-else
+                            class="item-content"
+                            :value="taskDetail.milestone_id ? Number(taskDetail.milestone_id) : ''"
+                            :disabled="isDepartmentReadonly || milestoneLoading || milestoneSaving"
+                            :placeholder="$L('选择里程碑')"
+                            clearable
+                            @on-change="updateTaskMilestone">
+                            <Option v-for="item in milestoneOptions" :key="item.id" :value="item.id">
+                                {{item.name}}<template v-if="item.target_at"> · {{item.target_at}}</template>
+                            </Option>
+                        </Select>
+                    </FormItem>
+                    <FormItem v-if="taskDetail.id > 0 && !taskDetail.parent_id">
+                        <div class="item-label" slot="label"><i class="taskfont">&#xe6e8;</i>{{$L('工时')}}</div>
+                        <div class="item-content task-work">
+                            <div v-if="workLogsLoadFailed" class="task-work-load-error" role="alert">
+                                <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
+                                <Button size="small" type="text" :disabled="workLogsLoading" @click="loadWorkLogs(false)">{{$L('重试')}}</Button>
+                            </div>
+                            <div v-if="!workLogsLoaded && workLogsLoading" class="task-work-load-state">{{$L('加载中')}}</div>
+                            <template v-if="workLogsLoaded">
+                            <div class="task-work-summary">
+                                <span>{{$L('预估')}} <InputNumber v-model="workEstimateInput" :min="0" :max="1000000" :step="30" :disabled="isDepartmentReadonly || workSaving" size="small"/></span>
+                                <Button size="small" type="text" :disabled="isDepartmentReadonly || workSaving" :loading="workSaving" @click="saveWorkEstimate">{{$L('保存预估')}}</Button>
+                                <span>{{$L('已登记')}} {{workSummary.logged_minutes || 0}} {{$L('分钟')}}</span>
+                                <span>{{$L('剩余')}} {{workSummary.remaining_minutes || 0}} {{$L('分钟')}}</span>
+                            </div>
+                            <div v-if="!isDepartmentReadonly" class="task-work-add">
+                                <InputNumber v-model="workMinutesInput" :min="1" :max="1440" :step="15" size="small" :placeholder="$L('分钟')" :disabled="workSaving || !!workLogRequestId"/>
+                                <DatePicker v-model="workDateInput" type="date" format="yyyy-MM-dd" size="small" :disabled="workSaving || !!workLogRequestId"/>
+                                <Input v-model="workNoteInput" :maxlength="500" size="small" :placeholder="$L('工时备注')" :disabled="workSaving || !!workLogRequestId"/>
+                                <Button size="small" type="primary" :loading="workSaving" @click="addWorkLog">{{$L('登记工时')}}</Button>
+                            </div>
+                            <div v-for="log in workLogs" :key="log.id" class="task-work-log">
+                                <span>{{log.work_date}} · {{log.user && log.user.name}} · {{log.minutes}} {{$L('分钟')}}</span>
+                                <span v-if="log.note">{{log.note}}</span>
+                                <Button v-if="!isDepartmentReadonly && (Number(log.userid) === Number(userId) || projectOwner)" size="small" type="text" :loading="deletingWorkLogIds.includes(log.id)" @click="deleteWorkLog(log.id)">{{$L('删除')}}</Button>
+                            </div>
+                            <Button v-if="workLogs.length < workLogsTotal" size="small" type="text" :loading="workLogsLoadingMore" :disabled="workLogsLoading" @click="loadMoreWorkLogs">{{$L('更多')}}</Button>
+                            </template>
+                        </div>
+                    </FormItem>
                     <FormItem v-if="fileList.length > 0">
                         <div class="item-label" slot="label">
                             <i class="taskfont">&#xe6e6;</i>{{$L('附件')}}
@@ -405,6 +486,57 @@
                                     @click.native.stop="removeRelatedTask(item)"/>
                             </li>
                         </ul>
+                    </FormItem>
+                    <FormItem v-if="!isSubTask && dependencyEnabled" className="item-task-dependencies">
+                        <div class="item-label" slot="label">
+                            <i class="taskfont">&#xe6e8;</i>{{$L('任务依赖')}}
+                        </div>
+                        <ul v-if="taskDependencies.length > 0" class="item-content related-task">
+                            <li
+                                v-for="item in taskDependencies"
+                                :key="item.id"
+                                class="related-item"
+                                @click="openDependencyTask(item)">
+                                <span class="related-direction" :class="item.direction">
+                                    <Icon :type="item.direction === 'predecessor' ? 'md-arrow-round-back' : 'md-arrow-round-forward'"/>
+                                </span>
+                                <span class="related-main">
+                                    <span class="related-id">#{{item.task.id}}</span>
+                                    <span class="related-title">{{item.task.name}}</span>
+                                    <Tooltip v-if="dependencyHasScheduleConflict(item)" :content="$L('计划时间冲突提示')">
+                                        <Icon type="md-warning" class="dependency-schedule-warning" />
+                                    </Tooltip>
+                                </span>
+                                <span class="related-column">{{item.direction === 'predecessor' ? $L('前置任务') : $L('后续任务')}}</span>
+                                <Icon
+                                    v-if="!isDepartmentReadonly"
+                                    type="md-close"
+                                    class="related-remove"
+                                    @click.native.stop="removeTaskDependency(item)"/>
+                            </li>
+                        </ul>
+                        <div v-if="!isDepartmentReadonly && dependencyCandidates.length > 0" class="dependency-add">
+                            <Select v-model="dependencyDirection" class="dependency-direction">
+                                <Option value="predecessor">{{$L('添加前置任务')}}</Option>
+                                <Option value="successor">{{$L('添加后续任务')}}</Option>
+                            </Select>
+                            <Select
+                                v-model="dependencyCandidateId"
+                                filterable
+                                clearable
+                                class="dependency-task-select"
+                                :placeholder="$L('选择同项目任务')">
+                                <Option v-for="task in dependencyCandidates" :key="task.id" :value="task.id">
+                                    #{{task.id}} {{task.name}}
+                                </Option>
+                            </Select>
+                            <Button
+                                size="small"
+                                type="primary"
+                                :loading="dependencyLoading"
+                                :disabled="!dependencyCandidateId"
+                                @click="addTaskDependency">{{$L('添加')}}</Button>
+                        </div>
                     </FormItem>
                 </Form>
                 <div v-if="!isDepartmentReadonly && menuList.length > 0" class="add">
@@ -697,6 +829,18 @@ export default {
 
             relatedTasks: [],
             relatedRequestKey: 0,
+            taskDependencies: [],
+            dependencyRequestKey: 0,
+            dependencyDirection: 'predecessor',
+            dependencyCandidateId: 0,
+            dependencyLoading: false,
+            dependencyMutationKey: 0,
+            milestoneOptions: [],
+            milestoneLoading: false,
+            milestoneLoadFailed: false,
+            milestoneRequestKey: 0,
+            milestoneSaving: false,
+            milestoneSaveRequestKey: 0,
 
             keepInterval: null,
             keepIntoTimer: null,
@@ -746,6 +890,23 @@ export default {
             },
 
             historyShow: false,
+            workLogs: [],
+            workLogsTotal: 0,
+            workLogsPage: 0,
+            workLogsLoading: false,
+            workLogsLoaded: false,
+            workLogsLoadFailed: false,
+            workLogsLoadingMore: false,
+            workSummary: {estimated_minutes: 0, logged_minutes: 0, remaining_minutes: 0, overrun_minutes: 0},
+            workEstimateInput: 0,
+            workMinutesInput: null,
+            workDateInput: $A.dayjs().format('YYYY-MM-DD'),
+            workNoteInput: '',
+            workSaving: false,
+            workRequestKey: 0,
+            workMutationKey: 0,
+            workLogRequestId: '',
+            deletingWorkLogIds: [],
         }
     },
 
@@ -771,6 +932,8 @@ export default {
         //
         emitter.on('receiveTask', this.onReceiveShow);
         emitter.on('taskRelationUpdate', this.onTaskRelationUpdate);
+        emitter.on('projectMilestonesUpdate', this.onProjectMilestonesUpdate);
+        emitter.on('taskWorkUpdate', this.onTaskWorkUpdate);
     },
 
     destroyed() {
@@ -778,11 +941,14 @@ export default {
         //
         emitter.off('receiveTask', this.onReceiveShow);
         emitter.off('taskRelationUpdate', this.onTaskRelationUpdate);
+        emitter.off('projectMilestonesUpdate', this.onProjectMilestonesUpdate);
+        emitter.off('taskWorkUpdate', this.onTaskWorkUpdate);
     },
 
     computed: {
         ...mapState([
             'systemConfig',
+            'userId',
 
             'cacheProjects',
             'cacheColumns',
@@ -806,6 +972,16 @@ export default {
             }
             const project = this.cacheProjects.find(({id}) => id == this.taskDetail.project_id)
             return project ? project.name : '';
+        },
+
+        projectOwner() {
+            const project = (this.cacheProjects || []).find(({id}) => Number(id) === Number(this.taskDetail.project_id));
+            return !!(project && (Number(project.owner) > 0 || Number(project.owner_userid) === Number(this.userId)));
+        },
+
+        dependencyEnabled() {
+            const project = (this.cacheProjects || []).find(({id}) => Number(id) === Number(this.taskDetail.project_id));
+            return !project || project.task_dependency !== 'close';
         },
 
         columnName() {
@@ -846,6 +1022,17 @@ export default {
                 return task.parent_id == this.taskId
             }).sort((a, b) => {
                 return a.id - b.id;
+            });
+        },
+
+        dependencyCandidates() {
+            const existing = new Set(this.taskDependencies.map(item => Number(item.task && item.task.id)));
+            return this.cacheTasks.filter(task => {
+                return Number(task.project_id) === Number(this.taskDetail.project_id)
+                    && Number(task.id) !== Number(this.taskId)
+                    && Number(task.parent_id) === 0
+                    && !task.archived_at
+                    && !existing.has(Number(task.id));
             });
         },
 
@@ -1088,6 +1275,8 @@ export default {
         openTask: {
             handler(data) {
                 this.taskDetail = $A.cloneJSON(data);
+                this.workEstimateInput = Number(data.estimated_minutes) || 0;
+                this.loadProjectMilestones();
                 this.__openTask && clearTimeout(this.__openTask);
                 this.__openTask = setTimeout(_ => this.$refs.name?.resizeTextarea(), 100)
             },
@@ -1096,9 +1285,33 @@ export default {
         },
         taskId: {
             handler(id) {
+                this.dependencyMutationKey++;
+                this.dependencyLoading = false;
+                this.milestoneSaveRequestKey++;
+                this.milestoneSaving = false;
+                this.workRequestKey++;
+                this.workMutationKey++;
+                this.workSaving = false;
+                this.workLogRequestId = '';
+                this.deletingWorkLogIds = [];
+                this.workMinutesInput = null;
+                this.workNoteInput = '';
+                this.workDateInput = $A.dayjs().format('YYYY-MM-DD');
+                this.workLogs = [];
+                this.workLogsTotal = 0;
+                this.workLogsPage = 0;
+                this.workLogsLoading = false;
+                this.workLogsLoaded = false;
+                this.workLogsLoadFailed = false;
+                this.workLogsLoadingMore = false;
+                this.workSummary = {estimated_minutes: 0, logged_minutes: 0, remaining_minutes: 0, overrun_minutes: 0};
+                this.workEstimateInput = Number(this.taskDetail.estimated_minutes) || 0;
                 if (id > 0) {
                     this.ready = true;
+                    this.workLogRequestId = '';
+                    this.loadWorkLogs();
                     this.loadRelatedTasks();
+                    this.loadTaskDependencies();
                 } else {
                     $A.eeuiAppKeyboardHide()
                     this.timeOpen = false;
@@ -1113,6 +1326,13 @@ export default {
                     this.$refs.chatInput?.hidePopover();
                     this.relatedRequestKey++;
                     this.relatedTasks = [];
+                    this.dependencyRequestKey++;
+                    this.taskDependencies = [];
+                    this.milestoneRequestKey++;
+                    this.milestoneOptions = [];
+                    this.milestoneLoading = false;
+                    this.milestoneLoadFailed = false;
+                    this.dependencyCandidateId = 0;
                 }
             },
             immediate: true
@@ -1187,6 +1407,124 @@ export default {
     },
 
     methods: {
+        onTaskWorkUpdate(taskId) {
+            if (Number(taskId) === Number(this.taskDetail.id) && this.workLogsLoaded) {
+                this.loadWorkLogs();
+            }
+        },
+
+        async loadWorkLogs(append = false) {
+            const key = ++this.workRequestKey;
+            const projectId = Number(this.taskDetail.project_id || this.openTask.project_id);
+            const taskId = Number(this.taskId);
+            if (!projectId || !taskId) {
+                this.workLogsLoading = false;
+                return;
+            }
+            const page = append ? this.workLogsPage + 1 : 1;
+            this.workLogsLoading = true;
+            this.workLogsLoadFailed = false;
+            if (append) this.workLogsLoadingMore = true;
+            else this.workLogsLoadingMore = false;
+            try {
+                const {data} = await this.$store.dispatch('call', {url: 'projecttaskwork/task', data: {project_id: projectId, task_id: taskId, page, per_page: 50}});
+                if (key !== this.workRequestKey || taskId !== Number(this.taskId)) return;
+                this.workLogs = append
+                    ? [...new Map([...this.workLogs, ...(data.logs || [])].map(log => [log.id, log])).values()]
+                    : (data.logs || []);
+                this.workLogsTotal = Number(data.logs_total) || 0;
+                this.workLogsPage = Number(data.logs_page) || page;
+                this.workSummary = data.summary || this.workSummary;
+                this.workEstimateInput = Number(this.workSummary.estimated_minutes) || 0;
+                if (data.work_date_today) this.workDateInput = $A.dayjs(data.work_date_today).format('YYYY-MM-DD');
+                this.workLogsLoaded = true;
+            } catch (e) {
+                if (key === this.workRequestKey && taskId === Number(this.taskId)) this.workLogsLoadFailed = true;
+            }
+            finally {
+                if (key === this.workRequestKey) {
+                    this.workLogsLoading = false;
+                    this.workLogsLoadingMore = false;
+                }
+            }
+        },
+
+        loadMoreWorkLogs() {
+            if (this.workLogsLoading || this.workLogsLoadingMore || this.workLogs.length >= this.workLogsTotal) return;
+            return this.loadWorkLogs(true);
+        },
+
+        async saveWorkEstimate() {
+            if (this.workSaving) return;
+            const mutationKey = ++this.workMutationKey;
+            const projectId = Number(this.taskDetail.project_id);
+            const taskId = Number(this.taskDetail.id);
+            this.workSaving = true;
+            try {
+                const {data, msg} = await this.$store.dispatch('call', {url: 'projecttaskwork/estimate', method: 'post', data: {
+                    project_id: projectId, task_id: taskId, estimated_minutes: this.workEstimateInput || 0,
+                }});
+                if (mutationKey !== this.workMutationKey || taskId !== Number(this.taskId)) return;
+                this.workSummary = data;
+                this.$set(this.taskDetail, 'estimated_minutes', data.estimated_minutes);
+                $A.messageSuccess(msg);
+            } catch (e) {
+                if (mutationKey === this.workMutationKey && taskId === Number(this.taskId)) $A.modalError(e);
+            } finally {
+                if (mutationKey === this.workMutationKey) this.workSaving = false;
+            }
+        },
+
+        async addWorkLog() {
+            if (this.workSaving || !this.workMinutesInput) return;
+            if (!this.workLogRequestId) this.workLogRequestId = `work-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+            const mutationKey = ++this.workMutationKey;
+            const projectId = Number(this.taskDetail.project_id);
+            const taskId = Number(this.taskId);
+            const requestId = this.workLogRequestId;
+            this.workSaving = true;
+            try {
+                await this.$store.dispatch('call', {url: 'projecttaskwork/add', method: 'post', data: {
+                    project_id: projectId, task_id: taskId,
+                    request_id: requestId,
+                    minutes: this.workMinutesInput, work_date: $A.dayjs(this.workDateInput).format('YYYY-MM-DD'), note: this.workNoteInput,
+                }});
+                if (mutationKey !== this.workMutationKey || taskId !== Number(this.taskId)) return;
+                this.workLogRequestId = '';
+                this.workMinutesInput = null;
+                this.workNoteInput = '';
+                await this.loadWorkLogs();
+                if (mutationKey !== this.workMutationKey || taskId !== Number(this.taskId)) return;
+                $A.messageSuccess(this.$L('工时已登记'));
+            } catch (e) {
+                if (mutationKey !== this.workMutationKey || taskId !== Number(this.taskId)) return;
+                // A network failure may happen after the server committed. Keep the
+                // same request ID and inputs so the next attempt safely replays it.
+                if (Number(e?.ret) === 0) this.workLogRequestId = '';
+                $A.modalError(e);
+            } finally {
+                if (mutationKey === this.workMutationKey) this.workSaving = false;
+            }
+        },
+
+        async deleteWorkLog(logId) {
+            if (this.deletingWorkLogIds.includes(logId)) return;
+            const projectId = Number(this.taskDetail.project_id);
+            const taskId = Number(this.taskId);
+            this.deletingWorkLogIds.push(logId);
+            try {
+                await this.$store.dispatch('call', {url: 'projecttaskwork/delete', method: 'post', data: {project_id: projectId, log_id: logId}});
+                if (projectId !== Number(this.taskDetail.project_id) || taskId !== Number(this.taskId)) return;
+                await this.loadWorkLogs();
+            } catch (e) {
+                if (projectId === Number(this.taskDetail.project_id) && taskId === Number(this.taskId)) $A.modalError(e);
+            } finally {
+                if (projectId === Number(this.taskDetail.project_id) && taskId === Number(this.taskId)) {
+                    this.deletingWorkLogIds = this.deletingWorkLogIds.filter(id => id !== logId);
+                }
+            }
+        },
+
         onReceiveShow() {
             this.receiveShow = true;
         },
@@ -1742,6 +2080,158 @@ export default {
             }
         },
 
+        async loadTaskDependencies() {
+            if (!this.taskId || this.isSubTask) {
+                this.dependencyRequestKey++;
+                this.taskDependencies = [];
+                return;
+            }
+            const requestKey = ++this.dependencyRequestKey;
+            try {
+                const {data} = await this.$store.dispatch('call', {
+                    url: 'projecttaskdependency/lists',
+                    data: {task_id: this.taskId},
+                });
+                if (requestKey === this.dependencyRequestKey) {
+                    this.taskDependencies = data.list || [];
+                }
+            } catch (e) {
+                if (requestKey === this.dependencyRequestKey) {
+                    this.taskDependencies = [];
+                }
+                console.warn(e);
+            }
+        },
+
+        async loadProjectMilestones() {
+            const projectId = Number(this.taskDetail.project_id || 0);
+            if (!projectId || !this.taskId) {
+                this.milestoneRequestKey++;
+                this.milestoneOptions = [];
+                this.milestoneLoading = false;
+                this.milestoneLoadFailed = false;
+                return;
+            }
+            const requestKey = ++this.milestoneRequestKey;
+            this.milestoneLoading = true;
+            this.milestoneLoadFailed = false;
+            try {
+                const {data} = await this.$store.dispatch('call', {
+                    url: 'projectmilestone/lists',
+                    data: {project_id: projectId},
+                });
+                if (requestKey === this.milestoneRequestKey) {
+                    this.milestoneOptions = data.milestones || [];
+                }
+            } catch (e) {
+                if (requestKey === this.milestoneRequestKey) this.milestoneLoadFailed = true;
+                console.warn(e);
+            } finally {
+                if (requestKey === this.milestoneRequestKey) this.milestoneLoading = false;
+            }
+        },
+
+        onProjectMilestonesUpdate(projectId) {
+            if (Number(projectId) === Number(this.taskDetail.project_id)) this.loadProjectMilestones();
+        },
+
+        updateTaskMilestone(milestoneId) {
+            if (this.isDepartmentReadonly || this.milestoneLoading || this.milestoneSaving) return;
+            const taskId = Number(this.taskId);
+            const projectId = Number(this.taskDetail.project_id || 0);
+            const previousId = Number(this.taskDetail.milestone_id || 0);
+            const nextId = Number(milestoneId || 0);
+            if (previousId === nextId) return;
+            const requestKey = ++this.milestoneSaveRequestKey;
+            this.milestoneSaving = true;
+            this.$set(this.taskDetail, 'milestone_id', nextId || null);
+            this.$store.dispatch('call', {
+                url: 'projectmilestone/assign',
+                method: 'post',
+                data: {task_id: taskId, milestone_id: nextId},
+            }).then(() => {
+                this.$store.dispatch('saveTask', {id: taskId, milestone_id: nextId || null});
+                emitter.emit('projectMilestonesUpdate', projectId);
+            }).catch(({msg}) => {
+                if (Number(this.taskId) === taskId) {
+                    this.$set(this.taskDetail, 'milestone_id', previousId || null);
+                    $A.modalError(msg);
+                }
+            }).finally(() => {
+                if (requestKey === this.milestoneSaveRequestKey) this.milestoneSaving = false;
+            });
+        },
+
+        addTaskDependency() {
+            if (this.isDepartmentReadonly || !this.dependencyCandidateId || this.dependencyLoading) {
+                return;
+            }
+            const taskId = Number(this.taskId);
+            const relatedTaskId = Number(this.dependencyCandidateId);
+            const direction = this.dependencyDirection;
+            const requestKey = ++this.dependencyMutationKey;
+            this.dependencyLoading = true;
+            this.$store.dispatch('call', {
+                url: 'projecttaskdependency/add',
+                method: 'post',
+                data: {
+                    task_id: taskId,
+                    related_task_id: relatedTaskId,
+                    direction,
+                },
+            }).then(() => {
+                if (Number(this.taskId) === taskId) {
+                    this.dependencyCandidateId = 0;
+                    return this.loadTaskDependencies();
+                }
+            }).catch(({msg}) => {
+                if (Number(this.taskId) === taskId) $A.modalError(msg);
+            }).finally(() => {
+                if (requestKey === this.dependencyMutationKey) this.dependencyLoading = false;
+            });
+        },
+
+        openDependencyTask(item) {
+            if (item && item.task && item.task.id && item.task.id !== this.taskId) {
+                this.$store.dispatch('openTask', item.task.id);
+            }
+        },
+
+        dependencyHasScheduleConflict(item) {
+            const currentTask = this.taskDetail || {};
+            const cachedTask = this.cacheTasks.find(task => Number(task.id) === Number(item && item.task && item.task.id));
+            const relatedTask = Object.assign({}, item && item.task ? item.task : {}, cachedTask || {});
+            const predecessor = item.direction === 'predecessor' ? relatedTask : currentTask;
+            const successor = item.direction === 'predecessor' ? currentTask : relatedTask;
+            if (!predecessor.end_at || !successor.start_at) return false;
+            const predecessorEnd = $A.dayjs(predecessor.end_at);
+            const successorStart = $A.dayjs(successor.start_at);
+            return predecessorEnd.isValid() && successorStart.isValid()
+                && successorStart.isBefore(predecessorEnd);
+        },
+
+        removeTaskDependency(item) {
+            if (this.isDepartmentReadonly || !item || !item.id) {
+                return;
+            }
+            const taskId = Number(this.taskId);
+            const dependencyId = Number(item.id);
+            $A.modalConfirm({
+                language: false,
+                title: this.$L('温馨提示'),
+                content: this.$L('确定要移除这条任务依赖吗？'),
+                onOk: () => {
+                    this.$store.dispatch('call', {
+                        url: 'projecttaskdependency/delete',
+                        method: 'post',
+                        data: {task_id: taskId, dependency_id: dependencyId},
+                    }).then(() => {
+                        if (Number(this.taskId) === taskId) this.loadTaskDependencies();
+                    }).catch(({msg}) => $A.modalError(msg));
+                },
+            });
+        },
+
         openRelatedTask(item) {
             if (!item || !item.related_task_id) {
                 return;
@@ -1785,6 +2275,7 @@ export default {
                 return;
             }
             this.loadRelatedTasks();
+            this.loadTaskDependencies();
         },
 
         logLoadChange(load) {
