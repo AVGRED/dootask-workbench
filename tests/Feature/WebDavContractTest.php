@@ -36,8 +36,12 @@ class WebDavContractTest extends TestCase
         $this->assertSame('dav', $route->parameter('method'));
         $this->assertSame('status', $route->parameter('action'));
 
-        $response = app('router')->dispatch(Request::create('/api/file/dav/missing', 'GET'));
-        $this->assertStringContainsString('404 not found (dav/missing)', $response->getContent());
+        // Dispatch through the HTTP kernel (a bare router dispatch skips middleware
+        // registration) and speak JSON, which is the contract for API clients that
+        // receive the structured 404 payload instead of an HTML error page.
+        $response = $this->withHeaders(['Content-Type' => 'application/json'])
+            ->get('/api/file/dav/missing');
+        $this->assertStringContainsString('404 not found (dav/missing)', (string)$response->json('msg'));
     }
 
     public function test_protocol_route_accepts_webdav_methods_and_captures_path(): void
