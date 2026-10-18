@@ -138,6 +138,37 @@ class SystemController extends AbstractController
         } else {
             $setting = Base::setting('system');
         }
+        // Settings rows created by older versions or by the bundled seeder do not
+        // contain every key this endpoint normalizes. Fill the missing keys first so
+        // the public settings request cannot fail on an undefined array key.
+        $setting = array_merge([
+            'reg' => 'open',
+            'reg_identity' => 'normal',
+            'temp_account_alias' => '',
+            'login_code' => 'auto',
+            'password_policy' => 'simple',
+            'project_invite' => 'open',
+            'chat_information' => 'optional',
+            'anon_message' => 'open',
+            'convert_video' => 'close',
+            'compress_video' => 'close',
+            'e2e_message' => 'close',
+            'msg_rev_limit' => '',
+            'msg_edit_limit' => '',
+            'auto_archived' => 'close',
+            'archived_day' => 7,
+            'task_visible' => 'close',
+            'all_group_mute' => 'open',
+            'todo_set_permission' => 'open',
+            'all_group_autoin' => 'yes',
+            'user_private_chat_mute' => 'open',
+            'user_group_chat_mute' => 'open',
+            'file_upload_limit' => '',
+            'unclaimed_task_reminder' => 'close',
+            'unclaimed_task_reminder_time' => '',
+            'task_ai_auto_analyze' => 'open',
+            'department_owner_project_view' => 'open',
+        ], is_array($setting) ? $setting : []);
         //
         if ($type == 'all' || $type == 'save') {
             User::auth('admin');
