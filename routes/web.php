@@ -21,6 +21,12 @@ use App\Http\Controllers\Api\AppsController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ProjectTaskHandoffController;
+use App\Http\Controllers\Api\ProjectTaskDependencyController;
+use App\Http\Controllers\Api\ProjectMilestoneController;
+use App\Http\Controllers\Api\ProjectTaskViewController;
+use App\Http\Controllers\Api\ProjectTaskTemplateController;
+use App\Http\Controllers\Api\ProjectTaskScheduleController;
+use App\Http\Controllers\Api\ProjectTaskWorkController;
 
 /*
 |--------------------------------------------------------------------------
@@ -48,6 +54,12 @@ Route::prefix('api')->middleware(['webapi'])->group(function () {
     Route::any('project/{method}',                      ProjectController::class);
     Route::any('project/{method}/{action}',             ProjectController::class);
     Route::any('projecttaskhandoff/{method}',              ProjectTaskHandoffController::class);
+    Route::any('projecttaskdependency/{method}',           ProjectTaskDependencyController::class);
+    Route::any('projectmilestone/{method}',                ProjectMilestoneController::class);
+    Route::any('projecttaskview/{method}',                 ProjectTaskViewController::class);
+    Route::any('projecttasktemplate/{method}',             ProjectTaskTemplateController::class);
+    Route::any('projecttaskschedule/{method}',             ProjectTaskScheduleController::class);
+    Route::any('projecttaskwork/{method}',                  ProjectTaskWorkController::class);
     // 仪表盘
     Route::any('dashboard/{method}',                    DashboardController::class);
     Route::any('dashboard/{method}/{action}',           DashboardController::class);
@@ -97,6 +109,9 @@ Route::match([
     'OPTIONS', 'PROPFIND', 'PROPPATCH', 'HEAD', 'GET', 'PUT',
     'MKCOL', 'COPY', 'MOVE', 'DELETE', 'LOCK', 'UNLOCK',
 ], 'dav/{path?}', WebDavProtocolController::class)->where('path', '.*');
+
+// 独立存活探针不依赖授权 FFI、数据库或用户会话，供反向代理和服务管理器检查。
+Route::get('/health', [IndexController::class, 'health']);
 
 /**
  * 页面

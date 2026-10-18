@@ -1,8 +1,8 @@
 # API 路由对照表
 
-> 此文件由 `php artisan doc:api-map` 生成，勿手改。
+> 此文件可由 `php artisan doc:api-map` 或 `npm run api:map` 生成，勿手改。
 
-接口总数：334
+接口总数：363
 
 ## 路由规则
 
@@ -176,6 +176,65 @@ API 使用动态路由（见 `routes/web.php`），URL 段映射为控制器方�
 | api/projecttaskhandoff/lists | lists() | get | 任务流转记录 |
 | api/projecttaskhandoff/options | options() | get | 任务指派人员与权限 |
 | api/projecttaskhandoff/assign | assign() | post | 指派任务负责人并附带留言 |
+
+## projecttaskdependency（ProjectTaskDependencyController）
+
+| URL | 方法名 | HTTP | 说明 |
+| --- | --- | --- | --- |
+| api/projecttaskdependency/lists | lists() | get | 获取任务前置与后置依赖（项目关闭依赖时返回空列表） |
+| api/projecttaskdependency/project | project() | get | 获取甘特图中的任务依赖 |
+| api/projecttaskdependency/risks | risks() | get | 查询当前用户可见的项目依赖风险 |
+| api/projecttaskdependency/add | add() | post | 添加任务依赖（项目关闭依赖时拒绝写入） |
+| api/projecttaskdependency/delete | delete() | post | 删除任务依赖 |
+
+## projectmilestone（ProjectMilestoneController）
+
+| URL | 方法名 | HTTP | 说明 |
+| --- | --- | --- | --- |
+| api/projectmilestone/lists | lists() | get | 获取项目里程碑 |
+| api/projectmilestone/reminderAttempts | reminderAttempts() | post | 查询里程碑提醒尝试记录 |
+| api/projectmilestone/tasks | tasks() | post | 获取里程碑关联任务 |
+| api/projectmilestone/save | save() | post | 创建或更新里程碑 |
+| api/projectmilestone/delete | delete() | post | 删除里程碑并解除关联 |
+| api/projectmilestone/sort | sort() | post | 调整项目里程碑顺序 |
+| api/projectmilestone/assign | assign() | post | 关联任务与里程碑 |
+
+## projecttaskview（ProjectTaskViewController）
+
+| URL | 方法名 | HTTP | 说明 |
+| --- | --- | --- | --- |
+| api/projecttaskview/lists | lists() | get | 获取当前用户可见的任务视图 |
+| api/projecttaskview/save | save() | post | 新建或更新任务视图 |
+| api/projecttaskview/delete | delete() | post | 删除任务视图 |
+| api/projecttaskview/setdefault | setdefault() | post | 设置当前用户的默认任务视图 |
+
+## projecttasktemplate（ProjectTaskTemplateController）
+
+| URL | 方法名 | HTTP | 说明 |
+| --- | --- | --- | --- |
+| api/projecttasktemplate/revisions | revisions() | get | 查看任务模板版本历史 |
+| api/projecttasktemplate/restore | restore() | post | 恢复任务模板历史版本 |
+
+## projecttaskschedule（ProjectTaskScheduleController）
+
+| URL | 方法名 | HTTP | 说明 |
+| --- | --- | --- | --- |
+| api/projecttaskschedule/batches | batches() | get | 查询最近的排期批次 |
+| api/projecttaskschedule/settings | settings() | get | 读取项目排期规则 |
+| api/projecttaskschedule/updatesettings | updatesettings() | post | 更新项目排期规则（负责人/管理员） |
+| api/projecttaskschedule/preview | preview() | post | 预演前置依赖变化后的级联排期 |
+| api/projecttaskschedule/apply | apply() | post | 按预演结果幂等应用排期批次 |
+| api/projecttaskschedule/undo | undo() | post | 撤销排期批次（仅当任务日期未被后续修改） |
+
+## projecttaskwork（ProjectTaskWorkController）
+
+| URL | 方法名 | HTTP | 说明 |
+| --- | --- | --- | --- |
+| api/projecttaskwork/estimate | estimate() | post | 更新任务预估工时（分钟） |
+| api/projecttaskwork/task | task() | get | 查询任务工时记录 |
+| api/projecttaskwork/add | add() | post | 登记实际工时 |
+| api/projecttaskwork/delete | delete() | post | 删除本人或管理员的工时记录 |
+| api/projecttaskwork/capacity | capacity() | get | 按成员汇总计划与实际工时 |
 
 ## dashboard（DashboardController）
 

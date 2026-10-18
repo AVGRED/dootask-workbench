@@ -126,7 +126,7 @@ class DocApiMap extends Command
         return <<<MD
             # API 路由对照表
 
-            > 此文件由 `php artisan doc:api-map` 生成，勿手改。
+            > 此文件可由 `php artisan doc:api-map` 或 `npm run api:map` 生成，勿手改。
 
             接口总数：{$total}
 
