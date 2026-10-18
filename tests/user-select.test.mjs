@@ -6,6 +6,7 @@ import compiler from 'vue-template-compiler';
 const source = readFileSync(new URL('../resources/assets/js/components/UserSelect.vue', import.meta.url), 'utf8');
 const component = compiler.parseComponent(source);
 const options = new Function('mapState', component.script.content
+    .replace(/\r\n/g, '\n')
     .replace(/import .*?;\n/g, '')
     .replace('export default', 'return'))(() => ({}));
 
