@@ -48,9 +48,11 @@ class ProjectTaskWorkService
     public static function logs(int $projectId, int $taskId, int $page = 1, int $perPage = 50): array
     {
         if ($page < 1 || $perPage < 1 || $perPage > 100) throw new ApiException('工时历史分页参数无效');
-        $project = Project::userProject($projectId);
-        $task = ProjectTask::query()->where('project_id', $projectId)->whereKey($taskId)->firstOrFail();
-        ProjectPermission::userTaskPermission($project, ProjectPermission::TASK_UPDATE, $task);
+        // Anyone who can see the task may read its recorded time; the task detail
+        // page is opened by assignees and project members who cannot edit it.
+        // Writing/deleting still requires TASK_UPDATE (see addLog/deleteLog).
+        $task = ProjectTask::userTask($taskId, null);
+        if ((int)$task->project_id !== $projectId) throw new ApiException('任务不存在');
         $query = ProjectTaskWorkLog::query()->where('project_id', $projectId)->where('task_id', $taskId);
         $total = (clone $query)->count();
         if ($total === 0 || $page > (int)ceil($total / $perPage)) {

@@ -182,6 +182,33 @@ class ProjectTaskWorkFeatureTest extends TestCase
         $this->addLog('req-stranger-0001', 30);
     }
 
+    public function test_project_member_can_read_history_but_still_cannot_record_work(): void
+    {
+        $this->addLog('req-reader-0001', 45, '2026-03-02', '已完成的排查');
+        $this->planningLogin($this->member);
+
+        $page = ProjectTaskWorkService::logs($this->project->id, $this->task->id);
+        $this->assertSame(1, $page['total']);
+        $this->assertSame(45, $page['items'][0]['minutes']);
+
+        try {
+            $this->addLog('req-reader-0002', 30);
+            $this->fail('A member without task rights must not record work.');
+        } catch (ApiException $exception) {
+            $this->assertNotSame('', $exception->getMessage());
+        }
+        $this->assertSame(1, ProjectTaskWorkLog::query()->where('task_id', $this->task->id)->count());
+    }
+
+    public function test_outsider_cannot_read_worklog_history(): void
+    {
+        $this->addLog('req-reader-0003', 45);
+        $this->planningLogin($this->stranger);
+
+        $this->expectException(ApiException::class);
+        ProjectTaskWorkService::logs($this->project->id, $this->task->id);
+    }
+
     public function test_capacity_rejects_ranges_longer_than_93_days(): void
     {
         $this->expectException(ApiException::class);

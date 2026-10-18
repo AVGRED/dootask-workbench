@@ -186,4 +186,40 @@ class ProjectTaskDependencyFeatureTest extends TestCase
         $this->assertSame(0, $this->edgeCount());
         $this->assertSame([], ProjectTaskDependencyService::lists($this->taskA->id)['list']);
     }
+
+    public function test_cross_project_move_drops_edges_that_leave_the_task_tree(): void
+    {
+        $otherProject = $this->planningProject($this->owner);
+        ProjectTaskDependencyService::add($this->taskA->id, $this->taskB->id, 'predecessor');
+        $this->assertSame(1, $this->edgeCount());
+
+        // Only one side of the edge moves: the relation must not survive across projects.
+        $this->taskA->project_id = $otherProject->id;
+        $this->taskA->save();
+        ProjectTaskDependencyService::handleProjectMove($this->project->id, $otherProject->id, [$this->taskA->id]);
+
+        $this->assertSame(0, $this->edgeCount());
+        $this->assertSame(0, ProjectTaskDependency::query()->where('project_id', $otherProject->id)->count());
+    }
+
+    public function test_cross_project_move_keeps_edges_inside_the_moved_tree(): void
+    {
+        $otherProject = $this->planningProject($this->owner);
+        $dependency = ProjectTaskDependencyService::add($this->taskA->id, $this->taskB->id, 'predecessor');
+
+        foreach ([$this->taskA, $this->taskB] as $task) {
+            $task->project_id = $otherProject->id;
+            $task->save();
+        }
+        ProjectTaskDependencyService::handleProjectMove(
+            $this->project->id,
+            $otherProject->id,
+            [$this->taskA->id, $this->taskB->id]
+        );
+
+        $moved = ProjectTaskDependency::query()->whereKey($dependency->id)->first();
+        $this->assertNotNull($moved);
+        $this->assertSame($otherProject->id, (int)$moved->project_id);
+        $this->assertSame(0, $this->edgeCount());
+    }
 }
