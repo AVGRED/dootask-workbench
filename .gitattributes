@@ -2,4 +2,9 @@
 *.css linguist-vendored
 *.scss linguist-vendored
 *.js linguist-vendored
+# Shell entrypoints run under Linux (containers, CI, `curl | bash`); a CRLF
+# checkout would break their shebang, so pin them to LF explicitly.
+*.sh text eol=lf
+cmd text eol=lf
+bin/* text eol=lf
 CHANGELOG.md export-ignore
