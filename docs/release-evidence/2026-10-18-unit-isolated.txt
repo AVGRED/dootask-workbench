@@ -1,0 +1,15 @@
+Date=2026-10-18
+Command=bash scripts/release-run-unit-tests-isolated.sh
+Environment=Ubuntu 22.04 WSL; temporary MariaDB 10.6.23; PHP 8.4.26; PHPUnit 11.5.55; clean isolated schema migrated before tests; database and datadir removed by script cleanup
+
+ISOLATED_MIGRATIONS=PASS
+PHPUnit 11.5.55 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.26
+Configuration: /mnt/d/repos/workbench/dootask/phpunit.xml
+
+...................................................               51 / 51 (100%)
+
+Time: 00:00.901, Memory: 48.50 MB
+
+OK (51 tests, 120 assertions)

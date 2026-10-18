@@ -1,0 +1,634 @@
+ISOLATED_MIGRATIONS=PASS
+PHPUnit 11.5.55 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.26
+Configuration: /mnt/d/repos/workbench/dootask/phpunit.xml
+
+EE................................EEEEEEEEE..........EFF......F  63 / 188 ( 33%)
+EE..EEEE..E.EEEE....E..........E..E.E................EEEE...... 126 / 188 ( 67%)
+..............................EEE....EE........EEEEF..EE.EE...  188 / 188 (100%)
+
+Time: 00:07.480, Memory: 70.50 MB
+
+There were 44 errors:
+
+1) Tests\Feature\AdminCreateUserTest::test_create_by_admin_sets_changepass_and_normal_identity
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:47
+/mnt/d/repos/workbench/dootask/app/Models/User.php:398
+/mnt/d/repos/workbench/dootask/app/Models/User.php:456
+/mnt/d/repos/workbench/dootask/tests/Feature/AdminCreateUserTest.php:33
+
+2) Tests\Feature\AdminCreateUserTest::test_create_by_admin_can_skip_changepass
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:47
+/mnt/d/repos/workbench/dootask/app/Models/User.php:398
+/mnt/d/repos/workbench/dootask/app/Models/User.php:456
+/mnt/d/repos/workbench/dootask/tests/Feature/AdminCreateUserTest.php:59
+
+3) Tests\Feature\DepartmentDeputyImportantTest::test_add_deputy_sets_important_flag
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Observers/UserObserver.php:105
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:519
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:329
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:309
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php:224
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1495
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1373
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:66
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:79
+
+4) Tests\Feature\DepartmentDeputyImportantTest::test_del_deputy_removes_from_department_group
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Observers/UserObserver.php:105
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:519
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:329
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:309
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php:224
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1495
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1373
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:66
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:101
+
+5) Tests\Feature\DepartmentDeputyImportantTest::test_department_owner_has_important_flag
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Observers/UserObserver.php:105
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:519
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:329
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:309
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php:224
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1495
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1373
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:66
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:124
+
+6) Tests\Feature\DepartmentDeputyImportantTest::test_add_deputy_is_idempotent
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Observers/UserObserver.php:105
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:519
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:329
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:309
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php:224
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1495
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1373
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:66
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:142
+
+7) Tests\Feature\DepartmentDeputyImportantTest::test_deputy_auto_joins_department_members
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Observers/UserObserver.php:105
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:519
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:329
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:309
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php:224
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1495
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1373
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:66
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:165
+
+8) Tests\Feature\DepartmentDeputyImportantTest::test_del_deputy_removes_from_department_members
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Observers/UserObserver.php:105
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:519
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:329
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:309
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php:224
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1495
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1373
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:66
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:186
+
+9) Tests\Feature\DepartmentDeputyImportantTest::test_cannot_add_primary_owner_as_deputy
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Observers/UserObserver.php:105
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:519
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:329
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:309
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php:224
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1495
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1373
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:66
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:208
+
+10) Tests\Feature\DepartmentDeputyImportantTest::test_del_deputy_does_not_remove_current_primary_owner
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Observers/UserObserver.php:105
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:519
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:329
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:309
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php:224
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1495
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1373
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:66
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:226
+
+11) Tests\Feature\DepartmentDeputyImportantTest::test_promote_deputy_to_owner_clears_owner_table_record
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Observers/UserObserver.php:105
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:519
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:329
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php:309
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php:224
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1495
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1373
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:66
+/mnt/d/repos/workbench/dootask/tests/Feature/DepartmentDeputyImportantTest.php:286
+
+12) Tests\Feature\ExampleTest::test_example
+Illuminate\Encryption\MissingAppKeyException: No application encryption key has been specified.
+
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:83
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:81
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:64
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:32
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1118
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:936
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1078
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:864
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1058
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1339
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1240
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1165
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:936
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1078
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:864
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1058
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php:257
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php:215
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:611
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:368
+/mnt/d/repos/workbench/dootask/tests/Feature/ExampleTest.php:17
+
+13) Tests\Feature\MessageAttachmentBackfillServiceTest::test_automatic_backfill_advances_persisted_cursor_to_completion
+RedisException: Connection refused
+
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:185
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:89
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:80
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:34
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:39
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/RedisManager.php:112
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/RedisManager.php:93
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Cache/RedisStore.php:419
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Cache/RedisStore.php:247
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Cache/Repository.php:1071
+/mnt/d/repos/workbench/dootask/app/Services/MessageAttachmentBackfillService.php:49
+/mnt/d/repos/workbench/dootask/tests/Feature/MessageAttachmentBackfillServiceTest.php:45
+
+14) Tests\Feature\MessageAttachmentBackfillServiceTest::test_automatic_backfill_waits_until_retry_time
+RedisException: Connection refused
+
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:185
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:89
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:80
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:34
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:39
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/RedisManager.php:112
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Redis/RedisManager.php:93
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Cache/RedisStore.php:419
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Cache/RedisStore.php:247
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Cache/Repository.php:1071
+/mnt/d/repos/workbench/dootask/app/Services/MessageAttachmentBackfillService.php:49
+/mnt/d/repos/workbench/dootask/tests/Feature/MessageAttachmentBackfillServiceTest.php:69
+
+15) Tests\Feature\MultiOwnerDepartmentTest::test_saveDepartment_owner_change_syncs_dialog_role
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:371
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:115
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:165
+
+16) Tests\Feature\MultiOwnerDepartmentTest::test_saveDepartment_owner_change_preserves_deputies
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:371
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:115
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:201
+
+17) Tests\Feature\MultiOwnerDepartmentTest::test_addDeputy_creates_owner_record_and_joins_group_as_deputy
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:371
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:251
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:101
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:221
+
+18) Tests\Feature\MultiOwnerDepartmentTest::test_addDeputy_idempotent
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:371
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:251
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:101
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:241
+
+19) Tests\Feature\MultiOwnerDepartmentTest::test_delDeputy_removes_owner_record_and_exits_department_group
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:371
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:251
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:101
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:273
+
+20) Tests\Feature\MultiOwnerDepartmentTest::test_deleteDepartment_cleans_deputy_records
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:371
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:251
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:101
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:310
+
+21) Tests\Feature\MultiOwnerDepartmentTest::test_user_transfer_clears_departing_deputy_role
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:371
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:251
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:101
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:325
+
+22) Tests\Feature\MultiOwnerDepartmentTest::test_user_transfer_inherits_departing_primary
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:371
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:115
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:385
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:207
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:134
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:382
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:342
+
+23) Tests\Feature\MultiOwnerDepartmentTest::test_deleteDepartment_recursively_cleans_child_deputies
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:371
+/mnt/d/repos/workbench/dootask/app/Models/UserDepartment.php:251
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:101
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerDepartmentTest.php:355
+
+24) Tests\Feature\MultiOwnerGroupTest::test_exitGroup_removes_deputy_role_along_with_membership
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:373
+/mnt/d/repos/workbench/dootask/app/Models/WebSocketDialog.php:530
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerGroupTest.php:115
+
+25) Tests\Feature\MultiOwnerGroupTest::test_deputy_can_remove_normal_member
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:373
+/mnt/d/repos/workbench/dootask/app/Models/WebSocketDialog.php:530
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerGroupTest.php:397
+
+26) Tests\Feature\MultiOwnerGroupTest::test_inviter_can_still_remove_invitee
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:373
+/mnt/d/repos/workbench/dootask/app/Models/WebSocketDialog.php:530
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerGroupTest.php:450
+
+27) Tests\Feature\MultiOwnerGroupTest::test_user_transfer_clears_deputy_role
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:373
+/mnt/d/repos/workbench/dootask/app/Models/WebSocketDialog.php:530
+/mnt/d/repos/workbench/dootask/app/Models/UserTransfer.php:85
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerGroupTest.php:499
+
+28) Tests\Feature\MultiOwnerProjectTest::test_user_transfer_clears_departing_deputy_role
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Models/Project.php:418
+/mnt/d/repos/workbench/dootask/app/Models/ProjectUser.php:117
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:207
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:134
+/mnt/d/repos/workbench/dootask/app/Models/ProjectUser.php:90
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerProjectTest.php:475
+
+29) Tests\Feature\MultiOwnerProjectTest::test_user_transfer_inherits_departing_primary_role
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Models/Project.php:418
+/mnt/d/repos/workbench/dootask/app/Models/ProjectUser.php:117
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:207
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:134
+/mnt/d/repos/workbench/dootask/app/Models/ProjectUser.php:90
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerProjectTest.php:494
+
+30) Tests\Feature\MultiOwnerProjectTest::test_user_transfer_promotes_existing_member_when_inherits_primary
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Models/Project.php:418
+/mnt/d/repos/workbench/dootask/app/Models/ProjectUser.php:117
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:207
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:134
+/mnt/d/repos/workbench/dootask/app/Models/ProjectUser.php:90
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerProjectTest.php:506
+
+31) Tests\Feature\MultiOwnerProjectTest::test_user_transfer_keeps_receiver_primary_when_departing_is_member
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:123
+/mnt/d/repos/workbench/dootask/app/Models/User.php:777
+/mnt/d/repos/workbench/dootask/app/Models/User.php:721
+/mnt/d/repos/workbench/dootask/app/Models/Project.php:418
+/mnt/d/repos/workbench/dootask/app/Models/ProjectUser.php:117
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:207
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:134
+/mnt/d/repos/workbench/dootask/app/Models/ProjectUser.php:90
+/mnt/d/repos/workbench/dootask/tests/Feature/MultiOwnerProjectTest.php:521
+
+32) Tests\Feature\RegistrationAvailabilityTest::test_registration_status_reports_closed_registration
+Illuminate\Encryption\MissingAppKeyException: No application encryption key has been specified.
+
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:83
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:81
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:64
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:32
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1118
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:936
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1078
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:864
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1058
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1339
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1240
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1165
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:936
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1078
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:864
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1058
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php:257
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php:215
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:611
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:573
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:381
+/mnt/d/repos/workbench/dootask/tests/Feature/RegistrationAvailabilityTest.php:17
+
+33) Tests\Feature\RegistrationAvailabilityTest::test_registration_status_reports_invite_registration
+Illuminate\Encryption\MissingAppKeyException: No application encryption key has been specified.
+
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:83
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:81
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:64
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:32
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1118
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:936
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1078
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:864
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1058
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1339
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1240
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1165
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:936
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1078
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:864
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1058
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php:257
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php:215
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:611
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:573
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:381
+/mnt/d/repos/workbench/dootask/tests/Feature/RegistrationAvailabilityTest.php:28
+
+34) Tests\Feature\SystemBrandingTest::test_public_system_setting_exposes_login_branding
+Illuminate\Encryption\MissingAppKeyException: No application encryption key has been specified.
+
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:83
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:81
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:64
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:32
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1118
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:936
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1078
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:864
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1058
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1339
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1240
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:1165
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:936
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1078
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Container/Container.php:864
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1058
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php:257
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php:215
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:611
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:573
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/MakesHttpRequests.php:381
+/mnt/d/repos/workbench/dootask/tests/Feature/SystemBrandingTest.php:20
+
+35) Tests\Feature\TodoRemindTest::test_build_remind_text_produces_mention_spans
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:216
+/mnt/d/repos/workbench/dootask/app/Tasks/TodoRemindTask.php:36
+/mnt/d/repos/workbench/dootask/tests/Feature/TodoRemindTest.php:133
+
+36) Tests\Feature\TodoRemindTest::test_msg_join_group_extracts_text_mention_from_spans
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:216
+/mnt/d/repos/workbench/dootask/app/Tasks/TodoRemindTask.php:36
+/mnt/d/repos/workbench/dootask/tests/Feature/TodoRemindTest.php:151
+
+37) Tests\Feature\TodoSetPermissionTest::test_toggle_todo_msg_blocks_member_to_others_when_close
+FFI\Exception: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Module/Interface/DooSo.php:22
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:33
+/mnt/d/repos/workbench/dootask/app/Module/Doo.php:216
+/mnt/d/repos/workbench/dootask/app/Module/Base.php:1399
+/mnt/d/repos/workbench/dootask/app/Models/WebSocketDialogMsg.php:435
+/mnt/d/repos/workbench/dootask/tests/Feature/TodoSetPermissionTest.php:265
+
+38) Tests\Feature\UserTransferOwnerRoleTest::test_transfer_promotes_deputy_receiver_to_owner_role_one
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:373
+/mnt/d/repos/workbench/dootask/app/Models/WebSocketDialog.php:530
+/mnt/d/repos/workbench/dootask/app/Models/UserTransfer.php:85
+/mnt/d/repos/workbench/dootask/tests/Feature/UserTransferOwnerRoleTest.php:68
+
+39) Tests\Feature\UserTransferOwnerRoleTest::test_transfer_adds_new_receiver_with_owner_role_one
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:373
+/mnt/d/repos/workbench/dootask/app/Models/WebSocketDialog.php:530
+/mnt/d/repos/workbench/dootask/app/Models/UserTransfer.php:85
+/mnt/d/repos/workbench/dootask/tests/Feature/UserTransferOwnerRoleTest.php:120
+
+40) Tests\Feature\UserTransferOwnerRoleTest::test_transfer_does_not_promote_when_original_not_owner
+App\Exceptions\ApiException: Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+/mnt/d/repos/workbench/dootask/app/Models/AbstractModel.php:373
+/mnt/d/repos/workbench/dootask/app/Models/WebSocketDialog.php:530
+/mnt/d/repos/workbench/dootask/app/Models/UserTransfer.php:85
+/mnt/d/repos/workbench/dootask/tests/Feature/UserTransferOwnerRoleTest.php:162
+
+41) Tests\Feature\WebDavContractTest::test_path_conflicts_include_owner_path_and_file_ids
+Illuminate\Database\Eloquent\ModelNotFoundException: No query results for model [App\Models\User].
+
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:786
+/mnt/d/repos/workbench/dootask/tests/Feature/WebDavContractTest.php:79
+
+42) Tests\Feature\WebDavContractTest::test_path_conflicts_only_expose_locations_allowed_by_existing_file_permissions
+Illuminate\Database\Eloquent\ModelNotFoundException: No query results for model [App\Models\User].
+
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:786
+/mnt/d/repos/workbench/dootask/tests/Feature/WebDavContractTest.php:121
+
+43) Tests\Feature\WebDavContractTest::test_admin_can_rename_another_users_conflicting_file_with_audit_log
+Illuminate\Database\Eloquent\ModelNotFoundException: No query results for model [App\Models\User].
+
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:786
+/mnt/d/repos/workbench/dootask/tests/Feature/WebDavContractTest.php:184
+
+44) Tests\Feature\WebDavContractTest::test_only_inactive_credentials_can_be_permanently_deleted_with_audit_retained
+Illuminate\Database\Eloquent\ModelNotFoundException: No query results for model [App\Models\User].
+
+/mnt/d/repos/workbench/dootask/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:786
+/mnt/d/repos/workbench/dootask/tests/Feature/WebDavContractTest.php:226
+
+--
+
+There were 4 failures:
+
+1) Tests\Feature\LoopTaskTest::test_custom_days_loop_creates_exactly_one_copy_and_closes_source
+到点只应生成 1 个新任务
+Failed asserting that actual size 1 matches expected size 2.
+
+/mnt/d/repos/workbench/dootask/tests/Feature/LoopTaskTest.php:99
+
+2) Tests\Feature\LoopTaskTest::test_second_run_does_not_create_more_copies
+Failed asserting that actual size 1 matches expected size 2.
+
+/mnt/d/repos/workbench/dootask/tests/Feature/LoopTaskTest.php:120
+
+3) Tests\Feature\LoopTaskTest::test_preset_loop_creates_one_copy_with_next_cycle
+Failed asserting that actual size 1 matches expected size 2.
+
+/mnt/d/repos/workbench/dootask/tests/Feature/LoopTaskTest.php:203
+
+4) Tests\Feature\WebDavContractTest::test_management_route_maps_action_to_dav_controller_method
+Failed asserting that '<!DOCTYPE html>\n
+<html lang="en">\n
+    <head>\n
+        <meta charset="utf-8">\n
+        <meta name="viewport" content="width=device-width, initial-scale=1">\n
+\n
+        <title>Server Error</title>\n
+\n
+        <style>\n
+            /*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */html{line-height:1.15;-webkit-text-size-adjust:100%}body{margin:0}a{background-color:transparent}code{font-family:monospace,monospace;font-size:1em}[hidden]{display:none}html{font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;line-height:1.5}*,:after,:before{box-sizing:border-box;border:0 solid #e2e8f0}a{color:inherit;text-decoration:inherit}code{font-family:Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace}svg,video{display:block;vertical-align:middle}video{max-width:100%;height:auto}.bg-white{--bg-opacity:1;background-color:#fff;background-color:rgba(255,255,255,var(--bg-opacity))}.bg-gray-100{--bg-opacity:1;background-color:#f7fafc;background-color:rgba(247,250,252,var(--bg-opacity))}.border-gray-200{--border-opacity:1;border-color:#edf2f7;border-color:rgba(237,242,247,var(--border-opacity))}.border-gray-400{--border-opacity:1;border-color:#cbd5e0;border-color:rgba(203,213,224,var(--border-opacity))}.border-t{border-top-width:1px}.border-r{border-right-width:1px}.flex{display:flex}.grid{display:grid}.hidden{display:none}.items-center{align-items:center}.justify-center{justify-content:center}.font-semibold{font-weight:600}.h-5{height:1.25rem}.h-8{height:2rem}.h-16{height:4rem}.text-sm{font-size:.875rem}.text-lg{font-size:1.125rem}.leading-7{line-height:1.75rem}.mx-auto{margin-left:auto;margin-right:auto}.ml-1{margin-left:.25rem}.mt-2{margin-top:.5rem}.mr-2{margin-right:.5rem}.ml-2{margin-left:.5rem}.mt-4{margin-top:1rem}.ml-4{margin-left:1rem}.mt-8{margin-top:2rem}.ml-12{margin-left:3rem}.-mt-px{margin-top:-1px}.max-w-xl{max-width:36rem}.max-w-6xl{max-width:72rem}.min-h-screen{min-height:100vh}.overflow-hidden{overflow:hidden}.p-6{padding:1.5rem}.py-4{padding-top:1rem;padding-bottom:1rem}.px-4{padding-left:1rem;padding-right:1rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.pt-8{padding-top:2rem}.fixed{position:fixed}.relative{position:relative}.top-0{top:0}.right-0{right:0}.shadow{box-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px 0 rgba(0,0,0,.06)}.text-center{text-align:center}.text-gray-200{--text-opacity:1;color:#edf2f7;color:rgba(237,242,247,var(--text-opacity))}.text-gray-300{--text-opacity:1;color:#e2e8f0;color:rgba(226,232,240,var(--text-opacity))}.text-gray-400{--text-opacity:1;color:#cbd5e0;color:rgba(203,213,224,var(--text-opacity))}.text-gray-500{--text-opacity:1;color:#a0aec0;color:rgba(160,174,192,var(--text-opacity))}.text-gray-600{--text-opacity:1;color:#718096;color:rgba(113,128,150,var(--text-opacity))}.text-gray-700{--text-opacity:1;color:#4a5568;color:rgba(74,85,104,var(--text-opacity))}.text-gray-900{--text-opacity:1;color:#1a202c;color:rgba(26,32,44,var(--text-opacity))}.uppercase{text-transform:uppercase}.underline{text-decoration:underline}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.tracking-wider{letter-spacing:.05em}.w-5{width:1.25rem}.w-8{width:2rem}.w-auto{width:auto}.grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr))}@-webkit-keyframes spin{0%{transform:rotate(0deg)}to{transform:rotate(1turn)}}@keyframes spin{0%{transform:rotate(0deg)}to{transform:rotate(1turn)}}@-webkit-keyframes ping{0%{transform:scale(1);opacity:1}75%,to{transform:scale(2);opacity:0}}@keyframes ping{0%{transform:scale(1);opacity:1}75%,to{transform:scale(2);opacity:0}}@-webkit-keyframes pulse{0%,to{opacity:1}50%{opacity:.5}}@keyframes pulse{0%,to{opacity:1}50%{opacity:.5}}@-webkit-keyframes bounce{0%,to{transform:translateY(-25%);-webkit-animation-timing-function:cubic-bezier(.8,0,1,1);animation-timing-function:cubic-bezier(.8,0,1,1)}50%{transform:translateY(0);-webkit-animation-timing-function:cubic-bezier(0,0,.2,1);animation-timing-function:cubic-bezier(0,0,.2,1)}}@keyframes bounce{0%,to{transform:translateY(-25%);-webkit-animation-timing-function:cubic-bezier(.8,0,1,1);animation-timing-function:cubic-bezier(.8,0,1,1)}50%{transform:translateY(0);-webkit-animation-timing-function:cubic-bezier(0,0,.2,1);animation-timing-function:cubic-bezier(0,0,.2,1)}}@media (min-width:640px){.sm\:rounded-lg{border-radius:.5rem}.sm\:block{display:block}.sm\:items-center{align-items:center}.sm\:justify-start{justify-content:flex-start}.sm\:justify-between{justify-content:space-between}.sm\:h-20{height:5rem}.sm\:ml-0{margin-left:0}.sm\:px-6{padding-left:1.5rem;padding-right:1.5rem}.sm\:pt-0{padding-top:0}.sm\:text-left{text-align:left}.sm\:text-right{text-align:right}}@media (min-width:768px){.md\:border-t-0{border-top-width:0}.md\:border-l{border-left-width:1px}.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (min-width:1024px){.lg\:px-8{padding-left:2rem;padding-right:2rem}}@media (prefers-color-scheme:dark){.dark\:bg-gray-800{--bg-opacity:1;background-color:#2d3748;background-color:rgba(45,55,72,var(--bg-opacity))}.dark\:bg-gray-900{--bg-opacity:1;background-color:#1a202c;background-color:rgba(26,32,44,var(--bg-opacity))}.dark\:border-gray-700{--border-opacity:1;border-color:#4a5568;border-color:rgba(74,85,104,var(--border-opacity))}.dark\:text-white{--text-opacity:1;color:#fff;color:rgba(255,255,255,var(--text-opacity))}.dark\:text-gray-300 { --text-opacity: 1; color: #e2e8f0; color: rgba(226,232,240,var(--text-opacity)) }}\n
+        </style>\n
+\n
+        <style>\n
+            body {\n
+                font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";\n
+            }\n
+        </style>\n
+    </head>\n
+    <body class="antialiased bg-white text-black">\n
+        <div class="relative flex items-top justify-center min-h-screen bg-white text-black sm:items-center sm:pt-0" role="main">\n
+            <div class="max-w-xl mx-auto sm:px-6 lg:px-8">\n
+                <div class="flex items-center pt-8 sm:justify-start sm:pt-0">\n
+                    <h1 class="px-4 text-lg text-black border-r border-gray-400">\n
+                        500                    </h1>\n
+\n
+                    <div class="ml-4 text-lg text-black">\n
+                        Server Error                    </div>\n
+                </div>\n
+            </div>\n
+        </div>\n
+    </body>\n
+</html>\n
+' [ASCII](length: 6592) contains "404 not found (dav/missing)" [ASCII](length: 27).
+
+/mnt/d/repos/workbench/dootask/tests/Feature/WebDavContractTest.php:40
+
+ERRORS!
+Tests: 188, Assertions: 442, Errors: 44, Failures: 4.

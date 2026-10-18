@@ -1,0 +1,167 @@
+{
+    "status": "failed",
+    "passed": 25,
+    "failed": 7,
+    "checks": [
+        {
+            "name": "PHP 版本 >= 8.3",
+            "passed": true,
+            "details": "8.4.26"
+        },
+        {
+            "name": "PHP 扩展 curl",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP 扩展 dom",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP 扩展 ffi",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP 扩展 fileinfo",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP 扩展 gd",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP 扩展 imagick",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP 扩展 json",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP 扩展 libxml",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP 扩展 openssl",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP 扩展 simplexml",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP 扩展 zip",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "Swoole 扩展",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "LaravelS 运行依赖",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "PHP FFI 扩展",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "DooTask 授权库可读",
+            "passed": false,
+            "details": "\/usr\/lib\/doo\/doo.so"
+        },
+        {
+            "name": "DooTask 授权库可加载",
+            "passed": false,
+            "details": "请先修复 FFI 扩展或授权库路径"
+        },
+        {
+            "name": "APP_KEY 已配置",
+            "passed": false,
+            "details": null
+        },
+        {
+            "name": "APP_ENV 为 production",
+            "passed": true,
+            "details": "production"
+        },
+        {
+            "name": "APP_DEBUG 已关闭",
+            "passed": true,
+            "details": "已关闭"
+        },
+        {
+            "name": "LaravelS 仅监听本机",
+            "passed": true,
+            "details": "127.0.0.1"
+        },
+        {
+            "name": "目录可写 storage",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "目录可写 storage\/logs",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "目录可写 storage\/framework\/cache",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "目录可写 storage\/framework\/sessions",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "目录可写 storage\/framework\/views",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "目录可写 bootstrap\/cache",
+            "passed": true,
+            "details": null
+        },
+        {
+            "name": "目录可写 public\/uploads",
+            "passed": false,
+            "details": null
+        },
+        {
+            "name": "数据库连接",
+            "passed": false,
+            "details": "SQLSTATE[HY000] [2002] Connection refused (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: forge, SQL: select 1 as dootask_doctor)"
+        },
+        {
+            "name": "数据库迁移状态",
+            "passed": false,
+            "details": "SQLSTATE[HY000] [2002] Connection refused (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: forge, SQL: select `migration` from `migrations` order by `batch` asc, `migration` asc)"
+        },
+        {
+            "name": "Redis 连接",
+            "passed": false,
+            "details": "Connection refused"
+        },
+        {
+            "name": "缓存锁互斥与释放",
+            "passed": true,
+            "details": "首次获取=成功，竞争阻止=是，释放后重获=成功"
+        }
+    ]
+}

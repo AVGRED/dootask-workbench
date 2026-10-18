@@ -1,0 +1,18 @@
+Date=2026-10-18
+Command=bash -n scripts/release-check-redis-lock.sh && bash scripts/release-check-redis-lock.sh
+Environment=Ubuntu 22.04 WSL; PHP 8.4.26; Redis 6.0.16; temporary Redis bound to 127.0.0.1; temporary directory and Redis data removed by script cleanup
+
+HOLDER_ACQUIRE=PASS
+HOLDER_RELEASE=PASS
+CONTENDER_BLOCKED=PASS
+CONTENDER_ACQUIRE_AFTER_RELEASE=PASS
+TTL_HOLDER_ACQUIRE=PASS
+TTL_BLOCKED_BEFORE_EXPIRY=PASS
+TTL_ACQUIRE_AFTER_EXPIRY=PASS
+TWO_PROCESS_SHARED_REDIS_LOCK=PASS
+REDIS_OUTAGE_VISIBLE=RedisException
+REDIS_RECOVERY_LOCK_ACQUIRE=PASS
+REDIS_OUTAGE_RECOVERY=PASS
+
+Scope limitation
+This exercises independent Laravel CLI processes on one WSL host, not two deployed application instances or two hosts. It does not test scheduled reminder/scheduling batch behavior or prove committed application data survives Redis loss.

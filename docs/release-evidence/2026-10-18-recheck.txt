@@ -1,0 +1,36 @@
+Date=2026-10-18
+Workspace=D:\\repos\\workbench\\dootask
+WSL=Ubuntu 22.04; PHP 8.4.26; PHPUnit 11.5.55; Composer invoked with COMPOSER_ALLOW_SUPERUSER=1 because this WSL session starts as root
+
+composer stan
+PASS: PHPStan full app/ analysis, no errors.
+
+npm run lint
+PASS: 0 errors, 97 warnings (existing whole-repository ESLint warning baseline).
+
+npm run check:lang
+PASS: 0 blocking errors; 0 migration TODOs; suspected unused translations are report-only.
+
+npm run check:api-lang
+PASS: 1,136 API messages match across 10 locales.
+
+npm run api:map:check
+PASS: route map current; 24 controllers, 363 methods.
+
+git diff --check
+PASS: no whitespace errors; Git printed LF-to-CRLF conversion notices for existing files.
+
+node --test tests/*.test.mjs
+PASS: 28 tests, 0 failures.
+
+scripts/release-run-unit-tests-isolated.sh
+PASS: isolated MariaDB migrations; full PHPUnit Unit suite, 51 tests, 120 assertions. Temporary database/data directory removed on exit. Full output: 2026-10-18-unit-isolated.txt.
+
+Previously completed isolated MariaDB feature tests (2026-10-18-feature-tests.txt)
+PASS: migrations; ProjectTaskHandoffFeatureTest and CrossProjectTaskTemplateTest; 37 tests, 91 assertions.
+
+bash -n scripts/release-check-redis-lock.sh && bash scripts/release-check-redis-lock.sh
+PASS: two-process lock exclusion/release/TTL; Redis outage raises RedisException; lock acquisition succeeds after Redis recovery. Full output: 2026-10-18-redis-lock-recovery.txt.
+
+Scope limitation
+These local checks do not satisfy the six release acceptance gates. Production-like sanitized data, a clean Linux host, valid licensed FFI/WebSocket setup, two deployed instances, desktop/mobile/Electron clients, and representative performance data remain unavailable/unverified.

@@ -12,7 +12,7 @@
 #   chunks         实际起草后填入的 chunk id 清单（增量）
 
 version: 1
-last_updated: 2026-07-19
+last_updated: 2026-10-15
 
 features:
 
@@ -181,7 +181,7 @@ features:
     scope: end-user
     batch: B1
     priority: P0
-    chunk_count_est: 40
+    chunk_count_est: 41
     owner: ~
     status: drafted
     chunks:
@@ -210,6 +210,10 @@ features:
       - task.field.owner-assist.concept
       - task.field.description.concept
       - task.related.concept
+      - task.dependency.concept
+      - task.worklog.howto
+      - task.milestone.howto
+      - task.view.howto
       - task.flow.concept
       - task.handoff.howto
       - task.dialog.concept

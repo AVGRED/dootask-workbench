@@ -1,0 +1,9 @@
+SOURCE=repository public/uploads test-fixture tree
+COMMAND=tar -czf app-state.tar.gz --directory=<repo> public/uploads
+RESTORE=tar -xzf app-state.tar.gz --directory=<temporary-root>
+FILE_COUNT=38
+FILE_BYTES=65291
+SOURCE_RESTORE_SHA256_MANIFEST=504a663c90543326586f513f8280b2683707077e237fcb75d14409694198ed75
+ARCHIVE_SHA256=a8a5eebe198e2efcddc6aa0c16fa014e2a07c062692f04b935065c745aa81e11
+FILE_ARCHIVE_RESTORE=PASS
+PRODUCTION_UPLOADS=NOT_TESTED

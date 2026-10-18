@@ -1,0 +1,35 @@
+ENV=Ubuntu 22.04 WSL; isolated MariaDB 10.6.23; loopback port 3309; temporary directory only
+MIGRATE_EMPTY_DATABASE=PASS
+SEED=FAIL
+
+  Database\Seeders\WebSocketDialogMsgsTableSeeder .................... RUNNING  
+  Database\Seeders\WebSocketDialogMsgsTableSeeder .................. 2 ms DONE  
+
+  Database\Seeders\WebSocketDialogUsersTableSeeder ................... RUNNING  
+  Database\Seeders\WebSocketDialogUsersTableSeeder ................. 1 ms DONE  
+
+  Database\Seeders\WebSocketDialogsTableSeeder ....................... RUNNING  
+
+   FFI\Exception 
+
+  Failed loading '/usr/lib/doo/doo.so' (/usr/lib/doo/doo.so: cannot open shared object file: No such file or directory)
+
+  at app/Module/Interface/DooSo.php:22
+     18▕     private mixed $so;
+     19▕ 
+     20▕     public function __construct($token = null, $language = null)
+     21▕     {
+  ➜  22▕         $this->so = FFI::cdef(<<<EOF
+     23▕                 void initialize(char* work, char* token, char* lang);
+     24▕                 char* license();
+     25▕                 char* licenseDecode(char* license);
+     26▕                 char* licenseSave(char* license);
+
+  1   app/Module/Interface/DooSo.php:22
+      FFI::cdef()
+
+  2   app/Module/Doo.php:33
+      App\Module\Interface\DooSo::__construct()
+
+WORKSPACE_SIDE_EFFECT=The failed project seed created 38 fixture files (65,291 bytes) below the previously absent public/uploads directory. No reparse points were present. The automatic approval policy rejected both recursive cleanup and per-file cleanup, so these files were retained and documented; current path: D:\repos\workbench\dootask\public\uploads
+

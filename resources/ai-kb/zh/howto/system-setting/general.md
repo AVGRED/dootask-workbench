@@ -26,7 +26,7 @@ negative:
   - SYSTEM_SETTING=disabled 时所有系统设置都不能改（演示环境常用）
   - 自动归档天数限制为 1-100 天，超出会报错
   - 邀请码留空会自动生成随机码，不能完全关闭"凭码注册"模式
-last_verified: v1.9.18
+last_verified: v1.9.66
 ---
 
 # 通用设置
@@ -47,7 +47,8 @@ last_verified: v1.9.18
 **项目与任务**
 - `project_invite` / `project_add_permission` / `project_add_userids` — 项目创建与邀请权限
 - `auto_archived` / `archived_day` — 任务自动归档与天数（1-100）
-- `task_visible` / `task_default_time` / `task_user_limit` — 任务默认值
+- `task_visible` / `task_default_time` — 任务可见范围与默认时间
+- `task_user_limit` — 个人未完成任务上限（1-2000，默认 500）；新建、复制任务、新增负责人/协助人、重新打开任务及恢复回收站任务树时都会检查，工作流自动分配的负责人也计入；已完成或已归档任务不计入
 - `unclaimed_task_reminder*` — 未认领任务提醒
 - `task_ai_auto_analyze` — 任务 AI 自动分析（需 ai 插件）
 - `department_owner_project_view` — 部门负责人是否能看下属项目

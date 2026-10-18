@@ -1,0 +1,42 @@
+Environment: Node.js 24.15.0; Windows checkout with CRLF Vue source.
+Initial run: 18 passed, 5 failed; harness issues were an LF-only import-strip regex in UserSelect and a stale flowInfo fixture/missing projectFlowFilter binding in project-table-groups.
+After updating tests to normalize CRLF and import the current flow filter helper/shape:
+✔ old or invalid caches use the three default groups; valid choices stay isolated (1.0935ms)
+✔ weeks start on Monday regardless of locale, including Sundays and year changes (0.6544ms)
+✔ due dates include Monday midnight but exclude the following Monday (0.1464ms)
+✔ planned tasks overlap either week and may appear in both (0.1056ms)
+✔ missing, invalid or reversed plans do not enter planned groups (0.1374ms)
+✔ selection cannot remove the last group and reselecting expands only that group (0.2024ms)
+✔ existing Vuex parameter action persists group choices per project without changing view or collapse state (32.7278ms)
+✔ new group scrolling waits for DOM updates and replaces or skips stale requests (0.3208ms)
+✔ weekly groups reuse completion, search, owner, tag and workflow filters (0.6738ms)
+✔ weekly groups follow priority and due-date sorting in both directions (0.2475ms)
+✔ selected empty weekly groups remain present; deselected groups disappear (0.1671ms)
+✔ overdue requires an unfinished task strictly past its due time (0.1239ms)
+✔ unscheduled includes either missing endpoint but never completed tasks (0.1034ms)
+✔ attention groups exclude completed tasks even when enabled and retain existing filters (0.2495ms)
+✔ Vue template compiles and legacy groups use selection rather than task counts (23.8478ms)
+✔ settings Dropdown uses boolean visibility and is the only group settings entry (2.0969ms)
+✔ corrects growing and shrinking lazy rows, then stops after stable alignment (2.2367ms)
+✔ clamps bottom targets and finishes without fighting the scroll limit (0.6744ms)
+✔ wheel, touch, scrollbar pointer and navigation keys cancel without further corrections (0.6361ms)
+✔ hard deadline stops continuous relayout and also a pending render promise (0.9991ms)
+✔ replacement, removal and explicit cancellation clean up the old request (0.225ms)
+✔ render errors stop safely and do not leave timers or listeners (0.1483ms)
+✔ template compiles and removal button is guarded and stops click propagation (16.8199ms)
+✔ mouse avatar clicks do not remove; touch and pen do; fallback follows last input (0.3543ms)
+✔ uncancelable members survive both avatar and direct removal (0.1264ms)
+✔ Backspace skips locked tail and scrolls to the updated end after rendering (0.2167ms)
+✔ Backspace does not remove while searching, composing, or when all members are locked (0.1691ms)
+✔ deleting the final member or closing before next tick safely skips scrolling (0.1676ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 260.154
+
+Command: node tests/deep-links-parity.mjs
+✓ 深链目录一致，共 21 个 id

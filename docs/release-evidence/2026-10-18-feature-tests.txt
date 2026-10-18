@@ -1,0 +1,13 @@
+ENV=Ubuntu 22.04 WSL; isolated MariaDB 10.6.23; loopback port 3310; no .env or existing database
+MIGRATIONS=PASS
+PHPUnit 11.5.55 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.26
+Configuration: /mnt/d/repos/workbench/dootask/phpunit.xml
+
+.....................................                             37 / 37 (100%)
+
+Time: 00:02.471, Memory: 52.50 MB
+
+OK (37 tests, 91 assertions)
+FEATURE_TESTS=PASS

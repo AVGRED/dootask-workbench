@@ -46,6 +46,7 @@ DooTask 任务用两个字段描述时间：
 - **到期提醒**（ProjectTaskPushLog）按 end_at 触发推送（默认到期日推送、超期再推送）
 - **日历视图** 只显示有 start_at 或 end_at 的任务
 - **完成时间**（complete_at）与计划时间无关，是否超期由 complete_at vs end_at 比较
+- **父子任务时间**：修改父任务计划时间时，会递归调整超出范围的后代任务时间；子任务时间超出父任务范围时，会扩展直接父任务时间
 
 ## 不支持
 - 不能录工时（time_estimate / time_log 字段不存在）

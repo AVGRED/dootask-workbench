@@ -20,7 +20,7 @@ prerequisites:
 negative:
   - ./cmd update 会自动备份数据库到 docker/mysql/backup/，失败可还原
   - 本地有未提交改动时 update 会停下来，不强制覆盖
-  - 不要直接 git pull + composer install，绕过 cmd 会漏掉迁移和重启
+  - Docker 部署不要直接 git pull + composer install，绕过 cmd 会漏掉迁移和重启
 last_verified: v1.7.90
 ---
 
@@ -51,8 +51,12 @@ last_verified: v1.7.90
 - 端口被占 / 内存不足 / Swoole 报错都会导致起不来
 
 ## 不要做
-- 不要跳过 cmd 直接 git pull + composer install，会漏掉迁移和重启
-- 改了 .env / docker-compose.yml 关键配置后必须 `./cmd php restart`
+- Docker 部署不要跳过 cmd 直接 git pull + composer install，会漏掉迁移和重启
+- Docker 部署改了 `.env` / `docker-compose.yml` 关键配置后使用 `./cmd php restart`；非 Docker 部署按 systemd/Supervisor 流程重启 LaravelS。
+
+## 非 Docker 部署
+
+非 Docker 部署不使用 `./cmd update`。按仓库 `docs/non-docker-deployment.md` 手动备份数据库、`.env`、上传文件和本地数据，安装 Composer 依赖，执行 `php artisan migrate --force`，运行 `php artisan dootask:doctor`，然后平滑重启 LaravelS。升级已有实例必须保留原 `APP_KEY`，不要在生产库运行 `migrate:fresh` 或重新 seed。
 
 ## 相关
 - 备份：[[common-faq.deploy-backup.faq]]

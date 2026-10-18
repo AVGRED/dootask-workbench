@@ -1,0 +1,10 @@
+Source: docs/non-docker-deployment.md
+Command: nginx -t against extracted documented server block wrapped in minimal events/http context
+nginx: the configuration file /tmp/dootask-config-verify.ea9O9K/nginx.conf syntax is ok
+nginx: configuration file /tmp/dootask-config-verify.ea9O9K/nginx.conf test is successful
+exit_code=0
+
+Command: systemd-analyze verify against the five extracted unit samples
+Failed to start device monitor: Invalid argument
+/lib/systemd/system/snapd.service:23: Unknown key name 'RestartMode' in section 'Service', ignoring.
+exit_code=0
