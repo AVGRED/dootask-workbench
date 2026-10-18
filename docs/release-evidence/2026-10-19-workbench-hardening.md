@@ -27,7 +27,7 @@
 | 套件 | 结果 |
 |---|---|
 | `Unit`（隔离 MariaDB） | **51 tests / 120 assertions PASS** |
-| 新增 5 个 Feature 测试类 | **85 tests / 165 assertions PASS** |
+| 新增 5 个 Feature 测试类 | **85 tests / 168 assertions PASS** |
 | 既有 37 项 Feature（任务交接、跨项目模板） | PASS（未受本轮改动影响） |
 | 完整 `Feature` 套件（273 项） | 48 项失败均为**既有环境依赖**：缺少 `APP_KEY`、Redis 未启动、WebDAV 授权缺失；新增类无一失败 |
 
