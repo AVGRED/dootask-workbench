@@ -20,7 +20,8 @@
 | `tests/Feature/ProjectMilestoneFeatureTest.php` | 20 项：名称/说明/状态/日期/提醒校验、负责人成员校验、重复保存不重置提醒周期、排序完整集合、任务关联与解除、删除解链、成员权限、统计与可见性、提醒记录只读 |
 | `tests/Feature/ProjectTaskViewFeatureTest.php` | 16 项：个人/共享可见性、共享视图维护权限、定义归一化、日期区间回退、里程碑归属、默认视图、非成员拒绝 |
 | `tests/Feature/ProjectTaskScheduleFeatureTest.php` | 17 项：规则默认值与校验、依赖/自动模式前置条件、停用完成起点、预演级联与缓冲工作日、完成项跳过、摘要过期、幂等 apply、undo 与人工改期冲突、批次清单 |
-| `scripts/release-run-unit-tests-isolated.sh --filter` | 支持按测试类过滤，便于隔离库中单类迭代 |
+| `scripts/release-run-unit-tests-isolated.sh --filter` | 支持按测试类过滤；同时启动临时 Redis、播种演示用户与系统设置、按需编译 FFI 桩 |
+| `scripts/build-test-doo-so.sh` | 编译与授权库同符号的测试用桩（仅测试环境；不含授权、加密与翻译逻辑），使无授权库的机器也能跑完整 Feature 套件 |
 
 ## 测试结果
 
@@ -28,14 +29,15 @@
 |---|---|
 | `Unit`（隔离 MariaDB） | **51 tests / 120 assertions PASS** |
 | 新增 5 个 Feature 测试类 | **85 tests / 168 assertions PASS** |
-| 既有 37 项 Feature（任务交接、跨项目模板） | PASS（未受本轮改动影响） |
-| 完整 `Feature` 套件（273 项） | 48 项失败均为**既有环境依赖**：缺少 `APP_KEY`、Redis 未启动、WebDAV 授权缺失；新增类无一失败 |
+| 完整 `Feature` 套件（273 项） | **273 项全部通过，744 assertions；2 项因需要 Swoole 运行时跳过**（`AdminCreateUserTest` 的端到端注册） |
 
 ## 本轮发现并修复的缺陷
 
 1. **工时接口查询了不存在的列**（`app/Module/ProjectTaskWorkService.php`）：`users` 表只有 `nickname` / `userimg`，代码却 `select userid, name, avatar`，导致登记工时、工时历史、成员容量汇总全部 500。改为查询真实列，并在返回结构中显式映射为前端使用的 `name` / `avatar`。
 2. **容量汇总的分块查询列名不匹配**（同一文件）：`chunkById(..., 'project_tasks.id')` 与 `select project_tasks.id` 的结果列名不一致，任何存在任务的项目都会抛 `RuntimeException`。改为 `'id'`。
 3. **排期批次的 `changes` 永远写不进数据库**（`app/Models/AbstractModel.php`）：`updateInstance()` 用 `$this->$k = $v` 赋值，键名 `changes` 正好命中 Eloquent `HasAttributes::$changes` 保护属性，写入落到属性而非模型字段，插入语句缺少 NOT NULL 列 `changes`（SQL 1364），自动排期的 apply / undo 完全不可用。改为通过 `setAttribute()` 写入，并对已声明 cast 的数组属性跳过预编码，避免二次编码。
+4. **公开系统设置接口在缺键时 500**（`app/Http/Controllers/Api/SystemController.php`）：`setting()` 直接读取 `$setting['reg_identity']` 等键，而随仓库提供的 `SettingsTableSeeder` 只写入 `reg` / `project_invite` / `login_code`，全新安装访问 `api/system/setting` 会因未定义键抛 `ErrorException`。改为先用默认值补齐缺失键再归一化。
+5. **WebDAV 契约测试的路由断言依赖调试页**（`tests/Feature/WebDavContractTest.php`）：原先直接 `router->dispatch()`，既绕过中间件注册，又依赖 `APP_DEBUG` 把 abort 文案渲染进 HTML；改为走 HTTP 内核并以 JSON 契约断言 `msg`。
 
 ## 静态检查
 
@@ -52,5 +54,6 @@
 ## 范围限制
 
 - 未在真实脱敏数据库、干净 Linux 主机、双实例、桌面/窄屏/Electron 上验收。
-- 完整 Feature 套件的 48 项环境性失败未在本轮处理（缺少测试用 `APP_KEY`、Redis 与 WebDAV 授权）。
+- 完整 Feature 套件使用 `scripts/build-test-doo-so.sh` 编译的 FFI 桩替代授权库；桩不含授权校验、加密与翻译，**不能**用于判断授权相关行为，也不能替代 CI 中带真实 `doo.so` 的镜像。
+- 2 项跳过用例需要 Swoole/LaravelS 常驻运行时，CLI 环境按设计跳过，不算通过。
 - 知识库正文长度上限（1500 字）与 2 个存量 chunk 存在偏差，校验器按告警处理，未改写存量内容。
