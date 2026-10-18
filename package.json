@@ -8,7 +8,11 @@
         "build": "./cmd prod",
         "lint": "eslint resources/assets/js",
         "check:lang": "node scripts/check-language.mjs",
-        "events:map": "node scripts/gen-events-map.mjs"
+        "check:api-lang": "node scripts/check-api-language.mjs",
+        "check:ai-kb": "node scripts/check-ai-kb.mjs",
+        "events:map": "node scripts/gen-events-map.mjs",
+        "api:map": "node scripts/gen-api-map.mjs",
+        "api:map:check": "node scripts/gen-api-map.mjs --check"
     },
     "author": {
         "name": "KuaiFan",

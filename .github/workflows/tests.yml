@@ -31,13 +31,22 @@ jobs:
           node-version: 20
 
       - name: Install NPM Dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: ESLint
         run: npm run lint
 
       - name: Language Check
         run: npm run check:lang
+
+      - name: API Language Check
+        run: npm run check:api-lang
+
+      - name: API Route Map Check
+        run: npm run api:map:check
+
+      - name: AI Knowledge Base Check
+        run: npm run check:ai-kb
 
   phpunit:
     runs-on: ubuntu-latest

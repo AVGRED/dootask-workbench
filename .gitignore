@@ -49,7 +49,6 @@ yarn-error.log
 
 # Lock files
 dootask.lock
-package-lock.json
 
 # Laravel/Swoole specific
 laravels-timer-process.pid
