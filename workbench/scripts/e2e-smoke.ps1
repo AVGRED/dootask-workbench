@@ -660,6 +660,21 @@ Assert-True "用户分页 total>0" ($users.data.total -gt 0) "total=$($users.dat
 Assert-True "用户分页 size 生效" ($users.data.size -eq 5) "size=$($users.data.size)"
 
 Write-Host ""
+# 6.23 E2E 自清理：删掉本轮创建的测试账号（保留 demo 与 legacy）
+$cleanupTeam = (Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/v1/team/status" -Headers @{ Authorization = "Bearer $script:token" }).data
+$cleanupIds = @($cleanupTeam | Where-Object {
+    $_.userid -ne 1 -and $_.userid -ne 9001 -and (
+      $_.email -like 'e2e-*' -or $_.email -like 'viewer-*' -or
+      $_.email -like 'x*@workbench.local' -or $_.email -like 'batch-del-test*')
+  } | ForEach-Object { $_.userid })
+$cleanupDeleted = 0
+for ($i = 0; $i -lt $cleanupIds.Count; $i += 20) {
+  $chunk = @($cleanupIds[$i..([math]::Min($i + 19, $cleanupIds.Count - 1))])
+  $res = Invoke-Api -Method Post -Path "/api/v1/admin/users/batch" -Body @{ action = "delete"; userids = $chunk }
+  if ($res.code -eq 0) { $cleanupDeleted += $res.data.affected }
+}
+Assert-True "E2E 自清理测试账号" ($cleanupIds.Count -eq 0 -or $cleanupDeleted -gt 0) "deleted=$cleanupDeleted"
+
 # 6.22 登出使旧令牌失效
 $logoutLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "demo@workbench.local"; password = "secret123" }
 $oldToken = $logoutLogin.data.token
