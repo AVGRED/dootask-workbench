@@ -325,6 +325,37 @@ Invoke-Api -Method Delete -Path "/api/v1/templates/$templateId" | Out-Null
 $templatesAfter = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/templates").data
 Assert-True "删除模板后列表为空" ($templatesAfter.Count -eq 0) "count=$($templatesAfter.Count)"
 
+# 6.11 排期应用与撤销
+$applyBody = @{
+    requestId = "e2e-apply-1"
+    anchorTaskId = $taskId
+    anchorStart = "2026-10-05T09:00:00"
+    anchorEnd = "2026-10-07T18:00:00"
+}
+$applied = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/schedule/apply" -Body $applyBody
+Assert-True "应用排期 code=0" ($applied.code -eq 0) "code=$($applied.code)"
+$batchId = $applied.data.id
+Assert-True "应用后有变更" ($applied.data.changeCount -ge 1) "changeCount=$($applied.data.changeCount)"
+
+$moved = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.list | Where-Object { $_.id -eq $taskId }
+Assert-True "任务开始时间已更新" ($moved.startAt -like "2026-10-05T09:00*") "startAt=$($moved.startAt)"
+
+$replay = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/schedule/apply" -Body $applyBody
+Assert-True "重复 requestId 幂等（同一批次）" ($replay.data.id -eq $batchId) "id=$($replay.data.id) vs $batchId"
+
+$undone = Invoke-Api -Method Post -Path "/api/v1/schedule/batches/$batchId/undo"
+Assert-True "撤销批次 code=0" ($undone.code -eq 0) "code=$($undone.code)"
+Assert-True "撤销后标记 undone" ($undone.data.undone -eq $true) "undone=$($undone.data.undone)"
+
+$restored = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.list | Where-Object { $_.id -eq $taskId }
+Assert-True "撤销后日期恢复为空" ([string]::IsNullOrEmpty($restored.startAt)) "startAt=$($restored.startAt)"
+
+$undoAgain = Invoke-Api -Method Post -Path "/api/v1/schedule/batches/$batchId/undo"
+Assert-True "重复撤销被拒绝" ($undoAgain.code -eq 400) "code=$($undoAgain.code)"
+
+$batches = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/schedule/batches").data
+Assert-True "批次列表包含该批次" ([bool]($batches | Where-Object { $_.id -eq $batchId })) ""
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total

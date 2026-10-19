@@ -57,6 +57,37 @@
         <el-table-column prop="taskCount" label="任务数" />
       </el-table>
 
+      <div class="section-title">排期批次</div>
+      <el-form :inline="true" :model="scheduleForm">
+        <el-form-item label="锚点任务">
+          <el-input-number v-model="scheduleForm.anchorTaskId" :min="1" controls-position="right" />
+        </el-form-item>
+        <el-form-item label="开始">
+          <el-date-picker v-model="scheduleForm.anchorStart" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" />
+        </el-form-item>
+        <el-form-item label="结束">
+          <el-date-picker v-model="scheduleForm.anchorEnd" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="saving" @click="applySchedule">应用排期</el-button>
+        </el-form-item>
+      </el-form>
+      <el-table :data="batches" border size="small">
+        <el-table-column prop="requestId" label="请求号" min-width="160" />
+        <el-table-column prop="changeCount" label="变更数" width="90" />
+        <el-table-column prop="createdAt" label="时间" min-width="160" />
+        <el-table-column label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.undone ? 'info' : 'success'">{{ row.undone ? "已撤销" : "生效中" }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100">
+          <template #default="{ row }">
+            <el-button v-if="!row.undone" link type="danger" @click="undoSchedule(row as ScheduleBatchView)">撤销</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
       <div class="section-title">
         任务模板
         <el-button link type="primary" @click="openTemplateCreate">新建模板</el-button>
@@ -113,7 +144,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { CapacitySummary, DependencyView, MilestoneView, RiskSummaryView, TemplateView } from "@workbench/api";
+import type { CapacitySummary, DependencyView, MilestoneView, RiskSummaryView, ScheduleBatchView, TemplateView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const route = useRoute();
@@ -127,6 +158,12 @@ const capacity = ref<CapacitySummary | null>(null);
 const templates = ref<TemplateView[]>([]);
 const templateVisible = ref(false);
 const templateForm = reactive<{ name: string; content: string }>({ name: "", content: "" });
+const batches = ref<ScheduleBatchView[]>([]);
+const scheduleForm = reactive<{ anchorTaskId: number; anchorStart: string; anchorEnd: string }>({
+  anchorTaskId: 1,
+  anchorStart: "",
+  anchorEnd: ""
+});
 const loading = ref(false);
 const saving = ref(false);
 const createVisible = ref(false);
@@ -165,8 +202,39 @@ async function applyTemplate(row: TemplateView): Promise<void> {
   }
 }
 
-async function removeTemplate(row: TemplateView): Promise<void> {
+async function applySchedule(): Promise<void> {
+  if (!scheduleForm.anchorStart || !scheduleForm.anchorEnd) {
+    ElMessage.warning("请选择开始与结束时间");
+    return;
+  }
+  saving.value = true;
   try {
+    const batch = await client.applySchedule(projectId.value, {
+      requestId: `apply-${Date.now()}`,
+      anchorTaskId: scheduleForm.anchorTaskId,
+      anchorStart: scheduleForm.anchorStart,
+      anchorEnd: scheduleForm.anchorEnd
+    });
+    ElMessage.success(`已应用，变更 ${batch.changeCount} 个任务`);
+    await reload();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "应用失败");
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function undoSchedule(row: ScheduleBatchView): Promise<void> {
+  try {
+    await client.undoSchedule(row.id);
+    ElMessage.success("已撤销");
+    await reload();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "撤销失败");
+  }
+}
+
+async function removeTemplate(row: TemplateView): Promise<void> {  try {
     await ElMessageBox.confirm(`删除模板「${row.name}」？`, "删除确认", { type: "warning" });
   } catch {
     return;
@@ -186,6 +254,7 @@ async function reload(): Promise<void> {
   try {
     milestones.value = await client.listMilestones(projectId.value);
     templates.value = await client.listTemplates(projectId.value);
+    batches.value = await client.listScheduleBatches(projectId.value);
     dependencies.value = await client.listDependencies(projectId.value);
     risk.value = await client.dependencyRisk(projectId.value);
     const now = new Date();

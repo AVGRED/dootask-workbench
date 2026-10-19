@@ -271,3 +271,19 @@ export interface ApplyTemplateResult {
   taskId: number;
   taskName: string;
 }
+
+export interface ApplyScheduleRequest {
+  requestId: string;
+  anchorTaskId: number;
+  anchorStart: string;
+  anchorEnd: string;
+  workdays?: number[];
+}
+
+export interface ScheduleBatchView {
+  id: number;
+  requestId: string;
+  changeCount: number;
+  createdAt: string;
+  undone: boolean;
+}

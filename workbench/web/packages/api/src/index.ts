@@ -1,5 +1,6 @@
 import type {
   ApiResponse,
+  ApplyScheduleRequest,
   ApplyTemplateResult,
   AttachmentView,
   CapacitySummary,
@@ -23,6 +24,7 @@ import type {
   SaveProjectRequest,
   SaveTaskRequest,
   SaveTemplateRequest,
+  ScheduleBatchView,
   SchedulePreviewRequest,
   SchedulePreviewResponse,
   TaskView,
@@ -302,6 +304,18 @@ export class ApiClient {
 
   async deleteTemplate(id: number): Promise<void> {
     await this.request<null>("DELETE", `/api/v1/templates/${id}`);
+  }
+
+  async applySchedule(projectId: number, payload: ApplyScheduleRequest): Promise<ScheduleBatchView> {
+    return this.request<ScheduleBatchView>("POST", `/api/v1/projects/${projectId}/schedule/apply`, payload);
+  }
+
+  async undoSchedule(batchId: number): Promise<ScheduleBatchView> {
+    return this.request<ScheduleBatchView>("POST", `/api/v1/schedule/batches/${batchId}/undo`);
+  }
+
+  async listScheduleBatches(projectId: number): Promise<ScheduleBatchView[]> {
+    return this.request<ScheduleBatchView[]>("GET", `/api/v1/projects/${projectId}/schedule/batches`);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
