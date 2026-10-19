@@ -35,8 +35,10 @@ public class TaskController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Long ownerUserid) {
-        return ApiResponse.ok(taskService.page(currentUserid(principal), projectId, page, size, keyword, ownerUserid));
+            @RequestParam(required = false) Long ownerUserid,
+            @RequestParam(required = false) Long milestoneId) {
+        return ApiResponse.ok(taskService.page(currentUserid(principal), projectId, page, size, keyword,
+                ownerUserid, milestoneId));
     }
 
     @PostMapping("/projects/{projectId}/tasks")

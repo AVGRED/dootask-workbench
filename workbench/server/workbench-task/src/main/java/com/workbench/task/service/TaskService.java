@@ -15,6 +15,7 @@ import com.workbench.task.web.TaskDtos.TaskView;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /** 任务：按项目分页、创建、更新、完成/取消完成、软删。 */
@@ -24,14 +25,18 @@ public class TaskService {
     private final TaskMapper taskMapper;
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper memberMapper;
+    private final JdbcTemplate jdbcTemplate;
 
-    public TaskService(TaskMapper taskMapper, ProjectMapper projectMapper, ProjectMemberMapper memberMapper) {
+    public TaskService(TaskMapper taskMapper, ProjectMapper projectMapper, ProjectMemberMapper memberMapper,
+                       JdbcTemplate jdbcTemplate) {
         this.taskMapper = taskMapper;
         this.projectMapper = projectMapper;
         this.memberMapper = memberMapper;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
-    public PageResult<TaskView> page(long currentUserid, long projectId, int page, int size, String keyword, Long ownerUserid) {
+    public PageResult<TaskView> page(long currentUserid, long projectId, int page, int size, String keyword,
+                                     Long ownerUserid, Long milestoneId) {
         requireAccess(currentUserid, projectId);
         LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<Task>()
                 .eq(Task::getProjectId, projectId)
@@ -44,6 +49,9 @@ public class TaskService {
         if (ownerUserid != null) {
             wrapper.eq(Task::getOwnerUserid, ownerUserid);
         }
+        if (milestoneId != null && milestoneId > 0) {
+            wrapper.eq(Task::getMilestoneId, milestoneId);
+        }
         int safeSize = Math.min(Math.max(size, 1), 100);
         Page<Task> result = taskMapper.selectPage(new Page<>(Math.max(page, 1), safeSize), wrapper);
         List<TaskView> list = result.getRecords().stream().map(TaskService::toView).toList();
@@ -52,8 +60,10 @@ public class TaskService {
 
     public TaskView create(long currentUserid, long projectId, SaveTaskRequest request) {
         requireAccess(currentUserid, projectId);
+        Long milestoneId = resolveMilestone(projectId, request.milestoneId());
         Task task = new Task();
         task.setProjectId(projectId);
+        task.setMilestoneId(milestoneId);
         task.setName(request.name());
         task.setDesc(request.desc() == null ? "" : request.desc());
         task.setOwnerUserid(request.ownerUserid() == null ? 0L : request.ownerUserid());
@@ -82,9 +92,34 @@ public class TaskService {
         if (request.startAt() != null) task.setStartAt(request.startAt());
         if (request.endAt() != null) task.setEndAt(request.endAt());
         if (request.pLevel() != null) task.setPLevel(request.pLevel());
+        // milestoneId = 0 表示清除关联；null 表示不改动。
+        if (request.milestoneId() != null) {
+            task.setMilestoneId(resolveMilestone(Objects.requireNonNull(task.getProjectId()), request.milestoneId()));
+        }
         task.setUpdatedAt(LocalDateTime.now());
         taskMapper.updateById(task);
+        if (request.milestoneId() != null && request.milestoneId() == 0L) {
+            // updateById 忽略 null 字段，清除里程碑要用 UpdateWrapper 显式置空。
+            taskMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Task>()
+                    .eq(Task::getId, taskId)
+                    .set(Task::getMilestoneId, null));
+            task.setMilestoneId(null);
+        }
         return toView(task);
+    }
+
+    /** 校验里程碑存在且属于该项目；0 或 null 视为不关联。 */
+    private Long resolveMilestone(long projectId, Long milestoneId) {
+        if (milestoneId == null || milestoneId == 0L) {
+            return null;
+        }
+        Long count = jdbcTemplate.queryForObject(
+                "select count(*) from project_milestones where id = ? and project_id = ?",
+                Long.class, milestoneId, projectId);
+        if (count == null || count == 0) {
+            throw new BusinessException("里程碑不存在或不属于该项目");
+        }
+        return milestoneId;
     }
 
     public void complete(long currentUserid, long taskId, boolean completed) {
@@ -146,6 +181,7 @@ public class TaskService {
                 task.getEndAt(),
                 task.getCompleteAt(),
                 task.getPLevel() == null ? 0 : task.getPLevel(),
-                task.getCompleteAt() != null);
+                task.getCompleteAt() != null,
+                task.getMilestoneId());
     }
 }

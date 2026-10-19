@@ -16,6 +16,7 @@ public class Task {
 
     private Long parentId;
     private Long projectId;
+    private Long milestoneId;
     private Long columnId;
     private Long dialogId;
     private String name;
@@ -63,6 +64,14 @@ public class Task {
 
     public void setProjectId(Long projectId) {
         this.projectId = projectId;
+    }
+
+    public Long getMilestoneId() {
+        return milestoneId;
+    }
+
+    public void setMilestoneId(Long milestoneId) {
+        this.milestoneId = milestoneId;
     }
 
     public Long getColumnId() {

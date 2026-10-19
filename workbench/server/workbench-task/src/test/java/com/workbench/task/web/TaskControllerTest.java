@@ -33,6 +33,10 @@ class TaskControllerTest {
     private final Principal principal = () -> "7";
     private MockMvc mockMvc;
 
+    private static TaskView view(long id, long projectId, String name, long owner, int pLevel, Long milestoneId) {
+        return new TaskView(id, projectId, name, "", owner, null, null, null, pLevel, false, milestoneId);
+    }
+
     @BeforeEach
     void setUp() {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
@@ -46,13 +50,23 @@ class TaskControllerTest {
 
     @Test
     void listReturnsTasks() throws Exception {
-        given(taskService.page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any()))
-                .willReturn(PageResult.of(List.of(new TaskView(1L, 3L, "写文档", "", 0L, null, null, null, 0, false)), 1, 1, 20));
+        given(taskService.page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any(), any()))
+                .willReturn(PageResult.of(List.of(view(1L, 3L, "写文档", 0L, 0, null)), 1, 1, 20));
 
         mockMvc.perform(get("/api/v1/projects/3/tasks").principal(principal))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.list[0].name").value("写文档"))
                 .andExpect(jsonPath("$.data.list[0].completed").value(false));
+    }
+
+    @Test
+    void listFiltersByMilestone() throws Exception {
+        given(taskService.page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any(), eq(12L)))
+                .willReturn(PageResult.of(List.of(view(1L, 3L, "里程碑任务", 0L, 0, 12L)), 1, 1, 20));
+
+        mockMvc.perform(get("/api/v1/projects/3/tasks").principal(principal).param("milestoneId", "12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.list[0].milestoneId").value(12));
     }
 
     @Test
@@ -65,15 +79,40 @@ class TaskControllerTest {
     }
 
     @Test
-    void createPassesProject() throws Exception {
-        given(taskService.create(eq(7L), eq(3L), any()))
-                .willReturn(new TaskView(5L, 3L, "联调", "说明", 9L, null, null, null, 1, false));
+    void createPassesMilestone() throws Exception {
+        given(taskService.create(eq(7L), eq(3L), any())).willReturn(view(5L, 3L, "联调", 9L, 1, 12L));
 
         mockMvc.perform(post("/api/v1/projects/3/tasks").principal(principal)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"联调\",\"ownerUserid\":9,\"pLevel\":1}"))
+                        .content("{\"name\":\"联调\",\"ownerUserid\":9,\"pLevel\":1,\"milestoneId\":12}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.ownerUserid").value(9));
+                .andExpect(jsonPath("$.data.ownerUserid").value(9))
+                .andExpect(jsonPath("$.data.milestoneId").value(12));
+    }
+
+    @Test
+    void createRejectsForeignMilestone() throws Exception {
+        given(taskService.create(eq(7L), eq(3L), any()))
+                .willThrow(new BusinessException("里程碑不存在或不属于该项目"));
+
+        mockMvc.perform(post("/api/v1/projects/3/tasks").principal(principal)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"联调\",\"milestoneId\":99}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("里程碑不存在或不属于该项目"));
+    }
+
+    @Test
+    void updateClearsMilestone() throws Exception {
+        given(taskService.update(eq(7L), eq(5L), any())).willReturn(view(5L, 3L, "联调", 9L, 1, null));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/v1/tasks/5").principal(principal)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"联调\",\"milestoneId\":0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.milestoneId").doesNotExist());
     }
 
     @Test
@@ -106,7 +145,7 @@ class TaskControllerTest {
     @Test
     void nonMemberIsRejected() throws Exception {
         Mockito.doThrow(new BusinessException("无权访问该项目"))
-                .when(taskService).page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any());
+                .when(taskService).page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any(), any());
 
         mockMvc.perform(get("/api/v1/projects/3/tasks").principal(principal))
                 .andExpect(status().isOk())
