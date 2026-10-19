@@ -83,17 +83,17 @@ public class CommentService {
             notification.setCreatedAt(now);
             notificationMapper.insert(notification);
         }
-        for (Long mention : mentions) {
-            try {
-                String email = jdbcTemplate.queryForObject(
-                        "select email from users where userid = ?", String.class, mention);
-                if (email != null && !email.isBlank()) {
-                    mailService.sendAsync(email, "任务 #" + taskId + " 提到了你",
-                            "评论内容：" + request.content() + "\n" + mailService.baseUrl() + "/projects");
-                }
-            } catch (RuntimeException exception) {
-                // 邮件是增强能力，失败不影响评论
+        try {
+            String placeholders = String.join(",", java.util.Collections.nCopies(mentions.size(), "?"));
+            java.util.List<String> emails = jdbcTemplate.queryForList(
+                    "select email from users where userid in (" + placeholders + ") and email is not null and email <> ''",
+                    String.class, mentions.toArray());
+            for (String email : emails) {
+                mailService.sendAsync(email, "任务 #" + taskId + " 提到了你",
+                        "评论内容：" + request.content() + "\n" + mailService.baseUrl() + "/projects");
             }
+        } catch (RuntimeException exception) {
+            // 邮件是增强能力，失败不影响评论
         }
         return toView(comment);
     }

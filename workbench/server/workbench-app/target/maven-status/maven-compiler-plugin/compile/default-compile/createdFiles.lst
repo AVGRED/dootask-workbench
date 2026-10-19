@@ -2,6 +2,7 @@ com\workbench\app\status\StatusService.class
 com\workbench\app\WorkbenchApplication.class
 com\workbench\app\search\SearchResult.class
 com\workbench\app\search\SearchService.class
+com\workbench\app\config\AsyncConfig.class
 com\workbench\app\mail\MailController$MailTestResult.class
 com\workbench\app\search\SearchResult$Item.class
 com\workbench\app\admin\AdminOverviewController.class

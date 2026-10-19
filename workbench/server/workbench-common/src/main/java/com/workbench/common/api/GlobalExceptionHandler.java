@@ -6,7 +6,11 @@ import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -33,6 +37,26 @@ public class GlobalExceptionHandler {
                 ? "参数校验失败"
                 : fieldError.getField() + ": " + fieldError.getDefaultMessage();
         return ResponseEntity.ok(withTrace(ApiResponse.fail(400, message)));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(NoResourceFoundException exception) {
+        return ResponseEntity.ok(withTrace(ApiResponse.fail(404, "接口不存在")));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotAllowed(HttpRequestMethodNotSupportedException exception) {
+        return ResponseEntity.ok(withTrace(ApiResponse.fail(405, "请求方法不支持")));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadable(HttpMessageNotReadableException exception) {
+        return ResponseEntity.ok(withTrace(ApiResponse.fail(400, "请求体格式错误")));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParam(MissingServletRequestParameterException exception) {
+        return ResponseEntity.ok(withTrace(ApiResponse.fail(400, "缺少参数：" + exception.getParameterName())));
     }
 
     @ExceptionHandler(Exception.class)

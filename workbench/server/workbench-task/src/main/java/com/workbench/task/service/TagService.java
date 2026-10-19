@@ -14,6 +14,7 @@ import com.workbench.task.web.TagDtos.TagView;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** 项目标签：建/删、打标签/取消、按标签查任务。 */
 @Service
@@ -55,6 +56,7 @@ public class TagService {
         return new TagView(tag.getId(), tag.getName(), tag.getColor());
     }
 
+    @Transactional
     public void delete(long projectId, long currentUserid, long tagId) {
         projectAccess.requireWrite(projectId, currentUserid);
         Tag tag = tagMapper.selectById(tagId);
