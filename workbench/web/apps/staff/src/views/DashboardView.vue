@@ -20,13 +20,14 @@
 
     <el-main>
       <div v-if="loading" class="empty">加载中…</div>
-      <div v-else class="bento" :style="{ height: `${gridHeight}px` }">
+      <div v-else ref="bentoRef" class="bento" :style="{ height: `${gridHeight}px` }">
         <div
           v-for="item in layout"
           :key="item.id"
           class="tile"
           :class="{ dragging: drag?.id === item.id }"
           :style="tileStyle(item)"
+          :data-color="colorIndexOf(item.id)"
           @pointerdown="onTileDown($event, item)"
         >
           <div class="tile-head">
@@ -96,7 +97,7 @@
               </div>
             </div>
           </div>
-          <div class="resize"></div>
+          <div class="resize" title="拖动调整大小"></div>
         </div>
       </div>
 
@@ -128,6 +129,59 @@ const catalog = ref<WidgetDef[]>([]);
 const status = ref("idle");
 const searchKeyword = ref("");
 const searchResult = ref<{ projects: unknown[]; tasks: unknown[]; users: unknown[] } | null>(null);
+
+const PALETTE = [
+  { bg: "#e8f1ff", border: "#b9d4f7" },
+  { bg: "#e9f7ec", border: "#bfe3c8" },
+  { bg: "#fdf1e3", border: "#f0d2ac" },
+  { bg: "#fdeaf1", border: "#f2c2d3" },
+  { bg: "#eeecfb", border: "#cfc8ef" },
+  { bg: "#e6f6f7", border: "#b6dfe2" },
+  { bg: "#fbf6dd", border: "#e8dda6" },
+  { bg: "#f2f4f7", border: "#d9dee6" }
+];
+
+const bentoRef = ref<HTMLElement | null>(null);
+
+function hashId(id: string): number {
+  let hash = 0;
+  for (let index = 0; index < id.length; index++) {
+    hash = (hash * 31 + id.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function overlaps(a: LayoutItem, b: LayoutItem): boolean {
+  return a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;
+}
+
+const colorIndex = computed<Record<string, number>>(() => {
+  const result: Record<string, number> = {};
+  const items = [...layout.value].sort((a, b) => a.y - b.y || a.x - b.x);
+  for (const item of items) {
+    const used = new Set<number>();
+    for (const other of items) {
+      if (other.id === item.id || result[other.id] === undefined) continue;
+      if (overlaps(item, other)) used.add(result[other.id]);
+    }
+    let index = hashId(item.id) % PALETTE.length;
+    let guard = 0;
+    while (used.has(index) && guard < PALETTE.length) {
+      index = (index + 1) % PALETTE.length;
+      guard++;
+    }
+    result[item.id] = index;
+  }
+  return result;
+});
+
+function colorIndexOf(id: string): number {
+  return colorIndex.value[id] ?? 0;
+}
+
+function colorOf(id: string): { bg: string; border: string } {
+  return PALETTE[colorIndexOf(id)] ?? PALETTE[0];
+}
 
 const ROW = 112;
 const COL_PCT = 100 / 12;
@@ -197,7 +251,10 @@ function titleOf(id: string): string {
 }
 
 function tileStyle(item: LayoutItem): Record<string, string> {
+  const color = colorOf(item.id);
   return {
+    background: color.bg,
+    borderColor: color.border,
     left: `calc(${item.x * COL_PCT}% + 4px)`,
     width: `calc(${item.w * COL_PCT}% - 8px)`,
     top: `${item.y * ROW + 4}px`,
@@ -278,7 +335,8 @@ function onMove(event: PointerEvent): void {
   if (!drag.value) return;
   const item = layout.value.find((entry) => entry.id === drag.value!.id);
   if (!item) return;
-  const colWidth = (event.currentTarget as Window).innerWidth / 12 - 2;
+  const gridWidth = bentoRef.value?.clientWidth ?? window.innerWidth;
+  const colWidth = gridWidth / 12;
   const dx = Math.round((event.clientX - drag.value.startX) / colWidth);
   const dy = Math.round((event.clientY - drag.value.startY) / ROW);
   if (drag.value.mode === "move") {
@@ -404,13 +462,16 @@ onMounted(load);
 }
 .tile {
   position: absolute;
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1.5px solid #dcdfe6;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: box-shadow 0.15s;
+  transition: box-shadow 0.15s, transform 0.12s;
+}
+.tile:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 .tile.dragging {
   box-shadow: 0 8px 24px rgba(64, 158, 255, 0.35);
@@ -421,7 +482,8 @@ onMounted(load);
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid #f0f2f5;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.45);
   cursor: grab;
   user-select: none;
 }
@@ -442,13 +504,21 @@ onMounted(load);
 }
 .resize {
   position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 14px;
-  height: 14px;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
   cursor: nwse-resize;
-  background: linear-gradient(135deg, transparent 50%, #dcdfe6 50%);
-  border-radius: 0 0 8px 0;
+  background:
+    linear-gradient(135deg, transparent 46%, rgba(0, 0, 0, 0.18) 46%, rgba(0, 0, 0, 0.18) 52%, transparent 52%),
+    linear-gradient(135deg, transparent 62%, rgba(0, 0, 0, 0.18) 62%, rgba(0, 0, 0, 0.18) 68%, transparent 68%);
+  border-radius: 0 0 10px 0;
+  z-index: 3;
+}
+.resize:hover {
+  background:
+    linear-gradient(135deg, transparent 46%, #409eff 46%, #409eff 52%, transparent 52%),
+    linear-gradient(135deg, transparent 62%, #409eff 62%, #409eff 68%, transparent 68%);
 }
 .line {
   padding: 3px 0;
