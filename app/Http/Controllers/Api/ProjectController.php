@@ -362,25 +362,49 @@ class ProjectController extends AbstractController
             || Request::has('task_schedule_timezone')
             || Request::has('task_schedule_buffer_days');
         if ($hasScheduleSettings) {
-            $bufferDays = filter_var($task_schedule_buffer_days, FILTER_VALIDATE_INT);
-            if (!in_array($task_schedule_mode, ['manual', 'automatic'], true)
-                || !is_array($task_schedule_workdays)
-                || !$task_schedule_workdays
-                || !is_string($task_schedule_timezone)
-                || !in_array($task_schedule_timezone, timezone_identifiers_list(), true)
-                || $bufferDays === false
-                || $bufferDays < 0
-                || $bufferDays > 30) {
-                return Base::retError('排期规则格式无效');
+            // Partial updates are allowed: fields the client did not send inherit the
+            // stored rule, and only the fields that were sent are validated. Reading
+            // the project here also enforces the manager check before validation.
+            $scheduleProject = Project::userProject($project_id, true, true);
+            if (Request::has('task_schedule_mode')) {
+                if (!in_array($task_schedule_mode, ['manual', 'automatic'], true)) {
+                    return Base::retError('排期规则格式无效');
+                }
+            } else {
+                $task_schedule_mode = $scheduleProject->task_schedule_mode ?: 'manual';
             }
-            $normalizedWorkdays = [];
-            foreach ($task_schedule_workdays as $day) {
-                $day = filter_var($day, FILTER_VALIDATE_INT);
-                if ($day === false || $day < 1 || $day > 7) return Base::retError('排期规则格式无效');
-                $normalizedWorkdays[] = (int)$day;
+            if (Request::has('task_schedule_workdays')) {
+                if (!is_array($task_schedule_workdays) || !$task_schedule_workdays) {
+                    return Base::retError('排期规则格式无效');
+                }
+                $normalizedWorkdays = [];
+                foreach ($task_schedule_workdays as $day) {
+                    $day = filter_var($day, FILTER_VALIDATE_INT);
+                    if ($day === false || $day < 1 || $day > 7) return Base::retError('排期规则格式无效');
+                    $normalizedWorkdays[] = (int)$day;
+                }
+                $task_schedule_workdays = array_values(array_unique($normalizedWorkdays));
+                sort($task_schedule_workdays);
+            } else {
+                $task_schedule_workdays = Base::json2array($scheduleProject->task_schedule_workdays);
             }
-            $task_schedule_workdays = array_values(array_unique($normalizedWorkdays));
-            sort($task_schedule_workdays);
+            if (Request::has('task_schedule_timezone')) {
+                if (!is_string($task_schedule_timezone)
+                    || !in_array($task_schedule_timezone, timezone_identifiers_list(), true)) {
+                    return Base::retError('排期规则格式无效');
+                }
+            } else {
+                $task_schedule_timezone = $scheduleProject->task_schedule_timezone;
+            }
+            if (Request::has('task_schedule_buffer_days')) {
+                $bufferDays = filter_var($task_schedule_buffer_days, FILTER_VALIDATE_INT);
+                if ($bufferDays === false || $bufferDays < 0 || $bufferDays > 30) {
+                    return Base::retError('排期规则格式无效');
+                }
+                $task_schedule_buffer_days = (int)$bufferDays;
+            } else {
+                $task_schedule_buffer_days = (int)$scheduleProject->task_schedule_buffer_days;
+            }
             if ($hasScheduleHolidays) {
                 if (!is_array($task_schedule_holidays) || count($task_schedule_holidays) > 366) {
                     return Base::retError('节假日格式无效');
