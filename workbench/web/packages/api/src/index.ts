@@ -5,6 +5,8 @@ import type {
   ApplyTemplateResult,
   AttachmentView,
   CapacitySummary,
+  BoardView,
+  BoardColumn,
   CommentView,
   CreateCommentRequest,
   CreateUserRequest,
@@ -381,6 +383,22 @@ export class ApiClient {
 
   async search(keyword: string): Promise<SearchResult> {
     return this.request<SearchResult>("GET", `/api/v1/search?keyword=${encodeURIComponent(keyword)}`);
+  }
+
+  async board(projectId: number): Promise<BoardView> {
+    return this.request<BoardView>("GET", `/api/v1/projects/${projectId}/board`);
+  }
+
+  async createColumn(projectId: number, name: string): Promise<BoardColumn> {
+    return this.request<BoardColumn>("POST", `/api/v1/projects/${projectId}/columns`, { name });
+  }
+
+  async deleteColumn(projectId: number, columnId: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/projects/${projectId}/columns/${columnId}`);
+  }
+
+  async moveTask(taskId: number, columnId: number | null): Promise<void> {
+    await this.request<null>("PUT", `/api/v1/tasks/${taskId}/move`, { columnId });
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

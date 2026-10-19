@@ -341,3 +341,28 @@ export interface SearchResult {
   tasks: SearchItem[];
   users: SearchItem[];
 }
+
+export interface BoardColumn {
+  id: number;
+  name: string;
+  sort: number;
+}
+
+export interface BoardCard {
+  id: number;
+  name: string;
+  desc: string;
+  ownerUserid: number;
+  pLevel: number;
+  completed: boolean;
+}
+
+export interface BoardColumnWithCards {
+  column: BoardColumn;
+  cards: BoardCard[];
+}
+
+export interface BoardView {
+  projectId: number;
+  columns: BoardColumnWithCards[];
+}

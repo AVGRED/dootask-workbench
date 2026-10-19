@@ -424,6 +424,18 @@ Assert-True "空关键词返回空结果" ($searchBlank.data.projects.Count -eq 
 $searchNone = Invoke-Api -Method Get -Path "/api/v1/search?keyword=zzz-not-exists-zzz"
 Assert-True "无匹配时为空" (($searchNone.data.projects.Count -eq 0) -and ($searchNone.data.tasks.Count -eq 0)) ""
 
+# 6.16 看板
+$board = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/board").data
+Assert-True "看板默认至少三列" ($board.columns.Count -ge 3) "columns=$($board.columns.Count)"
+$secondColumnId = $board.columns[1].column.id
+Invoke-Api -Method Put -Path "/api/v1/tasks/$taskId/move" -Body @{ columnId = $secondColumnId } | Out-Null
+$boardMoved = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/board").data
+$movedCards = ($boardMoved.columns | Where-Object { $_.column.id -eq $secondColumnId }).cards
+Assert-True "任务已移动到第二列" ([bool]($movedCards | Where-Object { $_.id -eq $taskId })) "cards=$($movedCards.Count)"
+$newColumn = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/columns" -Body @{ name = "E2E 新列" }
+Assert-True "新增看板列成功" ($newColumn.data.name -eq "E2E 新列") "name=$($newColumn.data.name)"
+Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/columns/$($newColumn.data.id)" | Out-Null
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total
@@ -466,6 +478,8 @@ Assert-True "viewer 仍可读工时" ($viewerWorklogsRead.code -eq 0) "code=$($v
 $viewerUploadRaw = & curl.exe -s -X POST "http://127.0.0.1:$port/api/v1/tasks/$taskIn2/attachments" -H "Authorization: Bearer $viewerToken" -F "file=@$uploadFile;type=text/plain"
 $viewerUpload = $viewerUploadRaw | ConvertFrom-Json
 Assert-True "viewer 上传附件被拒（403）" ($viewerUpload.code -eq 403) "code=$($viewerUpload.code)"
+$viewerMove = Invoke-Api -Method Put -Path "/api/v1/tasks/$taskIn2/move" -Body @{ columnId = 0 }
+Assert-True "viewer 移动任务被拒（403）" ($viewerMove.code -eq 403) "code=$($viewerMove.code)"
 $viewerAttachments = Invoke-Api -Method Get -Path "/api/v1/tasks/$taskIn2/attachments"
 Assert-True "viewer 仍可读附件列表" ($viewerAttachments.code -eq 0) "code=$($viewerAttachments.code)"
 

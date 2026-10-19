@@ -30,6 +30,7 @@
         <el-table-column label="操作" width="260">
           <template #default="{ row }">
             <el-button link type="primary" @click="openTasks(row as ProjectView)">任务</el-button>
+            <el-button link type="primary" @click="openBoard(row as ProjectView)">看板</el-button>
             <el-button link type="primary" @click="openPlanning(row as ProjectView)">规划</el-button>
             <el-button link type="primary" @click="openActivities(row as ProjectView)">动态</el-button>
             <el-button link type="primary" @click="openMembers(row as ProjectView)">成员</el-button>
@@ -338,6 +339,10 @@ async function openMembers(row: ProjectView): Promise<void> {
 
 async function openTasks(row: ProjectView): Promise<void> {
   await router.push({ name: "tasks", params: { projectId: row.id } });
+}
+
+async function openBoard(row: ProjectView): Promise<void> {
+  await router.push({ name: "board", params: { projectId: row.id } });
 }
 
 async function openPlanning(row: ProjectView): Promise<void> {
