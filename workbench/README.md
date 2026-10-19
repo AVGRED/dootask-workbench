@@ -105,6 +105,33 @@ powershell -NoProfile -File workbench/scripts/e2e-smoke.ps1 -BaseUrl http://127.
 
 已完成过的端到端验证覆盖：登录（旧 md5 密码自动升级）、项目 CRUD + 归档/恢复、任务创建/更新/完成/取消完成/删除、成员添加/移除（重复添加被拒）、分页 `total`、中文 UTF-8 往返。
 
+## 旧数据迁移
+
+v2 沿用旧库的表名与主键，因此迁移是「同表搬行、保留 id」：项目成员、任务、依赖、工时的关联关系天然不需要重映射。
+
+```powershell
+# 1. 打包（迁移器在 workbench-app 里）
+cd workbench\server
+mvn -DskipTests package -pl workbench-app -am
+
+# 2. 先 dry-run 看行数（不写库）
+powershell -File workbench\scripts\migrate-legacy.ps1 `
+  -SourceUrl "jdbc:mysql://127.0.0.1:3306/dootask?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC" `
+  -SourceUser root -SourcePassword secret -DryRun
+
+# 3. 确认无误后实际迁移
+powershell -File workbench\scripts\migrate-legacy.ps1 `
+  -SourceUrl "jdbc:mysql://127.0.0.1:3306/dootask?..." -SourceUser root -SourcePassword secret
+```
+
+要点：
+
+- 迁移顺序按外键依赖：`users → departments → projects → project_users → project_milestones → project_tasks → project_task_dependencies → project_task_work_logs`；
+- 旧库缺少新列（`deleted_at`、`milestone_id`、`owner_userid`、`request_payload_hash`）时按列存在性自动跳过并填默认值；
+- 写入用 `INSERT IGNORE`，重复执行幂等（第二次 `copied=0`）；
+- 旧密码是 `md5(明文 + encrypt 盐)`，迁移后**首次登录会自动升级为 BCrypt**，不需要单独重置密码；
+- 本地验证环境：`workbench/scripts/seed-legacy.sql` + `legacy-seed-setup.sh`（建 `legacy_seed` 库并灌入 1 用户/项目/任务/工时）。
+
 注意：`e2e-smoke.ps1` 需要 **UTF-8 BOM** 保存，否则 PowerShell 5.1 会按 ANSI 解析导致中文乱码；响应体由脚本自己按 UTF-8 解码（Spring 的 `application/json` 不带 charset）。
 
 ## 设计文档
