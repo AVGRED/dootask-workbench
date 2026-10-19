@@ -43,7 +43,8 @@ public class StatusService {
 
     public List<Map<String, Object>> team(long currentUserid) {
         boolean admin = systemAdmin.isAdmin(currentUserid);
-        String sql = "select u.userid, u.nickname, u.email, coalesce(s.status, 'idle') as status, "
+        String sql = "select u.userid, u.nickname, u.email, coalesce(u.avatar, '') as avatar, "
+                + "coalesce(s.status, 'idle') as status, "
                 + "coalesce(s.note, '') as note, s.updated_at as status_at, "
                 + "(select t.name from project_tasks t where t.owner_userid = u.userid and t.complete_at is null "
                 + "and t.deleted_at is null order by t.id desc limit 1) as current_task, "

@@ -444,6 +444,7 @@ export interface TeamStatusRow {
   userid: number;
   nickname: string;
   email: string;
+  avatar: string | null;
   status: string;
   note: string;
   status_at: string | null;

@@ -10,6 +10,9 @@
           <el-option label="外出" value="away" />
           <el-option label="请假" value="leave" />
         </el-select>
+        <el-button size="small" @click="pickAvatar">我的头像</el-button>
+        <img v-if="myAvatar" class="my-avatar" :src="`/api/v1/avatars/${myAvatar}`" alt="我的头像" />
+        <input ref="avatarInput" type="file" accept="image/*" hidden @change="onAvatarPicked" />
         <el-button size="small" @click="addVisible = true">添加板块</el-button>
         <el-button size="small" :loading="saving" @click="saveLayout">保存布局</el-button>
         <el-button size="small" @click="resetLayout">恢复默认</el-button>
@@ -127,6 +130,8 @@ const dash = ref<DashboardView | null>(null);
 const layout = ref<LayoutItem[]>([]);
 const catalog = ref<WidgetDef[]>([]);
 const status = ref("idle");
+const myAvatar = ref("");
+const avatarInput = ref<HTMLInputElement | null>(null);
 const searchKeyword = ref("");
 const searchResult = ref<{ projects: unknown[]; tasks: unknown[]; users: unknown[] } | null>(null);
 
@@ -285,6 +290,7 @@ async function load(): Promise<void> {
       ];
     }
     status.value = data.status || "idle";
+    myAvatar.value = (await client.myAvatar()).avatar;
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "加载仪表盘失败");
   } finally {
@@ -386,6 +392,25 @@ async function removeWidget(id: string): Promise<void> {
   await saveLayout();
 }
 
+function pickAvatar(): void {
+  avatarInput.value?.click();
+}
+
+async function onAvatarPicked(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    const result = await client.uploadAvatar(file);
+    myAvatar.value = result.avatar;
+    ElMessage.success("头像已更新");
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "头像上传失败");
+  } finally {
+    input.value = "";
+  }
+}
+
 async function changeStatus(): Promise<void> {
   try {
     await client.setStatus(status.value);
@@ -448,6 +473,13 @@ onMounted(load);
 .brand {
   font-size: 18px;
   font-weight: 700;
+}
+.my-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #dcdfe6;
 }
 .header-actions {
   display: flex;

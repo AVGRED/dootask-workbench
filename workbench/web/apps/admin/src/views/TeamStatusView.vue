@@ -8,8 +8,11 @@
     <div class="wall">
       <div v-for="row in filtered" :key="row.userid" class="person" :class="row.status">
         <div class="avatar-slot" :class="row.status">
-          <span class="avatar-initial">{{ (row.nickname || "?").slice(0, 1) }}</span>
-          <span class="avatar-hint">3D 形象</span>
+          <img v-if="row.avatar" class="avatar-img" :src="`/api/v1/avatars/${row.avatar}`" :alt="row.nickname || ''" />
+          <template v-else>
+            <span class="avatar-initial">{{ (row.nickname || "?").slice(0, 1) }}</span>
+            <span class="avatar-hint">3D 形象</span>
+          </template>
         </div>
         <div class="person-body">
           <div class="person-head">
@@ -150,6 +153,11 @@ onMounted(load);
 .avatar-slot.meeting { background: linear-gradient(165deg, #fbeed8, #efd0a1); }
 .avatar-slot.away { background: linear-gradient(165deg, #dcf1e1, #a9d5b6); }
 .avatar-slot.leave { background: linear-gradient(165deg, #fbdee8, #eeb2c6); }
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .avatar-initial {
   font-size: 42px;
   font-weight: 700;

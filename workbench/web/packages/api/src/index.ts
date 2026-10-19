@@ -436,6 +436,28 @@ export class ApiClient {
     return this.request<{ items: LayoutItem[] }>("POST", "/api/v1/dashboard/me/layout/reset");
   }
 
+  async myAvatar(): Promise<{ avatar: string }> {
+    return this.request<{ avatar: string }>("GET", "/api/v1/me/avatar");
+  }
+
+  async uploadAvatar(file: File): Promise<{ avatar: string }> {
+    const form = new FormData();
+    form.append("file", file);
+    const headers: Record<string, string> = {};
+    const token = this.options.getToken?.();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`${this.options.baseUrl}/api/v1/me/avatar`, {
+      method: "POST",
+      headers,
+      body: form
+    });
+    const payload = (await response.json()) as { code: number; message?: string; data?: { avatar: string } };
+    if (payload.code !== 0 || !payload.data) {
+      throw new ApiError(payload.code, payload.message ?? "头像上传失败");
+    }
+    return payload.data;
+  }
+
   async myStatus(): Promise<{ status: string; note: string }> {
     return this.request<{ status: string; note: string }>("GET", "/api/v1/me/status");
   }

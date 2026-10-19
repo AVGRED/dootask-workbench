@@ -612,6 +612,18 @@ Assert-True "管理员可触发邮件自检" ($mailTest.code -eq 0) "code=$($mai
 Assert-True "未配置 SMTP 时降级为 disabled" ($mailTest.data.mode -eq "disabled") "mode=$($mailTest.data.mode)"
 Assert-True "降级时不真正投递" ($mailTest.data.sent -eq $false) "sent=$($mailTest.data.sent)"
 
+$avatarPath = Join-Path $env:TEMP "e2e-avatar.png"
+[System.IO.File]::WriteAllBytes($avatarPath, [Convert]::FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="))
+$avatarUpload = (& curl.exe -s -X POST -H "Authorization: Bearer $script:token" -F "file=@$avatarPath;type=image/png" "http://127.0.0.1:$port/api/v1/me/avatar") | ConvertFrom-Json
+Assert-True "上传头像成功" ($avatarUpload.code -eq 0) "code=$($avatarUpload.code)"
+$avatarName = $avatarUpload.data.avatar
+Assert-True "头像文件名已返回" ([bool]$avatarName) "name=$avatarName"
+$avatarRead = & curl.exe -s -o NUL -w "%{http_code}" "http://127.0.0.1:$port/api/v1/avatars/$avatarName"
+Assert-True "头像可公开读取" ($avatarRead -eq "200") "http=$avatarRead"
+$teamAfterAvatar = (Invoke-Api -Method Get -Path "/api/v1/team/status").data
+$meAvatar = ($teamAfterAvatar | Where-Object { $_.userid -eq $me } | Select-Object -First 1).avatar
+Assert-True "团队墙返回头像字段" ([bool]$meAvatar) "avatar=$meAvatar"
+
 $adminProjects = (Invoke-Api -Method Get -Path "/api/v1/admin/projects").data
 Assert-True "管理员可看全部项目总览" ($adminProjects.Count -ge 1) "count=$($adminProjects.Count)"
 Assert-True "项目总览带完成数" ($null -ne $adminProjects[0].done) "done=$($adminProjects[0].done)"

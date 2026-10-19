@@ -11,6 +11,7 @@ com\workbench\app\dashboard\DashboardDtos.class
 com\workbench\app\dashboard\DashboardController.class
 com\workbench\app\dashboard\DashboardDtos$LayoutItem.class
 com\workbench\app\search\SearchService.class
+com\workbench\app\profile\AvatarController.class
 com\workbench\app\dashboard\DashboardDtos$WidgetDef.class
 com\workbench\app\mail\MailController$MailTestResult.class
 com\workbench\app\search\SearchResult$Item.class
