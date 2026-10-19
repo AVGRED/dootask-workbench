@@ -502,7 +502,7 @@ Invoke-Api -Method Delete -Path "/api/v1/tasks/$($reportTask.data.id)" | Out-Nul
 
 # 6.21 仪表盘与员工状态
 $dash = (Invoke-Api -Method Get -Path "/api/v1/dashboard/me").data
-Assert-True "仪表盘目录 10 个板块" ($dash.catalog.Count -eq 10) "count=$($dash.catalog.Count)"
+Assert-True "仪表盘目录 9 个功能板块" ($dash.catalog.Count -eq 9) "count=$($dash.catalog.Count)"
 Assert-True "仪表盘返回布局" ($dash.layout.Count -ge 1) "count=$($dash.layout.Count)"
 $savedLayout = Invoke-Api -Method Put -Path "/api/v1/dashboard/me/layout" -Body @{ items = @(@{ id = "my-tasks"; x = 0; y = 0; w = 8; h = 2 }) }
 Assert-True "布局保存成功" ($savedLayout.data.items[0].w -eq 8) "w=$($savedLayout.data.items[0].w)"
@@ -523,7 +523,17 @@ Assert-True "非法状态被拒绝" ($badStatus.code -eq 400) "code=$($badStatus
 $team = (Invoke-Api -Method Get -Path "/api/v1/team/status").data
 Assert-True "团队状态墙包含本人" ([bool]($team | Where-Object { $_.userid -eq $me })) "count=$($team.Count)"
 Assert-True "状态墙带进行中任务字段" ([bool]($team[0].PSObject.Properties.Name -contains "current_task")) ""
+$dashData = (Invoke-Api -Method Get -Path "/api/v1/dashboard/me").data
+Assert-True "仪表盘含我的任务数据" ([bool]($dashData.data.PSObject.Properties.Name -contains "my-tasks")) ""
+Assert-True "仪表盘含项目概况数据" ([bool]($dashData.data.PSObject.Properties.Name -contains "summary")) ""
+$projectBlock = (Invoke-Api -Method Put -Path "/api/v1/dashboard/me/layout" -Body @{ items = @(@{ id = "my-tasks"; x = 0; y = 0; w = 6; h = 2 }, @{ id = "project:$projectId"; x = 6; y = 0; w = 6; h = 2 }) })
+Assert-True "布局可含项目板块" ($projectBlock.data.items.Count -eq 2) "count=$($projectBlock.data.items.Count)"
+$dashWithProject = (Invoke-Api -Method Get -Path "/api/v1/dashboard/me").data
+Assert-True "项目板块数据存在" ([bool]($dashWithProject.data.PSObject.Properties.Name -contains "project:$projectId")) ""
+$teamRow = ($team | Where-Object { $_.userid -eq $me }) | Select-Object -First 1
+Assert-True "状态墙带近 7 天工时" ($null -ne $teamRow.week_minutes) "value=$($teamRow.week_minutes)"
 Invoke-Api -Method Put -Path "/api/v1/me/status" -Body @{ status = "idle"; note = "" } | Out-Null
+Invoke-Api -Method Post -Path "/api/v1/dashboard/me/layout/reset" | Out-Null
 
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
