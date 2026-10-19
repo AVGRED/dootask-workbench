@@ -61,6 +61,8 @@ node scripts/check-vue-wiring.mjs --all   # 全仓扫描（存量组件仍有 64
 
 脚本会解析模板表达式，跟踪 `v-for` / 插槽作用域局部变量，并与组件的 `props/data/computed/methods`、全局 mixin 与 `$` 开头的实例属性对照，报告无法解析的标识符。默认只覆盖工作台组件，CI 已接入；存量组件的告警待单独清理后再扩大范围。
 
+另有组件挂载冒烟 `tests/component-mount.test.mjs`：用 `vue-template-compiler` 编译模板、`new Function` 装载脚本、jsdom 提供 DOM，真正挂载 `MilestoneReminderAttempts` 与 `TaskWork`，断言渲染文本、请求参数与 `estimate-updated` 事件。注意 `tests/helpers/jsdom-setup.mjs` 必须在 Vue 之前导入——Vue 2 在模块加载时就判定是否浏览器环境，顺序错了 patch 会退化为空操作，挂载不报错但拿不到 DOM。
+
 ## 备份尚未推送的提交
 
 当本地提交无法推送到远端时（没有写权限、凭据不可用），用 bundle 做一份可移植备份：
