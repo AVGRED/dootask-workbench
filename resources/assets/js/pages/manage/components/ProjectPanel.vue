@@ -612,51 +612,14 @@
         </Modal>
 
         <!--邀请链接-->
-        <Modal
-            v-model="inviteShow"
-            :title="$L('邀请链接')"
-            :mask-closable="false">
-            <Form :model="inviteData" v-bind="formOptions" @submit.native.prevent>
-                <FormItem :label="$L('链接地址')">
-                    <Input ref="inviteInput" v-model="inviteData.url" type="textarea" :rows="3" @on-focus="inviteFocus" readonly/>
-                    <div class="form-tip">
-                        {{$L('可通过此链接直接加入项目。')}}
-                        <Poptip
-                            confirm
-                            placement="bottom"
-                            :ok-text="$L('确定')"
-                            :cancel-text="$L('取消')"
-                            @on-ok="inviteGet(true)"
-                            transfer>
-                            <div slot="title">
-                                <p><strong>{{$L('注意：刷新将导致原来的邀请链接失效！')}}</strong></p>
-                            </div>
-                            <a href="javascript:void(0)">{{$L('刷新链接')}}</a>
-                        </Poptip>
-                    </div>
-                </FormItem>
-            </Form>
-            <div slot="footer" class="adaption">
-                <Button type="default" @click="inviteShow=false">{{$L('取消')}}</Button>
-                <Button type="primary" :loading="inviteLoad > 0" @click="inviteCopy">{{$L('复制')}}</Button>
-            </div>
-        </Modal>
+        <ProjectInviteDialog
+            :visible.sync="inviteShow"
+            :project-id="projectId" />
 
         <!--移交项目-->
-        <Modal
-            v-model="transferShow"
-            :title="$L('移交项目')"
-            :mask-closable="false">
-            <Form :model="transferData" v-bind="formOptions" @submit.native.prevent>
-                <FormItem prop="owner_userid" :label="$L('新项目负责人')">
-                    <UserSelect v-model="transferData.owner_userid" :multiple-max="1" :title="$L('选择项目负责人')"/>
-                </FormItem>
-            </Form>
-            <div slot="footer" class="adaption">
-                <Button type="default" @click="transferShow=false">{{$L('取消')}}</Button>
-                <Button type="primary" :loading="transferLoad > 0" @click="onTransfer">{{$L('移交')}}</Button>
-            </div>
-        </Modal>
+        <ProjectTransferDialog
+            :visible.sync="transferShow"
+            :project-id="projectId" />
 
         <!--任务模板-->
         <DrawerOverlay
@@ -730,6 +693,8 @@ import ProjectGantt from "./ProjectGantt";
 import MilestoneManager from "./MilestoneManager.vue";
 import ProjectCapacityOverview from "./ProjectCapacityOverview.vue";
 import ProjectSettingDrawer from "./ProjectSettingDrawer.vue";
+import ProjectInviteDialog from "./ProjectInviteDialog.vue";
+import ProjectTransferDialog from "./ProjectTransferDialog.vue";
 import ProjectTableGroupDropdown from "./ProjectTableGroupDropdown.vue";
 import ProjectFlowFilterDropdown from "./ProjectFlowFilterDropdown.vue";
 import UserSelect from "../../../components/UserSelect.vue";
@@ -764,6 +729,8 @@ export default {
         MilestoneManager,
         ProjectCapacityOverview,
         ProjectSettingDrawer,
+        ProjectInviteDialog,
+        ProjectTransferDialog,
         ProjectTableGroupDropdown,
         ProjectFlowFilterDropdown,
     },
@@ -816,12 +783,8 @@ export default {
             userLoad: 0,
 
             inviteShow: false,
-            inviteData: {},
-            inviteLoad: 0,
 
             transferShow: false,
-            transferData: {},
-            transferLoad: 0,
 
             taskTemplateShow: false,
             taskTagShow: false,
@@ -1846,26 +1809,6 @@ export default {
             });
         },
 
-        onTransfer() {
-            this.transferLoad++;
-            this.$store.dispatch("call", {
-                url: 'project/transfer',
-                data: {
-                    project_id: this.projectId,
-                    owner_userid: this.transferData.owner_userid[0],
-                },
-            }).then(({msg}) => {
-                $A.messageSuccess(msg);
-                this.transferShow = false;
-                this.$store.dispatch("getProjectOne", this.projectId).catch(() => {});
-                this.$store.dispatch("getTaskForProject", this.projectId).catch(() => {})
-            }).catch(({msg}) => {
-                $A.modalError(msg);
-            }).finally(_ => {
-                this.transferLoad--;
-            });
-        },
-
         onArchived() {
             $A.modalConfirm({
                 title: '归档项目',
@@ -1953,9 +1896,7 @@ export default {
                     break;
 
                 case "invite":
-                    this.inviteData = {};
                     this.inviteShow = true;
-                    this.inviteGet()
                     break;
 
                 case "task_template":
@@ -1983,7 +1924,6 @@ export default {
                     break;
 
                 case "transfer":
-                    this.$set(this.transferData, 'owner_userid', []);
                     this.transferShow = true;
                     break;
 
@@ -2051,24 +1991,6 @@ export default {
         ownerUser(list) {
             return list.filter(({owner}) => owner == 1).sort((a, b) => {
                 return a.id - b.id;
-            });
-        },
-
-        inviteGet(refresh) {
-            this.inviteLoad++;
-            this.$store.dispatch("call", {
-                url: 'project/invite',
-                data: {
-                    project_id: this.projectId,
-                    refresh: refresh === true ? 'yes' : 'no'
-                },
-            }).then(({data}) => {
-                this.inviteData = data;
-                this.inviteCopy();
-            }).catch(({msg}) => {
-                $A.modalError(msg);
-            }).finally(_ => {
-                this.inviteLoad--;
             });
         },
 
@@ -2337,20 +2259,6 @@ export default {
                 this.loadTaskViews();
                 this.selectedTaskViewId = data.id;
             }).catch(e => $A.modalError(e));
-        },
-
-        inviteCopy() {
-            if (!this.inviteData.url) {
-                return;
-            }
-            this.inviteFocus();
-            this.copyText(this.inviteData.url);
-        },
-
-        inviteFocus() {
-            this.$nextTick(_ => {
-                this.$refs.inviteInput.focus({cursor:'all'});
-            });
         },
 
         async taskTagBeforeClose() {

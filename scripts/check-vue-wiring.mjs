@@ -294,6 +294,8 @@ const DEFAULT_TARGETS = [
     'resources/assets/js/pages/manage/components/MilestoneManager.vue',
     'resources/assets/js/pages/manage/components/ProjectCapacityOverview.vue',
     'resources/assets/js/pages/manage/components/ProjectSettingDrawer.vue',
+    'resources/assets/js/pages/manage/components/ProjectInviteDialog.vue',
+    'resources/assets/js/pages/manage/components/ProjectTransferDialog.vue',
     'resources/assets/js/pages/manage/components/MilestoneReminderAttempts.vue',
     'resources/assets/js/components/GanttView.vue',
     'resources/assets/js/pages/single/task.vue',
