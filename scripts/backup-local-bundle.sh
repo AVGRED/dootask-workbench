@@ -36,3 +36,15 @@ git -C "$project_root" bundle verify "$file" >/dev/null
 echo "commits=$count base=$base"
 echo "$file"
 echo "restore on another clone at $base: git bundle unbundle \"$file\""
+
+copy_dir="${DOOTASK_BACKUP_COPY_DIR:-}"
+if [[ -n "$copy_dir" ]]; then
+    mkdir -p "$copy_dir"
+    cp "$file" "$copy_dir/"
+    target="$copy_dir/$(basename "$file")"
+    if [[ "$(sha256sum "$file" | awk '{print $1}')" != "$(sha256sum "$target" | awk '{print $1}')" ]]; then
+        echo "Checksum mismatch after copying to $copy_dir" >&2
+        exit 3
+    fi
+    echo "copied_to=$target"
+fi

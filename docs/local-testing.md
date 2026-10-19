@@ -60,3 +60,22 @@ bash scripts/backup-local-bundle.sh origin/pro # 或显式指定基准
 ```
 
 脚本会在仓库同级的 `backups/`（可用 `DOOTASK_BACKUP_DIR` 覆盖）生成 `dootask-<时间戳>.bundle`，并校验可读性。在另一台已检出同一基准提交的机器上执行 `git bundle unbundle <文件>` 即可取回这些提交。bundle 只是本地容灾，不能替代远端仓库。
+
+设置 `DOOTASK_BACKUP_COPY_DIR` 时会把 bundle 复制到该目录并逐字节比对 SHA-256，适合放进云同步目录（例如 OneDrive）实现异地副本：
+
+```bash
+DOOTASK_BACKUP_COPY_DIR=/mnt/c/Users/<user>/OneDrive/backups bash scripts/backup-local-bundle.sh
+```
+
+### 本地裸仓库作为 git 远端
+
+在没有可写 GitHub 仓库时，可以把一个裸仓库当作远端，至少保证分支与对象有第二份：
+
+```powershell
+git init --bare D:\backups\dootask.git
+git -C D:\repos\workbench\dootask remote add local-backup D:\backups\dootask.git
+git -C D:\repos\workbench\dootask push local-backup pro:refs/heads/workbench-planning
+git -C D:\backups\dootask.git log --oneline -1 workbench-planning
+```
+
+恢复：`git clone --branch workbench-planning D:\backups\dootask.git <目录>`。裸仓库在同一台机器/同一块磁盘上，只防误删与分支损坏，不防磁盘故障；异地副本仍需上面的 bundle 或可写远端。
