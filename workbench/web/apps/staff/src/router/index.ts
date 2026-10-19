@@ -3,12 +3,14 @@ import LoginView from "../views/LoginView.vue";
 import ProjectsView from "../views/ProjectsView.vue";
 import TasksView from "../views/TasksView.vue";
 import PlanningView from "../views/PlanningView.vue";
+import DailyReportView from "../views/DailyReportView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/login", name: "login", component: LoginView, meta: { public: true } },
     { path: "/", name: "projects", component: ProjectsView },
+    { path: "/reports", name: "reports", component: DailyReportView },
     { path: "/projects/:projectId/tasks", name: "tasks", component: TasksView },
     { path: "/projects/:projectId/planning", name: "planning", component: PlanningView }
   ]

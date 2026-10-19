@@ -214,6 +214,36 @@ Invoke-Api -Method Delete -Path "/api/v1/worklogs/$worklogId" | Out-Null
 $worklogAfter = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/worklogs").data
 Assert-True "删除工时后为空" ($worklogAfter.Count -eq 0) "count=$($worklogAfter.Count)"
 
+# 6.7 日报与周报
+$report = Invoke-Api -Method Post -Path "/api/v1/daily-reports?date=$today" -Body @{ contentDone = "E2E 第一天日报"; contentPlan = "继续"; minutes = 60 }
+Assert-True "提交日报 code=0" ($report.code -eq 0) "code=$($report.code)"
+$reportId = $report.data.id
+Assert-True "日报状态有文案" ([bool]$report.data.statusText) "status=$($report.data.statusText)"
+
+$overwrite = Invoke-Api -Method Post -Path "/api/v1/daily-reports?date=$today" -Body @{ contentDone = "E2E 覆盖后的日报"; minutes = 90 }
+Assert-True "同日重复提交覆盖同一条" ($overwrite.data.id -eq $reportId) "id=$($overwrite.data.id) vs $reportId"
+Assert-True "覆盖后内容更新" ($overwrite.data.contentDone -eq "E2E 覆盖后的日报") "actual=$($overwrite.data.contentDone)"
+
+$byDate = Invoke-Api -Method Get -Path "/api/v1/daily-reports/$today"
+Assert-True "按日期查询到日报" ([bool]$byDate.data) ""
+Assert-True "按日期内容正确" ($byDate.data.contentDone -eq "E2E 覆盖后的日报") "actual=$($byDate.data.contentDone)"
+
+$reports = (Invoke-Api -Method Get -Path "/api/v1/daily-reports").data
+Assert-True "日报列表非空" ($reports.Count -ge 1) "count=$($reports.Count)"
+
+$monday = (Get-Date).AddDays(-(((Get-Date).DayOfWeek.value__ + 6) % 7)).ToString("yyyy-MM-dd")
+$weekly = Invoke-Api -Method Post -Path "/api/v1/weekly-summaries/regenerate" -Body @{ weekStart = $monday }
+Assert-True "生成周报 code=0" ($weekly.code -eq 0) "code=$($weekly.code)"
+Assert-True "周报统计到日报" ($weekly.data.reportCount -ge 1) "reportCount=$($weekly.data.reportCount)"
+
+$weeklies = (Invoke-Api -Method Get -Path "/api/v1/weekly-summaries").data
+Assert-True "周报列表非空" ($weeklies.Count -ge 1) "count=$($weeklies.Count)"
+
+Invoke-Api -Method Delete -Path "/api/v1/daily-reports/$reportId" | Out-Null
+$reportsAfter = (Invoke-Api -Method Get -Path "/api/v1/daily-reports").data
+Assert-True "删除日报后列表为空" ($reportsAfter.Count -eq 0) "count=$($reportsAfter.Count)"
+
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total

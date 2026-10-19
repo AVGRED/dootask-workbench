@@ -3,6 +3,7 @@ import type {
   CapacitySummary,
   CreateUserRequest,
   CreateWorklogRequest,
+  DailyReportView,
   DepartmentView,
   DependencyView,
   LoginRequest,
@@ -12,6 +13,7 @@ import type {
   PageResult,
   ProjectView,
   RiskSummaryView,
+  SaveDailyReportRequest,
   SaveMilestoneRequest,
   SaveProjectRequest,
   SaveTaskRequest,
@@ -19,6 +21,7 @@ import type {
   SchedulePreviewResponse,
   TaskView,
   UserView,
+  WeeklySummaryView,
   WorklogView,
 } from "./types";
 
@@ -173,6 +176,34 @@ export class ApiClient {
   async projectCapacity(projectId: number, from: string, to: string): Promise<CapacitySummary> {
     const query = new URLSearchParams({ from, to });
     return this.request<CapacitySummary>("GET", `/api/v1/projects/${projectId}/capacity?${query.toString()}`);
+  }
+
+  async listDailyReports(from?: string, to?: string): Promise<DailyReportView[]> {
+    const query = new URLSearchParams();
+    if (from) query.set("from", from);
+    if (to) query.set("to", to);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return this.request<DailyReportView[]>("GET", `/api/v1/daily-reports${suffix}`);
+  }
+
+  async dailyReportByDate(date: string): Promise<DailyReportView | null> {
+    return this.request<DailyReportView | null>("GET", `/api/v1/daily-reports/${date}`);
+  }
+
+  async saveDailyReport(date: string, payload: SaveDailyReportRequest): Promise<DailyReportView> {
+    return this.request<DailyReportView>("POST", `/api/v1/daily-reports?date=${date}`, payload);
+  }
+
+  async deleteDailyReport(id: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/daily-reports/${id}`);
+  }
+
+  async listWeeklySummaries(): Promise<WeeklySummaryView[]> {
+    return this.request<WeeklySummaryView[]>("GET", "/api/v1/weekly-summaries");
+  }
+
+  async regenerateWeeklySummary(weekStart?: string): Promise<WeeklySummaryView> {
+    return this.request<WeeklySummaryView>("POST", "/api/v1/weekly-summaries/regenerate", { weekStart });
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

@@ -178,3 +178,31 @@ export interface CapacitySummary {
   dailyMinutes: number;
   members: CapacityMember[];
 }
+
+export interface DailyReportView {
+  id: number;
+  reportDate: string;
+  contentDone: string;
+  contentBlocker: string;
+  contentPlan: string;
+  minutes: number | null;
+  status: number;
+  statusText: string;
+}
+
+export interface SaveDailyReportRequest {
+  contentDone: string;
+  contentBlocker?: string;
+  contentPlan?: string;
+  minutes?: number | null;
+}
+
+export interface WeeklySummaryView {
+  id: number;
+  weekStart: string;
+  weekEnd: string;
+  reportCount: number;
+  missingCount: number;
+  totalMinutes: number;
+  content: string;
+}

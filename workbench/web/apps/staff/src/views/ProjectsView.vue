@@ -4,6 +4,7 @@
       <span>我的项目</span>
       <span>
         <el-button type="primary" @click="openCreate">新建项目</el-button>
+        <el-button @click="openReports">我的日报</el-button>
         <el-button link type="primary" @click="logout">退出</el-button>
       </span>
     </el-header>
@@ -188,6 +189,10 @@ async function openTasks(row: ProjectView): Promise<void> {
 
 async function openPlanning(row: ProjectView): Promise<void> {
   await router.push({ name: "planning", params: { projectId: row.id } });
+}
+
+async function openReports(): Promise<void> {
+  await router.push({ name: "reports" });
 }
 
 async function loadMembers(projectId: number): Promise<void> {
