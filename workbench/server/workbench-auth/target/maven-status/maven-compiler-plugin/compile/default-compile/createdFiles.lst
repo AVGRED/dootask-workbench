@@ -1,0 +1,7 @@
+com\workbench\auth\web\AuthController.class
+com\workbench\auth\web\LoginRequest.class
+com\workbench\auth\jwt\JwtAuthenticationFilter.class
+com\workbench\auth\jwt\JwtService.class
+com\workbench\auth\service\AuthService.class
+com\workbench\auth\config\SecurityConfig.class
+com\workbench\auth\web\LoginResponse.class
