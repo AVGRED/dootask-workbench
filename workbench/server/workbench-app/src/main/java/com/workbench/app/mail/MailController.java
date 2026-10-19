@@ -5,6 +5,7 @@ import com.workbench.common.api.BusinessException;
 import com.workbench.common.mail.MailService;
 import com.workbench.user.service.SystemAdmin;
 import java.security.Principal;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,10 +17,12 @@ public class MailController {
 
     private final MailService mailService;
     private final SystemAdmin systemAdmin;
+    private final JdbcTemplate jdbcTemplate;
 
-    public MailController(MailService mailService, SystemAdmin systemAdmin) {
+    public MailController(MailService mailService, SystemAdmin systemAdmin, JdbcTemplate jdbcTemplate) {
         this.mailService = mailService;
         this.systemAdmin = systemAdmin;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @PostMapping("/test")
@@ -27,8 +30,15 @@ public class MailController {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
             throw new BusinessException(401, "未登录");
         }
-        systemAdmin.requireAdmin(Long.parseLong(principal.getName()));
-        boolean sent = mailService.send(principal.getName() + "@workbench.local",
+        long userid = Long.parseLong(principal.getName());
+        systemAdmin.requireAdmin(userid);
+        java.util.List<String> emails = jdbcTemplate.queryForList(
+                "select email from users where userid = ?", String.class, userid);
+        String email = emails.isEmpty() ? "" : emails.get(0);
+        if (email == null || email.isBlank()) {
+            throw new BusinessException("当前账号没有邮箱，无法自检");
+        }
+        boolean sent = mailService.send(email,
                 "工作台邮件通道自检", "这是一封自检邮件；收到说明 SMTP 配置正确。");
         return ApiResponse.ok(new MailTestResult(sent, mailService.mode()));
     }

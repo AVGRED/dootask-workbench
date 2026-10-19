@@ -9,6 +9,7 @@ import com.workbench.common.api.BusinessException;
 import com.workbench.common.api.GlobalExceptionHandler;
 import com.workbench.common.mail.MailService;
 import com.workbench.user.service.SystemAdmin;
+import org.springframework.jdbc.core.JdbcTemplate;
 import java.security.Principal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ class MailControllerTest {
 
     private final MailService mailService = Mockito.mock(MailService.class);
     private final SystemAdmin systemAdmin = Mockito.mock(SystemAdmin.class);
+    private final JdbcTemplate jdbcTemplate = Mockito.mock(JdbcTemplate.class);
     private final Principal principal = () -> "7";
     private MockMvc mockMvc;
 
@@ -29,7 +31,7 @@ class MailControllerTest {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new MailController(mailService, systemAdmin))
+                .standaloneSetup(new MailController(mailService, systemAdmin, jdbcTemplate))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
@@ -37,6 +39,8 @@ class MailControllerTest {
 
     @Test
     void testReturnsDisabledMode() throws Exception {
+        given(jdbcTemplate.queryForList("select email from users where userid = ?", String.class, 7L))
+                .willReturn(java.util.List.of("demo@workbench.local"));
         given(mailService.send(Mockito.anyString(), Mockito.anyString(), Mockito.anyString())).willReturn(false);
         given(mailService.mode()).willReturn("disabled");
 

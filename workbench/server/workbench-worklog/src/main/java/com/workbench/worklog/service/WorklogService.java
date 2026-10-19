@@ -154,6 +154,9 @@ public class WorklogService {
             return "";
         }
         String text = value.replace("\"", "\"\"");
+        if (!text.isEmpty() && "=+-@\t\r".indexOf(text.charAt(0)) >= 0) {
+            text = "'" + text;
+        }
         if (text.contains(",") || text.contains("\n") || text.contains("\"")) {
             return "\"" + text + "\"";
         }

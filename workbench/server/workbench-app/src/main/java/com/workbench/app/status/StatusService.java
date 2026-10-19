@@ -42,7 +42,7 @@ public class StatusService {
     }
 
     public List<Map<String, Object>> team(long currentUserid) {
-        boolean admin = systemAdmin.isAdmin(currentUserid);
+        systemAdmin.requireAdmin(currentUserid);
         String sql = "select u.userid, u.nickname, u.email, coalesce(u.avatar, '') as avatar, "
                 + "coalesce(s.status, 'idle') as status, "
                 + "coalesce(s.note, '') as note, s.updated_at as status_at, "
@@ -54,10 +54,7 @@ public class StatusService {
                 + "and w.deleted_at is null and w.work_date >= date_sub(curdate(), interval 7 day)) as week_minutes "
                 + "from users u left join user_status s on s.userid = u.userid "
                 + "where u.deleted_at is null ";
-        if (admin) {
-            return jdbc.queryForList(sql + "order by s.updated_at is null, s.updated_at desc, u.userid");
-        }
-        return jdbc.queryForList(sql + "order by u.userid");
+        return jdbc.queryForList(sql + "order by s.updated_at is null, s.updated_at desc, u.userid");
     }
 
     private Map<String, Object> row(long userid) {
