@@ -165,6 +165,30 @@ docker compose up -d --build
   ```
 - 静态检查（无 Docker 环境也能跑）：`node workbench/scripts/check-deploy.mjs`（16 项：compose 结构、变量、nginx 三端、Dockerfile 多阶段/非 root/健康检查）。
 
+## 浏览器验收（Playwright）
+
+前置：后端已启动（默认 9000），三个 dev server 已启动。
+
+```powershell
+# 1. 后端（另开窗口）
+cd workbench\server
+mvn -pl workbench-app -am spring-boot:run
+
+# 2. 三端 dev server（另开三个窗口；WORKBENCH_API 指向后端）
+cd workbench\web
+$env:WORKBENCH_API='http://127.0.0.1:9000'
+pnpm dev:staff      # 5180
+pnpm dev:admin      # 5181
+pnpm dev:mobile     # 5182
+
+# 3. 跑验收（使用本机 Chrome，不下载浏览器）
+pnpm test:e2e
+```
+
+覆盖：员工端「登录 → 建项目 → 建任务 → 完成任务」、管理端「登录 → 用户列表 → 系统设置页」、移动端「登录 → 项目卡片 → 任务页」。失败时在 `workbench/web/apps/e2e/test-results/` 留下截图与 trace（`pnpm exec playwright show-trace <trace.zip>`）。
+
+说明：`playwright.config.ts` 使用 `channel: "chrome"`，复用本机已安装的 Chrome；CI 中若要跑需先 `pnpm exec playwright install --with-deps chromium` 并去掉 channel。
+
 ## 设计文档
 
 - `docs/design-v2.md`、`docs/feature-inventory.md`、`docs/feature-daily-report.md`

@@ -5,7 +5,9 @@
   "scripts": {
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",
+    "test:e2e": "pnpm --filter @workbench/e2e test",
     "dev:staff": "pnpm --filter @workbench/staff dev",
+    "dev:admin": "pnpm --filter @workbench/admin dev",
     "dev:mobile": "pnpm --filter @workbench/mobile dev"
   }
 }

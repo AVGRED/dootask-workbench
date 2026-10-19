@@ -71,3 +71,7 @@ workbench/server/data/
 
 # workbench web build output
 workbench/web/**/dist/
+
+# playwright artifacts
+workbench/web/apps/e2e/test-results/
+workbench/web/apps/e2e/playwright-report/
