@@ -83,6 +83,7 @@ $bootstrapResp = Invoke-Api -Method Put -Path "/api/v1/users/$($login.data.useri
 Assert-True "首个用户自举为管理员" ($bootstrapResp.data.role -eq "admin") "role=$($bootstrapResp.data.role)"
 $adminLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $Username; password = $Password }
 $script:token = $adminLogin.data.token
+$script:adminToken = $adminLogin.data.token
 Assert-True "管理员登录角色为 admin" ($adminLogin.data.role -eq "admin") "role=$($adminLogin.data.role)"
 
 # 2. 项目创建（中文）
@@ -661,7 +662,7 @@ Assert-True "用户分页 size 生效" ($users.data.size -eq 5) "size=$($users.d
 
 Write-Host ""
 # 6.23 E2E 自清理：删掉本轮创建的测试账号（保留 demo 与 legacy）
-$cleanupTeam = (Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/v1/team/status" -Headers @{ Authorization = "Bearer $script:token" }).data
+$cleanupTeam = (Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/v1/team/status" -Headers @{ Authorization = "Bearer $script:adminToken" }).data
 $cleanupIds = @($cleanupTeam | Where-Object {
     $_.userid -ne 1 -and $_.userid -ne 9001 -and (
       $_.email -like 'e2e-*' -or $_.email -like 'viewer-*' -or
@@ -670,10 +671,12 @@ $cleanupIds = @($cleanupTeam | Where-Object {
 $cleanupDeleted = 0
 for ($i = 0; $i -lt $cleanupIds.Count; $i += 20) {
   $chunk = @($cleanupIds[$i..([math]::Min($i + 19, $cleanupIds.Count - 1))])
-  $res = Invoke-Api -Method Post -Path "/api/v1/admin/users/batch" -Body @{ action = "delete"; userids = $chunk }
+  $batchBody = @{ action = "delete"; userids = $chunk } | ConvertTo-Json -Depth 4
+  $res = Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/v1/admin/users/batch" -Method Post -Headers @{ Authorization = "Bearer $script:adminToken"; "Content-Type" = "application/json" } -Body $batchBody
   if ($res.code -eq 0) { $cleanupDeleted += $res.data.affected }
 }
-Assert-True "E2E 自清理测试账号" ($cleanupIds.Count -eq 0 -or $cleanupDeleted -gt 0) "deleted=$cleanupDeleted"
+$cleanupRemaining = @($cleanupIds).Count - $cleanupDeleted
+Assert-True "E2E 自清理测试账号" ($cleanupRemaining -le 0) "found=$($cleanupIds.Count) deleted=$cleanupDeleted"
 
 # 6.22 登出使旧令牌失效
 $logoutLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "demo@workbench.local"; password = "secret123" }
