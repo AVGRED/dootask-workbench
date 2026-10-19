@@ -56,6 +56,22 @@
         <el-table-column prop="overrunMinutes" label="超出(分钟)" />
         <el-table-column prop="taskCount" label="任务数" />
       </el-table>
+
+      <div class="section-title">
+        任务模板
+        <el-button link type="primary" @click="openTemplateCreate">新建模板</el-button>
+      </div>
+      <el-table :data="templates" border size="small">
+        <el-table-column prop="name" label="名称" min-width="180" />
+        <el-table-column prop="revisionNo" label="版本" width="80" />
+        <el-table-column prop="revisionCount" label="快照数" width="90" />
+        <el-table-column label="操作" width="180">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="applyTemplate(row as TemplateView)">应用</el-button>
+            <el-button link type="danger" @click="removeTemplate(row as TemplateView)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
     </el-main>
 
     <el-dialog v-model="createVisible" title="新建里程碑" width="460px">
@@ -75,6 +91,21 @@
         <el-button type="primary" :loading="saving" @click="submitCreate">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="templateVisible" title="新建模板" width="460px">
+      <el-form :model="templateForm" label-width="90px">
+        <el-form-item label="名称">
+          <el-input v-model="templateForm.name" />
+        </el-form-item>
+        <el-form-item label="内容">
+          <el-input v-model="templateForm.content" type="textarea" :rows="4" placeholder="模板步骤/检查项" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="templateVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="submitTemplate">保存</el-button>
+      </template>
+    </el-dialog>
   </el-container>
 </template>
 
@@ -82,7 +113,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { CapacitySummary, DependencyView, MilestoneView, RiskSummaryView } from "@workbench/api";
+import type { CapacitySummary, DependencyView, MilestoneView, RiskSummaryView, TemplateView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const route = useRoute();
@@ -93,6 +124,9 @@ const milestones = ref<MilestoneView[]>([]);
 const dependencies = ref<DependencyView[]>([]);
 const risk = ref<RiskSummaryView>({ edgeCount: 0, blockedCount: 0, unownedCount: 0, overdueCount: 0 });
 const capacity = ref<CapacitySummary | null>(null);
+const templates = ref<TemplateView[]>([]);
+const templateVisible = ref(false);
+const templateForm = reactive<{ name: string; content: string }>({ name: "", content: "" });
 const loading = ref(false);
 const saving = ref(false);
 const createVisible = ref(false);
@@ -102,11 +136,56 @@ const form = reactive<{ name: string; targetAt: string; reminderDays: number }>(
   reminderDays: -1
 });
 
+function openTemplateCreate(): void {
+  templateForm.name = "";
+  templateForm.content = "";
+  templateVisible.value = true;
+}
+
+async function submitTemplate(): Promise<void> {
+  saving.value = true;
+  try {
+    await client.createTemplate(projectId.value, { name: templateForm.name, content: templateForm.content });
+    ElMessage.success("已创建模板");
+    templateVisible.value = false;
+    await reload();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "创建失败");
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function applyTemplate(row: TemplateView): Promise<void> {
+  try {
+    const result = await client.applyTemplate(row.id);
+    ElMessage.success(`已生成任务 #${result.taskId}`);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "应用失败");
+  }
+}
+
+async function removeTemplate(row: TemplateView): Promise<void> {
+  try {
+    await ElMessageBox.confirm(`删除模板「${row.name}」？`, "删除确认", { type: "warning" });
+  } catch {
+    return;
+  }
+  try {
+    await client.deleteTemplate(row.id);
+    ElMessage.success("已删除");
+    await reload();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
+  }
+}
+
 async function reload(): Promise<void> {
   if (!projectId.value) return;
   loading.value = true;
   try {
     milestones.value = await client.listMilestones(projectId.value);
+    templates.value = await client.listTemplates(projectId.value);
     dependencies.value = await client.listDependencies(projectId.value);
     risk.value = await client.dependencyRisk(projectId.value);
     const now = new Date();

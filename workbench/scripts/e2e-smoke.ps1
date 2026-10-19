@@ -302,6 +302,29 @@ Invoke-Api -Method Delete -Path "/api/v1/attachments/$attachmentId" | Out-Null
 $attachmentsAfter = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/attachments").data
 Assert-True "删除附件后列表为空" ($attachmentsAfter.Count -eq 0) "count=$($attachmentsAfter.Count)"
 
+# 6.10 任务模板与版本
+$template = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/templates" -Body @{ name = "E2E 模板"; content = "步骤一" }
+Assert-True "创建模板 code=0" ($template.code -eq 0) "code=$($template.code)"
+$templateId = $template.data.id
+Assert-True "模板初始版本为 1" ($template.data.revisionNo -eq 1) "rev=$($template.data.revisionNo)"
+
+$templateV2 = Invoke-Api -Method Put -Path "/api/v1/templates/$templateId" -Body @{ name = "E2E 模板 v2"; content = "步骤二" }
+Assert-True "更新模板版本递增到 2" ($templateV2.data.revisionNo -eq 2) "rev=$($templateV2.data.revisionNo)"
+
+$revisions = (Invoke-Api -Method Get -Path "/api/v1/templates/$templateId/revisions").data
+Assert-True "版本快照共 2 条" ($revisions.Count -eq 2) "count=$($revisions.Count)"
+Assert-True "最新版本在最前" ($revisions[0].revisionNo -eq 2) "first=$($revisions[0].revisionNo)"
+
+$applyResult = Invoke-Api -Method Post -Path "/api/v1/templates/$templateId/apply"
+Assert-True "应用模板生成任务" ($applyResult.data.taskId -gt 0) "taskId=$($applyResult.data.taskId)"
+$generated = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks?keyword=E2E%20模板").data
+Assert-True "生成的任务可查到" ([bool]($generated.list | Where-Object { $_.id -eq $applyResult.data.taskId })) ""
+
+Invoke-Api -Method Delete -Path "/api/v1/tasks/$($applyResult.data.taskId)" | Out-Null
+Invoke-Api -Method Delete -Path "/api/v1/templates/$templateId" | Out-Null
+$templatesAfter = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/templates").data
+Assert-True "删除模板后列表为空" ($templatesAfter.Count -eq 0) "count=$($templatesAfter.Count)"
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total

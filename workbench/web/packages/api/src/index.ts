@@ -1,5 +1,6 @@
 import type {
   ApiResponse,
+  ApplyTemplateResult,
   AttachmentView,
   CapacitySummary,
   CommentView,
@@ -21,9 +22,12 @@ import type {
   SaveMilestoneRequest,
   SaveProjectRequest,
   SaveTaskRequest,
+  SaveTemplateRequest,
   SchedulePreviewRequest,
   SchedulePreviewResponse,
   TaskView,
+  TemplateRevisionView,
+  TemplateView,
   UnreadCountView,
   UserView,
   WeeklySummaryView,
@@ -274,6 +278,30 @@ export class ApiClient {
     const response = await fetch(`${this.options.baseUrl}/api/v1/attachments/${id}/download`, { headers });
     if (!response.ok) throw new ApiError(response.status, `下载失败（${response.status}）`);
     return response.blob();
+  }
+
+  async listTemplates(projectId: number): Promise<TemplateView[]> {
+    return this.request<TemplateView[]>("GET", `/api/v1/projects/${projectId}/templates`);
+  }
+
+  async createTemplate(projectId: number, payload: SaveTemplateRequest): Promise<TemplateView> {
+    return this.request<TemplateView>("POST", `/api/v1/projects/${projectId}/templates`, payload);
+  }
+
+  async updateTemplate(id: number, payload: SaveTemplateRequest): Promise<TemplateView> {
+    return this.request<TemplateView>("PUT", `/api/v1/templates/${id}`, payload);
+  }
+
+  async templateRevisions(id: number): Promise<TemplateRevisionView[]> {
+    return this.request<TemplateRevisionView[]>("GET", `/api/v1/templates/${id}/revisions`);
+  }
+
+  async applyTemplate(id: number): Promise<ApplyTemplateResult> {
+    return this.request<ApplyTemplateResult>("POST", `/api/v1/templates/${id}/apply`);
+  }
+
+  async deleteTemplate(id: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/templates/${id}`);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

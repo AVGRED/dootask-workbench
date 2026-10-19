@@ -243,3 +243,31 @@ export interface AttachmentView {
   sizeBytes: number;
   createdAt: string;
 }
+
+export interface TemplateView {
+  id: number;
+  name: string;
+  content: string;
+  milestoneName: string;
+  revisionNo: number;
+  revisionCount: number;
+  updatedAt: string;
+}
+
+export interface SaveTemplateRequest {
+  name: string;
+  content?: string;
+  milestoneName?: string;
+}
+
+export interface TemplateRevisionView {
+  id: number;
+  revisionNo: number;
+  snapshot: string;
+  createdAt: string;
+}
+
+export interface ApplyTemplateResult {
+  taskId: number;
+  taskName: string;
+}
