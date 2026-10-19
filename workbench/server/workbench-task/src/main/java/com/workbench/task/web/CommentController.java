@@ -27,8 +27,8 @@ public class CommentController {
     }
 
     @GetMapping("/tasks/{taskId}/comments")
-    public ApiResponse<List<CommentView>> list(@PathVariable long taskId) {
-        return ApiResponse.ok(commentService.list(taskId));
+    public ApiResponse<List<CommentView>> list(Principal principal, @PathVariable long taskId) {
+        return ApiResponse.ok(commentService.list(taskId, currentUserid(principal)));
     }
 
     @PostMapping("/tasks/{taskId}/comments")

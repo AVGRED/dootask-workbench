@@ -42,13 +42,14 @@ public class AttachmentController {
     }
 
     @GetMapping("/tasks/{taskId}/attachments")
-    public ApiResponse<List<AttachmentView>> list(@PathVariable long taskId) {
-        return ApiResponse.ok(attachmentService.list(taskId));
+    public ApiResponse<List<AttachmentView>> list(Principal principal, @PathVariable long taskId) {
+        return ApiResponse.ok(attachmentService.list(taskId, currentUserid(principal)));
     }
 
     @GetMapping("/attachments/{id}/download")
-    public ResponseEntity<InputStreamResource> download(@PathVariable long id) throws IOException {
-        AttachmentService.Download download = attachmentService.open(id);
+    public ResponseEntity<InputStreamResource> download(Principal principal, @PathVariable long id)
+            throws IOException {
+        AttachmentService.Download download = attachmentService.open(id, currentUserid(principal));
         Attachment attachment = download.attachment();
         String encoded = URLEncoder.encode(attachment.getOriginalName(), StandardCharsets.UTF_8)
                 .replace("+", "%20");

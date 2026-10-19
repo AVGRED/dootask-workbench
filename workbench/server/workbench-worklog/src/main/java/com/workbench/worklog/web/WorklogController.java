@@ -39,8 +39,8 @@ public class WorklogController {
     }
 
     @GetMapping("/tasks/{taskId}/worklogs")
-    public ApiResponse<List<WorklogView>> list(@PathVariable long taskId) {
-        return ApiResponse.ok(worklogService.listByTask(taskId));
+    public ApiResponse<List<WorklogView>> list(Principal principal, @PathVariable long taskId) {
+        return ApiResponse.ok(worklogService.listByTask(taskId, currentUserid(principal)));
     }
 
     @DeleteMapping("/worklogs/{id}")
@@ -51,10 +51,11 @@ public class WorklogController {
 
     @GetMapping("/projects/{projectId}/capacity")
     public ApiResponse<CapacitySummary> capacity(
+            Principal principal,
             @PathVariable long projectId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return ApiResponse.ok(worklogService.capacity(projectId, from, to));
+        return ApiResponse.ok(worklogService.capacity(projectId, currentUserid(principal), from, to));
     }
 
     private long currentUserid(Principal principal) {

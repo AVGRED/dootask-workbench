@@ -434,6 +434,19 @@ $viewerWrite = Invoke-Api -Method Post -Path "/api/v1/projects/$proj2Id/tasks" -
 Assert-True "viewer 建任务被拒（403）" ($viewerWrite.code -eq 403) "code=$($viewerWrite.code)"
 $viewerRead = Invoke-Api -Method Get -Path "/api/v1/projects/$proj2Id/tasks"
 Assert-True "viewer 仍可读任务列表" ($viewerRead.code -eq 0) "code=$($viewerRead.code)"
+
+$script:token = $adminLogin.data.token
+$adminTaskIn2 = Invoke-Api -Method Post -Path "/api/v1/projects/$proj2Id/tasks" -Body @{ name = "权限验证任务" }
+$taskIn2 = $adminTaskIn2.data.id
+$script:token = $viewerToken
+$viewerComment = Invoke-Api -Method Post -Path "/api/v1/tasks/$taskIn2/comments" -Body @{ content = "viewer 不该能评论" }
+Assert-True "viewer 发评论被拒（403）" ($viewerComment.code -eq 403) "code=$($viewerComment.code)"
+$viewerWorklog = Invoke-Api -Method Post -Path "/api/v1/tasks/$taskIn2/worklogs" -Body @{ requestId = "viewer-work-1"; minutes = 30; workDate = $today }
+Assert-True "viewer 登记工时被拒（403）" ($viewerWorklog.code -eq 403) "code=$($viewerWorklog.code)"
+$viewerCommentsRead = Invoke-Api -Method Get -Path "/api/v1/tasks/$taskIn2/comments"
+Assert-True "viewer 仍可读评论" ($viewerCommentsRead.code -eq 0) "code=$($viewerCommentsRead.code)"
+$viewerWorklogsRead = Invoke-Api -Method Get -Path "/api/v1/tasks/$taskIn2/worklogs"
+Assert-True "viewer 仍可读工时" ($viewerWorklogsRead.code -eq 0) "code=$($viewerWorklogsRead.code)"
 $script:token = $adminLogin.data.token
 Invoke-Api -Method Delete -Path "/api/v1/projects/$proj2Id" | Out-Null
 $staffCreate = Invoke-Api -Method Post -Path "/api/v1/users" -Body @{ email = "x$((New-Suffix))@workbench.local"; nickname = "x"; password = "secret123" }

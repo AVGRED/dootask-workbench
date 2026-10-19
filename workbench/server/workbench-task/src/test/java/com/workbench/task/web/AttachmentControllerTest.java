@@ -76,10 +76,10 @@ class AttachmentControllerTest {
 
     @Test
     void listReturnsAttachments() throws Exception {
-        given(attachmentService.list(5L)).willReturn(List.of(
+        given(attachmentService.list(eq(5L), anyLong())).willReturn(List.of(
                 new AttachmentView(1L, 5L, 7L, "a.png", "image/png", 10, LocalDateTime.now())));
 
-        mockMvc.perform(get("/api/v1/tasks/5/attachments"))
+        mockMvc.perform(get("/api/v1/tasks/5/attachments").principal(principal))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].originalName").value("a.png"));
     }
@@ -91,10 +91,10 @@ class AttachmentControllerTest {
         attachment.setOriginalName("说明.txt");
         attachment.setMimeType("text/plain");
         attachment.setSizeBytes(5L);
-        given(attachmentService.open(1L)).willReturn(new AttachmentService.Download(
+        given(attachmentService.open(eq(1L), anyLong())).willReturn(new AttachmentService.Download(
                 attachment, new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8))));
 
-        mockMvc.perform(get("/api/v1/attachments/1/download"))
+        mockMvc.perform(get("/api/v1/attachments/1/download").principal(principal))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition",
                         org.hamcrest.Matchers.containsString("filename*=UTF-8''")))

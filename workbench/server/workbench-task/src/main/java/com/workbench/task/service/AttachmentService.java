@@ -2,6 +2,7 @@ package com.workbench.task.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.workbench.common.api.BusinessException;
+import com.workbench.project.service.ProjectAccess;
 import com.workbench.task.entity.Attachment;
 import com.workbench.task.mapper.AttachmentMapper;
 import com.workbench.task.storage.AttachmentStorage;
@@ -27,12 +28,14 @@ public class AttachmentService {
     private final AttachmentMapper attachmentMapper;
     private final AttachmentStorage storage;
     private final JdbcTemplate jdbcTemplate;
+    private final ProjectAccess projectAccess;
 
     public AttachmentService(AttachmentMapper attachmentMapper, AttachmentStorage storage,
-                             JdbcTemplate jdbcTemplate) {
+                             JdbcTemplate jdbcTemplate, ProjectAccess projectAccess) {
         this.attachmentMapper = attachmentMapper;
         this.storage = storage;
         this.jdbcTemplate = jdbcTemplate;
+        this.projectAccess = projectAccess;
     }
 
     public AttachmentView upload(long currentUserid, long taskId, MultipartFile file) {
@@ -49,6 +52,7 @@ public class AttachmentService {
         if (projectId == null || projectId == 0) {
             throw new BusinessException("任务不存在");
         }
+        projectAccess.requireWrite(projectId, currentUserid);
 
         String originalName = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename();
         String storedName;
@@ -77,7 +81,8 @@ public class AttachmentService {
         return toView(attachment);
     }
 
-    public List<AttachmentView> list(long taskId) {
+    public List<AttachmentView> list(long taskId, long currentUserid) {
+        requireTaskAccess(taskId, currentUserid);
         return attachmentMapper.selectList(new LambdaQueryWrapper<Attachment>()
                         .eq(Attachment::getTaskId, taskId)
                         .orderByDesc(Attachment::getId))
@@ -87,11 +92,12 @@ public class AttachmentService {
     }
 
     /** 下载所需：返回元数据 + 内容流，由控制器写响应。 */
-    public Download open(long id) {
+    public Download open(long id, long currentUserid) {
         Attachment attachment = attachmentMapper.selectById(id);
         if (attachment == null) {
             throw new BusinessException("附件不存在");
         }
+        projectAccess.requireAccess(attachment.getProjectId(), currentUserid);
         try {
             return new Download(attachment, storage.open(attachment.getStoredName()));
         } catch (IOException exception) {
@@ -118,6 +124,17 @@ public class AttachmentService {
         }
         attachmentMapper.deleteById(id);
         storage.delete(attachment.getStoredName());
+    }
+
+    private void requireTaskAccess(long taskId, long currentUserid) {
+        Long projectId = jdbcTemplate.query(
+                "select project_id from project_tasks where id = ? and deleted_at is null",
+                rs -> rs.next() ? rs.getLong("project_id") : null,
+                taskId);
+        if (projectId == null || projectId == 0) {
+            throw new BusinessException("任务不存在");
+        }
+        projectAccess.requireAccess(projectId, currentUserid);
     }
 
     private static String sha256(byte[] bytes) {

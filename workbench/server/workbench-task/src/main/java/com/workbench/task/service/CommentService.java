@@ -2,6 +2,7 @@ package com.workbench.task.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.workbench.common.api.BusinessException;
+import com.workbench.project.service.ProjectAccess;
 import com.workbench.task.entity.Notification;
 import com.workbench.task.entity.TaskComment;
 import com.workbench.task.mapper.NotificationMapper;
@@ -24,12 +25,14 @@ public class CommentService {
     private final TaskCommentMapper commentMapper;
     private final NotificationMapper notificationMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final ProjectAccess projectAccess;
 
     public CommentService(TaskCommentMapper commentMapper, NotificationMapper notificationMapper,
-                          JdbcTemplate jdbcTemplate) {
+                          JdbcTemplate jdbcTemplate, ProjectAccess projectAccess) {
         this.commentMapper = commentMapper;
         this.notificationMapper = notificationMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.projectAccess = projectAccess;
     }
 
     @Transactional
@@ -41,6 +44,7 @@ public class CommentService {
         if (projectId == null || projectId == 0) {
             throw new BusinessException("任务不存在");
         }
+        projectAccess.requireWrite(projectId, currentUserid);
 
         List<Long> mentions = request.mentionUserids() == null ? List.of() : request.mentionUserids().stream()
                 .filter(Objects::nonNull)
@@ -79,7 +83,15 @@ public class CommentService {
         return toView(comment);
     }
 
-    public List<CommentView> list(long taskId) {
+    public List<CommentView> list(long taskId, long currentUserid) {
+        Long projectId = jdbcTemplate.query(
+                "select project_id from project_tasks where id = ? and deleted_at is null",
+                rs -> rs.next() ? rs.getLong("project_id") : null,
+                taskId);
+        if (projectId == null || projectId == 0) {
+            throw new BusinessException("任务不存在");
+        }
+        projectAccess.requireAccess(projectId, currentUserid);
         return commentMapper.selectList(new LambdaQueryWrapper<TaskComment>()
                         .eq(TaskComment::getTaskId, taskId)
                         .orderByAsc(TaskComment::getId))

@@ -1,6 +1,7 @@
 package com.workbench.task.web;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -79,10 +80,10 @@ class CommentControllerTest {
 
     @Test
     void listReturnsComments() throws Exception {
-        given(commentService.list(5L)).willReturn(List.of(
+        given(commentService.list(eq(5L), anyLong())).willReturn(List.of(
                 new CommentView(1L, 5L, 7L, "第一条", List.of(), LocalDateTime.now())));
 
-        mockMvc.perform(get("/api/v1/tasks/5/comments"))
+        mockMvc.perform(get("/api/v1/tasks/5/comments").principal(principal))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].content").value("第一条"));
     }
@@ -110,6 +111,6 @@ class CommentControllerTest {
     void anonymousIsRejected() throws Exception {
         mockMvc.perform(get("/api/v1/tasks/5/comments"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(0));
+                .andExpect(jsonPath("$.code").value(401));
     }
 }

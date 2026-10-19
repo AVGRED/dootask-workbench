@@ -90,10 +90,10 @@ class WorklogControllerTest {
 
     @Test
     void listReturnsLogs() throws Exception {
-        given(worklogService.listByTask(5L)).willReturn(List.of(
+        given(worklogService.listByTask(eq(5L), anyLong())).willReturn(List.of(
                 new WorklogView(1L, 5L, 7L, 120, LocalDate.of(2026, 10, 19), "")));
 
-        mockMvc.perform(get("/api/v1/tasks/5/worklogs"))
+        mockMvc.perform(get("/api/v1/tasks/5/worklogs").principal(principal))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].minutes").value(120));
     }
@@ -119,10 +119,10 @@ class WorklogControllerTest {
 
     @Test
     void capacityRejectsRangeOver93Days() throws Exception {
-        given(worklogService.capacity(anyLong(), any(), any()))
+        given(worklogService.capacity(anyLong(), anyLong(), any(), any()))
                 .willThrow(new BusinessException("日期区间最多 93 天"));
 
-        mockMvc.perform(get("/api/v1/projects/3/capacity")
+        mockMvc.perform(get("/api/v1/projects/3/capacity").principal(principal)
                         .param("from", "2026-01-01")
                         .param("to", "2026-12-31"))
                 .andExpect(status().isOk())
@@ -132,11 +132,11 @@ class WorklogControllerTest {
 
     @Test
     void capacityReturnsMembers() throws Exception {
-        given(worklogService.capacity(anyLong(), any(), any())).willReturn(new CapacitySummary(
+        given(worklogService.capacity(anyLong(), anyLong(), any(), any())).willReturn(new CapacitySummary(
                 LocalDate.of(2026, 10, 5), LocalDate.of(2026, 10, 9), 5, 480,
                 List.of(new CapacityMember(7L, 540, 2400, 23, 0, 2))));
 
-        mockMvc.perform(get("/api/v1/projects/3/capacity")
+        mockMvc.perform(get("/api/v1/projects/3/capacity").principal(principal)
                         .param("from", "2026-10-05")
                         .param("to", "2026-10-09"))
                 .andExpect(status().isOk())

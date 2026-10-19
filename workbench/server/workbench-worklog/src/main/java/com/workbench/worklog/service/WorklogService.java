@@ -2,6 +2,7 @@ package com.workbench.worklog.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.workbench.common.api.BusinessException;
+import com.workbench.project.service.ProjectAccess;
 import com.workbench.worklog.capacity.CapacityCalculator;
 import com.workbench.worklog.capacity.CapacityCalculator.LogRow;
 import com.workbench.worklog.entity.WorkLog;
@@ -30,10 +31,12 @@ public class WorklogService {
 
     private final WorkLogMapper workLogMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final ProjectAccess projectAccess;
 
-    public WorklogService(WorkLogMapper workLogMapper, JdbcTemplate jdbcTemplate) {
+    public WorklogService(WorkLogMapper workLogMapper, JdbcTemplate jdbcTemplate, ProjectAccess projectAccess) {
         this.workLogMapper = workLogMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.projectAccess = projectAccess;
     }
 
     public WorklogView create(long currentUserid, long taskId, CreateWorklogRequest request) {
@@ -44,6 +47,7 @@ public class WorklogService {
         if (projectId == null || projectId == 0) {
             throw new BusinessException("任务不存在");
         }
+        projectAccess.requireWrite(projectId, currentUserid);
 
         WorkLog existing = workLogMapper.selectOne(new LambdaQueryWrapper<WorkLog>()
                 .eq(WorkLog::getProjectId, projectId)
@@ -69,7 +73,8 @@ public class WorklogService {
         return toView(log);
     }
 
-    public List<WorklogView> listByTask(long taskId) {
+    public List<WorklogView> listByTask(long taskId, long currentUserid) {
+        requireTaskAccess(taskId, currentUserid);
         return workLogMapper.selectList(new LambdaQueryWrapper<WorkLog>()
                         .eq(WorkLog::getTaskId, taskId)
                         .orderByDesc(WorkLog::getWorkDate)
@@ -99,7 +104,8 @@ public class WorklogService {
         workLogMapper.deleteById(logId);
     }
 
-    public CapacitySummary capacity(long projectId, LocalDate from, LocalDate to) {
+    public CapacitySummary capacity(long projectId, long currentUserid, LocalDate from, LocalDate to) {
+        projectAccess.requireAccess(projectId, currentUserid);
         if (from == null || to == null) {
             throw new BusinessException("请选择日期区间");
         }
@@ -120,6 +126,17 @@ public class WorklogService {
                 projectId, from, to);
         CapacityCalculator.Result result = CapacityCalculator.summarize(from, to, rows);
         return new CapacitySummary(from, to, result.workdays(), CapacityCalculator.DAILY_MINUTES, result.members());
+    }
+
+    private void requireTaskAccess(long taskId, long currentUserid) {
+        Long projectId = jdbcTemplate.query(
+                "select project_id from project_tasks where id = ? and deleted_at is null",
+                rs -> rs.next() ? rs.getLong("project_id") : null,
+                taskId);
+        if (projectId == null || projectId == 0) {
+            throw new BusinessException("任务不存在");
+        }
+        projectAccess.requireAccess(projectId, currentUserid);
     }
 
     private static String payloadHash(CreateWorklogRequest request) {
