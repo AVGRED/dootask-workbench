@@ -1,9 +1,14 @@
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\search\SearchResult.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\dashboard\DashboardDtos.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\status\StatusController.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\status\StatusService.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\search\SearchService.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\mail\MailController.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\dashboard\DashboardService.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\config\MailConfig.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\config\MybatisPlusConfig.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\search\SearchController.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\migrate\LegacyMigrationRunner.java
-D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\search\SearchService.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\WorkbenchApplication.java
-D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\mail\MailController.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\dashboard\DashboardController.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\migrate\MigrationPlan.java

@@ -500,6 +500,31 @@ $reportRange = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/report
 Assert-True "自定义区间生效" ($reportRange.from -eq "2026-10-01") "from=$($reportRange.from)"
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$($reportTask.data.id)" | Out-Null
 
+# 6.21 仪表盘与员工状态
+$dash = (Invoke-Api -Method Get -Path "/api/v1/dashboard/me").data
+Assert-True "仪表盘目录 10 个板块" ($dash.catalog.Count -eq 10) "count=$($dash.catalog.Count)"
+Assert-True "仪表盘返回布局" ($dash.layout.Count -ge 1) "count=$($dash.layout.Count)"
+$savedLayout = Invoke-Api -Method Put -Path "/api/v1/dashboard/me/layout" -Body @{ items = @(@{ id = "my-tasks"; x = 0; y = 0; w = 8; h = 2 }) }
+Assert-True "布局保存成功" ($savedLayout.data.items[0].w -eq 8) "w=$($savedLayout.data.items[0].w)"
+$reloaded = (Invoke-Api -Method Get -Path "/api/v1/dashboard/me").data
+Assert-True "布局按账号持久化" ($reloaded.layout[0].w -eq 8) "w=$($reloaded.layout[0].w)"
+$badLayout = Invoke-Api -Method Put -Path "/api/v1/dashboard/me/layout" -Body @{ items = @(@{ id = "nope"; x = 0; y = 0; w = 4; h = 1 }) }
+Assert-True "未知板块被拒绝" ($badLayout.code -eq 400) "code=$($badLayout.code)"
+Invoke-Api -Method Post -Path "/api/v1/dashboard/me/layout/reset" | Out-Null
+$reset = (Invoke-Api -Method Get -Path "/api/v1/dashboard/me").data
+Assert-True "重置回默认布局" ($reset.layout[0].id -eq "my-tasks") "id=$($reset.layout[0].id)"
+
+$statusSet = Invoke-Api -Method Put -Path "/api/v1/me/status" -Body @{ status = "focus"; note = "E2E 专注" }
+Assert-True "设置员工状态" ($statusSet.data.status -eq "focus") "status=$($statusSet.data.status)"
+$myStatus = (Invoke-Api -Method Get -Path "/api/v1/me/status").data
+Assert-True "读取员工状态" ($myStatus.note -eq "E2E 专注") "note=$($myStatus.note)"
+$badStatus = Invoke-Api -Method Put -Path "/api/v1/me/status" -Body @{ status = "sleeping" }
+Assert-True "非法状态被拒绝" ($badStatus.code -eq 400) "code=$($badStatus.code)"
+$team = (Invoke-Api -Method Get -Path "/api/v1/team/status").data
+Assert-True "团队状态墙包含本人" ([bool]($team | Where-Object { $_.userid -eq $me })) "count=$($team.Count)"
+Assert-True "状态墙带进行中任务字段" ([bool]($team[0].PSObject.Properties.Name -contains "current_task")) ""
+Invoke-Api -Method Put -Path "/api/v1/me/status" -Body @{ status = "idle"; note = "" } | Out-Null
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total
