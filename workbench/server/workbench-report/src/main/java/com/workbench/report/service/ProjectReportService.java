@@ -57,14 +57,25 @@ public class ProjectReportService {
                         rs.getLong("minutes"), rs.getLong("tasks")),
                 projectId, safeFrom, safeTo);
 
+        java.util.Map<java.time.LocalDate, Long> minutesByDay = new java.util.HashMap<>();
+        jdbcTemplate.query("select work_date, coalesce(sum(minutes), 0) as minutes from project_task_work_logs "
+                        + "where project_id = ? and deleted_at is null and work_date between ? and ? group by work_date",
+                rs -> {
+                    minutesByDay.put(rs.getDate("work_date").toLocalDate(), rs.getLong("minutes"));
+                }, projectId, safeFrom, safeTo);
+
+        java.util.Map<java.time.LocalDate, Long> completedByDay = new java.util.HashMap<>();
+        jdbcTemplate.query("select date(complete_at) as day, count(*) as total from project_tasks "
+                        + "where project_id = ? and deleted_at is null and complete_at is not null "
+                        + "and date(complete_at) between ? and ? group by date(complete_at)",
+                rs -> {
+                    completedByDay.put(rs.getDate("day").toLocalDate(), rs.getLong("total"));
+                }, projectId, safeFrom, safeTo);
+
         List<DayPoint> days = new ArrayList<>();
         for (LocalDate cursor = safeFrom; !cursor.isAfter(safeTo); cursor = cursor.plusDays(1)) {
-            LocalDate day = cursor;
-            long dayMinutes = count("select coalesce(sum(minutes), 0) from project_task_work_logs "
-                    + "where project_id = ? and deleted_at is null and work_date = ?", projectId, day);
-            long dayCompleted = count("select count(*) from project_tasks where project_id = ? "
-                    + "and deleted_at is null and date(complete_at) = ?", projectId, day);
-            days.add(new DayPoint(day, dayMinutes, dayCompleted));
+            days.add(new DayPoint(cursor, minutesByDay.getOrDefault(cursor, 0L),
+                    completedByDay.getOrDefault(cursor, 0L)));
         }
 
         return new ProjectReport(projectId, safeFrom, safeTo, total, completed, overdue, percent,

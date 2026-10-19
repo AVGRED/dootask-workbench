@@ -16,7 +16,8 @@ public final class DashboardDtos {
     }
 
     public record DashboardView(List<WidgetDef> catalog, List<LayoutItem> layout,
-                                Map<String, Object> data, String status, String statusNote) {
+                                Map<String, Object> data, String status, String statusNote,
+                                boolean layoutSaved) {
     }
 
     public record SaveLayoutRequest(List<LayoutItem> items) {

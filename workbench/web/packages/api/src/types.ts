@@ -412,6 +412,7 @@ export interface DashboardView {
   data: Record<string, unknown>;
   status: string;
   statusNote: string;
+  layoutSaved: boolean;
 }
 
 export interface AdminProjectRow {

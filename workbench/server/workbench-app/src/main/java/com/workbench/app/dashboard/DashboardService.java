@@ -60,7 +60,8 @@ public class DashboardService {
 
     public DashboardView me(long userid) {
         List<LayoutItem> layout = loadLayout(userid);
-        return new DashboardView(CATALOG, layout, data(userid), statusOf(userid), statusNoteOf(userid));
+        return new DashboardView(CATALOG, layout, data(userid), statusOf(userid), statusNoteOf(userid),
+                isLayoutSaved(userid));
     }
 
     public LayoutView saveLayout(long userid, List<LayoutItem> items) {
@@ -109,6 +110,16 @@ public class DashboardService {
             // 没有布局时删除无影响
         }
         return new LayoutView(DEFAULT_LAYOUT);
+    }
+
+    private boolean isLayoutSaved(long userid) {
+        try {
+            Long total = jdbc.queryForObject(
+                    "select count(*) from user_dashboard_layouts where userid = ?", Long.class, userid);
+            return total != null && total > 0;
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 
     private List<LayoutItem> loadLayout(long userid) {

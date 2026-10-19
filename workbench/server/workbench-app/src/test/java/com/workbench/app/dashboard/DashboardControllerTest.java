@@ -48,7 +48,7 @@ class DashboardControllerTest {
                 List.of(new WidgetDef("my-tasks", "我的任务", "工作", 6, 2)),
                 List.of(new LayoutItem("my-tasks", 0, 0, 6, 2)),
                 Map.of("summary", Map.of("projects", 2)),
-                "focus", "写代码"));
+                "focus", "写代码", false));
 
         mockMvc.perform(get("/api/v1/dashboard/me").principal(principal))
                 .andExpect(status().isOk())

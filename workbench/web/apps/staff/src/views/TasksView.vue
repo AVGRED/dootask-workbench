@@ -17,6 +17,15 @@
         <el-button @click="createTag">新建标签</el-button>
         <el-button :disabled="selectedIds.length === 0" @click="batchComplete">批量完成</el-button>
         <el-button :disabled="selectedIds.length === 0" @click="batchDelete">批量删除</el-button>
+        <el-select v-model="batchTagId" placeholder="批量加标签" size="small" style="width: 140px" :disabled="selectedIds.length === 0" @change="batchTag">
+          <el-option v-for="tag in projectTags" :key="tag.id" :label="tag.name" :value="tag.id" />
+        </el-select>
+        <el-select v-model="batchLevel" placeholder="批量优先级" size="small" style="width: 130px" :disabled="selectedIds.length === 0" @change="batchPriority">
+          <el-option label="P0 紧急" :value="0" />
+          <el-option label="P1 高" :value="1" />
+          <el-option label="P2 中" :value="2" />
+          <el-option label="P3 低" :value="3" />
+        </el-select>
         <el-button @click="exportTasks">导出任务</el-button>
         <el-button @click="exportWorklogs">导出工时</el-button>
       </div>
@@ -177,6 +186,8 @@ const router = useRouter();
 const projectId = computed(() => Number(route.params.projectId ?? 0));
 
 const selectedIds = ref<number[]>([]);
+const batchTagId = ref<number | undefined>(undefined);
+const batchLevel = ref<number | undefined>(undefined);
 const tagFilter = ref<number | undefined>(undefined);
 const projectTags = ref<TagView[]>([]);
 const tagVisible = ref(false);
@@ -370,6 +381,30 @@ async function removeWorklog(row: WorklogView): Promise<void> {
     await loadWorklogs();
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
+  }
+}
+
+async function batchTag(): Promise<void> {
+  if (!batchTagId.value) return;
+  try {
+    const result = await client.batchTasks(projectId.value, "tag", selectedIds.value, undefined, batchTagId.value);
+    ElMessage.success(`已为 ${result.affected} 个任务加标签`);
+    batchTagId.value = undefined;
+    await reload();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "批量加标签失败");
+  }
+}
+
+async function batchPriority(): Promise<void> {
+  if (batchLevel.value === undefined) return;
+  try {
+    const result = await client.batchTasks(projectId.value, "priority", selectedIds.value, undefined, undefined, batchLevel.value);
+    ElMessage.success(`已调整 ${result.affected} 个任务的优先级`);
+    batchLevel.value = undefined;
+    await reload();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "批量改优先级失败");
   }
 }
 

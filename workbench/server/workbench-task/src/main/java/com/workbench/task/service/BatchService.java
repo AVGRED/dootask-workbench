@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.workbench.common.api.BusinessException;
 import com.workbench.project.service.ProjectAccess;
 import com.workbench.task.entity.Task;
+import com.workbench.task.entity.TaskTag;
 import com.workbench.task.mapper.TaskMapper;
+import com.workbench.task.mapper.TaskTagMapper;
 import com.workbench.task.web.BatchDtos.BatchRequest;
 import com.workbench.task.web.BatchDtos.BatchResult;
 import java.time.LocalDateTime;
@@ -18,10 +20,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class BatchService {
 
     private final TaskMapper taskMapper;
+    private final TaskTagMapper taskTagMapper;
     private final ProjectAccess projectAccess;
 
-    public BatchService(TaskMapper taskMapper, ProjectAccess projectAccess) {
+    public BatchService(TaskMapper taskMapper, TaskTagMapper taskTagMapper, ProjectAccess projectAccess) {
         this.taskMapper = taskMapper;
+        this.taskTagMapper = taskTagMapper;
         this.projectAccess = projectAccess;
     }
 
@@ -72,6 +76,35 @@ public class BatchService {
                     taskMapper.update(null, new LambdaUpdateWrapper<Task>()
                             .eq(Task::getId, task.getId())
                             .set(Task::getOwnerUserid, request.ownerUserid())
+                            .set(Task::getUpdatedAt, now));
+                    affected++;
+                }
+            }
+            case "tag" -> {
+                if (request.tagId() == null) {
+                    throw new BusinessException("请选择标签");
+                }
+                for (Task task : tasks) {
+                    Long exists = taskTagMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<TaskTag>()
+                            .eq(TaskTag::getTaskId, task.getId())
+                            .eq(TaskTag::getTagId, request.tagId()));
+                    if (exists == null || exists == 0) {
+                        TaskTag link = new TaskTag();
+                        link.setTaskId(task.getId());
+                        link.setTagId(request.tagId());
+                        taskTagMapper.insert(link);
+                    }
+                    affected++;
+                }
+            }
+            case "priority" -> {
+                if (request.pLevel() == null || request.pLevel() < 0 || request.pLevel() > 4) {
+                    throw new BusinessException("优先级只能是 0-4");
+                }
+                for (Task task : tasks) {
+                    taskMapper.update(null, new LambdaUpdateWrapper<Task>()
+                            .eq(Task::getId, task.getId())
+                            .set(Task::getPLevel, request.pLevel())
                             .set(Task::getUpdatedAt, now));
                     affected++;
                 }

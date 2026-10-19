@@ -475,6 +475,14 @@ $batchResult = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks/
 Assert-True "批量完成 2 个任务" ($batchResult.data.affected -eq 2) "affected=$($batchResult.data.affected)"
 $batchAssign = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks/batch" -Body @{ action = "assign"; taskIds = @($batchA.data.id, $batchB.data.id); ownerUserid = $me }
 Assert-True "批量指派受影响 2 个" ($batchAssign.data.affected -eq 2) "affected=$($batchAssign.data.affected)"
+$batchTag = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tags" -Body @{ name = "批量标签" }
+$tagResult = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks/batch" -Body @{ action = "tag"; taskIds = @($batchA.data.id, $batchB.data.id); tagId = $batchTag.data.id }
+Assert-True "批量加标签" ($tagResult.data.affected -eq 2) "affected=$($tagResult.data.affected)"
+$priorityResult = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks/batch" -Body @{ action = "priority"; taskIds = @($batchA.data.id, $batchB.data.id); pLevel = 1 }
+Assert-True "批量改优先级" ($priorityResult.data.affected -eq 2) "affected=$($priorityResult.data.affected)"
+$tagsA = (Invoke-Api -Method Get -Path "/api/v1/tasks/$($batchA.data.id)/tags").data
+Assert-True "批量标签已落到任务" ([bool]($tagsA | Where-Object { $_.id -eq $batchTag.data.id })) "count=$($tagsA.Count)"
+Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/tags/$($batchTag.data.id)" | Out-Null
 Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks/batch" -Body @{ action = "delete"; taskIds = @($batchA.data.id, $batchB.data.id) } | Out-Null
 $afterBatch = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data
 Assert-True "批量删除后不可见" (-not ($afterBatch.list | Where-Object { $_.id -eq $batchA.data.id })) ""

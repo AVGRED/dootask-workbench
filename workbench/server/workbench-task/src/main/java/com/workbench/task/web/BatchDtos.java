@@ -13,7 +13,9 @@ public final class BatchDtos {
     public record BatchRequest(
             @NotBlank(message = "请选择操作") String action,
             @NotEmpty(message = "请选择任务") List<Long> taskIds,
-            Long ownerUserid
+            Long ownerUserid,
+            Long tagId,
+            Integer pLevel
     ) {
     }
 

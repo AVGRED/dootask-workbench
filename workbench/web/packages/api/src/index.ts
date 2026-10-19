@@ -147,12 +147,14 @@ export class ApiClient {
     projectId: number,
     action: string,
     taskIds: number[],
-    ownerUserid?: number
+    ownerUserid?: number,
+    tagId?: number,
+    pLevel?: number
   ): Promise<{ affected: number; action: string }> {
     return this.request<{ affected: number; action: string }>(
       "POST",
       `/api/v1/projects/${projectId}/tasks/batch`,
-      { action, taskIds, ownerUserid }
+      { action, taskIds, ownerUserid, tagId, pLevel }
     );
   }
 

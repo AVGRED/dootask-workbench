@@ -275,7 +275,7 @@ async function load(): Promise<void> {
     catalog.value = data.catalog;
     layout.value = data.layout;
     const savedProjectBlocks = data.layout.filter((item) => item.id.startsWith("project:"));
-    if (savedProjectBlocks.length === 0) {
+    if (!data.layoutSaved && savedProjectBlocks.length === 0) {
       const projectKeys = Object.keys(data.data).filter((key) => key.startsWith("project:")).slice(0, 3);
       let row = Math.max(...data.layout.map((item) => item.y + item.h), 0);
       layout.value = [

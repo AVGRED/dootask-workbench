@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
@@ -46,6 +47,12 @@ public class MailService {
             log.warn("send mail failed -> {} | {}", to, subject, exception);
             return false;
         }
+    }
+
+    /** 异步发送：@提及等场景用它，避免 SMTP 阻塞业务请求。 */
+    @Async
+    public void sendAsync(String to, String subject, String body) {
+        send(to, subject, body);
     }
 
     public String mode() {

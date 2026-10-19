@@ -88,7 +88,7 @@ public class CommentService {
                 String email = jdbcTemplate.queryForObject(
                         "select email from users where userid = ?", String.class, mention);
                 if (email != null && !email.isBlank()) {
-                    mailService.send(email, "任务 #" + taskId + " 提到了你",
+                    mailService.sendAsync(email, "任务 #" + taskId + " 提到了你",
                             "评论内容：" + request.content() + "\n" + mailService.baseUrl() + "/projects");
                 }
             } catch (RuntimeException exception) {
