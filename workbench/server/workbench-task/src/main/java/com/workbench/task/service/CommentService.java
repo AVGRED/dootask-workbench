@@ -2,6 +2,7 @@ package com.workbench.task.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.workbench.common.api.BusinessException;
+import com.workbench.common.mail.MailService;
 import com.workbench.project.service.ProjectAccess;
 import com.workbench.task.entity.Notification;
 import com.workbench.task.entity.TaskComment;
@@ -26,13 +27,15 @@ public class CommentService {
     private final NotificationMapper notificationMapper;
     private final JdbcTemplate jdbcTemplate;
     private final ProjectAccess projectAccess;
+    private final MailService mailService;
 
     public CommentService(TaskCommentMapper commentMapper, NotificationMapper notificationMapper,
-                          JdbcTemplate jdbcTemplate, ProjectAccess projectAccess) {
+                          JdbcTemplate jdbcTemplate, ProjectAccess projectAccess, MailService mailService) {
         this.commentMapper = commentMapper;
         this.notificationMapper = notificationMapper;
         this.jdbcTemplate = jdbcTemplate;
         this.projectAccess = projectAccess;
+        this.mailService = mailService;
     }
 
     @Transactional
@@ -79,6 +82,18 @@ public class CommentService {
             notification.setPayload("{\"taskId\":" + taskId + ",\"commentId\":" + comment.getId() + "}");
             notification.setCreatedAt(now);
             notificationMapper.insert(notification);
+        }
+        for (Long mention : mentions) {
+            try {
+                String email = jdbcTemplate.queryForObject(
+                        "select email from users where userid = ?", String.class, mention);
+                if (email != null && !email.isBlank()) {
+                    mailService.send(email, "任务 #" + taskId + " 提到了你",
+                            "评论内容：" + request.content() + "\n" + mailService.baseUrl() + "/projects");
+                }
+            } catch (RuntimeException exception) {
+                // 邮件是增强能力，失败不影响评论
+            }
         }
         return toView(comment);
     }

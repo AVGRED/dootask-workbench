@@ -560,6 +560,11 @@ Invoke-Api -Method Delete -Path "/api/v1/admin/dicts/$($dictCreated.data.id)" | 
 $dictAfter = (Invoke-Api -Method Get -Path "/api/v1/dicts/e2e_dict").data
 Assert-True "删除字典项后为空" ($dictAfter.Count -eq 0) "count=$($dictAfter.Count)"
 
+$mailTest = Invoke-Api -Method Post -Path "/api/v1/admin/mail/test"
+Assert-True "管理员可触发邮件自检" ($mailTest.code -eq 0) "code=$($mailTest.code)"
+Assert-True "未配置 SMTP 时降级为 disabled" ($mailTest.data.mode -eq "disabled") "mode=$($mailTest.data.mode)"
+Assert-True "降级时不真正投递" ($mailTest.data.sent -eq $false) "sent=$($mailTest.data.sent)"
+
 $legacyLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "legacy@example.com"; password = "secret123" }
 $legacyToken = $legacyLogin.data.token
 $script:token = $legacyToken

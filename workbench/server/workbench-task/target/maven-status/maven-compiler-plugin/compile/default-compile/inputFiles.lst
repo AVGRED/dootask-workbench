@@ -24,6 +24,7 @@ D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\wor
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\mapper\AttachmentMapper.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\entity\TaskComment.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\web\TaskDtos.java
+D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\schedule\TaskReminderScheduler.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\web\AttachmentDtos.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\storage\AttachmentStorage.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\web\NotificationController.java
