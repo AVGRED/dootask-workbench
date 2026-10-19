@@ -336,6 +336,10 @@ class ProjectMilestoneService
                 throw new ApiException('里程碑不存在');
             }
             $deletedMilestoneName = $lockedMilestone->name;
+            // Keep the per-row save: it fires the task observers that keep the search
+            // index and websocket payloads in sync. A bulk UPDATE would be faster but
+            // would silently skip them, so a large milestone may hold this transaction
+            // open longer than usual; batch reindexing is a separate change.
             ProjectTask::withTrashed()
                 ->where('project_id', $project->id)
                 ->where('milestone_id', $lockedMilestone->id)
