@@ -39,7 +39,7 @@ public class TaskService {
     }
 
     public PageResult<TaskView> page(long currentUserid, long projectId, int page, int size, String keyword,
-                                     Long ownerUserid, Long milestoneId) {
+                                     Long ownerUserid, Long milestoneId, Long tagId) {
         requireAccess(currentUserid, projectId);
         LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<Task>()
                 .eq(Task::getProjectId, projectId)
@@ -55,6 +55,14 @@ public class TaskService {
         if (milestoneId != null && milestoneId > 0) {
             wrapper.eq(Task::getMilestoneId, milestoneId);
         }
+        if (tagId != null && tagId > 0) {
+            java.util.List<Long> taggedTaskIds = jdbcTemplate.queryForList(
+                    "select task_id from project_task_tags where tag_id = ?", Long.class, tagId);
+            if (taggedTaskIds.isEmpty()) {
+                return PageResult.of(java.util.List.of(), 0, Math.max(page, 1), Math.min(Math.max(size, 1), 100));
+            }
+            wrapper.in(Task::getId, taggedTaskIds);
+        }
         int safeSize = Math.min(Math.max(size, 1), 100);
         Page<Task> result = taskMapper.selectPage(new Page<>(Math.max(page, 1), safeSize), wrapper);
         List<TaskView> list = result.getRecords().stream().map(TaskService::toView).toList();
@@ -64,6 +72,13 @@ public class TaskService {
     public TaskView create(long currentUserid, long projectId, SaveTaskRequest request) {
         requireWrite(currentUserid, projectId);
         Long milestoneId = resolveMilestone(projectId, request.milestoneId());
+        long parentId = request.parentId() == null ? 0L : request.parentId();
+        if (parentId > 0) {
+            Task parent = requireTask(parentId);
+            if (!Long.valueOf(projectId).equals(parent.getProjectId())) {
+                throw new BusinessException("父任务不属于该项目");
+            }
+        }
         Task task = new Task();
         task.setProjectId(projectId);
         task.setMilestoneId(milestoneId);
@@ -74,7 +89,7 @@ public class TaskService {
         task.setEndAt(request.endAt());
         task.setPLevel(request.pLevel() == null ? 0 : request.pLevel());
         task.setUserid(currentUserid);
-        task.setParentId(0L);
+        task.setParentId(parentId);
         task.setColumnId(0L);
         task.setDialogId(0L);
         task.setColor("");
@@ -157,6 +172,18 @@ public class TaskService {
                 "task", taskId, "删除任务：" + task.getName());
     }
 
+    public java.util.List<TaskView> children(long currentUserid, long taskId) {
+        Task task = requireTask(taskId);
+        requireAccess(currentUserid, Objects.requireNonNull(task.getProjectId()));
+        return taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                        .eq(Task::getParentId, taskId)
+                        .orderByAsc(Task::getSort)
+                        .orderByAsc(Task::getId))
+                .stream()
+                .map(TaskService::toView)
+                .toList();
+    }
+
     private Task requireTask(long taskId) {
         Task task = taskMapper.selectById(taskId);
         if (task == null) {
@@ -217,6 +244,7 @@ public class TaskService {
                 task.getCompleteAt(),
                 task.getPLevel() == null ? 0 : task.getPLevel(),
                 task.getCompleteAt() != null,
-                task.getMilestoneId());
+                task.getMilestoneId(),
+                task.getParentId() == null ? 0L : task.getParentId());
     }
 }

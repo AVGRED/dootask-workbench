@@ -36,6 +36,7 @@ import type {
   SchedulePreviewRequest,
   SchedulePreviewResponse,
   SettingView,
+  TagView,
   TaskView,
   TemplateRevisionView,
   TemplateView,
@@ -120,7 +121,7 @@ export class ApiClient {
 
   async listTasks(
     projectId: number,
-    params: { page?: number; size?: number; keyword?: string; ownerUserid?: number; milestoneId?: number } = {}
+    params: { page?: number; size?: number; keyword?: string; ownerUserid?: number; milestoneId?: number; tagId?: number } = {}
   ): Promise<PageResult<TaskView>> {
     const query = new URLSearchParams();
     query.set("page", String(params.page ?? 1));
@@ -128,6 +129,7 @@ export class ApiClient {
     if (params.keyword) query.set("keyword", params.keyword);
     if (params.ownerUserid) query.set("ownerUserid", String(params.ownerUserid));
     if (params.milestoneId) query.set("milestoneId", String(params.milestoneId));
+    if (params.tagId) query.set("tagId", String(params.tagId));
     return this.request<PageResult<TaskView>>("GET", `/api/v1/projects/${projectId}/tasks?${query.toString()}`);
   }
 
@@ -384,6 +386,26 @@ export class ApiClient {
 
   async search(keyword: string): Promise<SearchResult> {
     return this.request<SearchResult>("GET", `/api/v1/search?keyword=${encodeURIComponent(keyword)}`);
+  }
+
+  async listTags(projectId: number): Promise<TagView[]> {
+    return this.request<TagView[]>("GET", `/api/v1/projects/${projectId}/tags`);
+  }
+
+  async createTag(projectId: number, name: string, color?: string): Promise<TagView> {
+    return this.request<TagView>("POST", `/api/v1/projects/${projectId}/tags`, { name, color });
+  }
+
+  async tagsOfTask(taskId: number): Promise<TagView[]> {
+    return this.request<TagView[]>("GET", `/api/v1/tasks/${taskId}/tags`);
+  }
+
+  async attachTag(taskId: number, tagId: number): Promise<void> {
+    await this.request<null>("POST", `/api/v1/tasks/${taskId}/tags`, { tagId });
+  }
+
+  async detachTag(taskId: number, tagId: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/tasks/${taskId}/tags/${tagId}`);
   }
 
   async board(projectId: number): Promise<BoardView> {

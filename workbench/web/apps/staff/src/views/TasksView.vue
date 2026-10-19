@@ -11,6 +11,10 @@
       <div class="toolbar">
         <el-input v-model="keyword" placeholder="搜索任务标题" clearable style="width: 240px" @keyup.enter="reload" />
         <el-button @click="reload">查询</el-button>
+        <el-select v-model="tagFilter" placeholder="按标签筛选" clearable style="width: 160px" @change="reload">
+          <el-option v-for="tag in projectTags" :key="tag.id" :label="tag.name" :value="tag.id" />
+        </el-select>
+        <el-button @click="createTag">新建标签</el-button>
       </div>
 
       <el-table v-loading="loading" :data="rows" border>
@@ -33,6 +37,7 @@
             <el-button link type="primary" @click="openEdit(row as TaskView)">编辑</el-button>
             <el-button link type="primary" @click="openWorklogs(row as TaskView)">工时</el-button>
             <el-button link type="primary" @click="openComments(row as TaskView)">评论</el-button>
+            <el-button link type="primary" @click="openTagDialog(row as TaskView)">标签</el-button>
             <el-button link type="primary" @click="openFiles(row as TaskView)">附件</el-button>
             <el-button link type="primary" @click="complete(row as TaskView)">完成</el-button>
             <el-button link type="danger" @click="remove(row as TaskView)">删除</el-button>
@@ -122,6 +127,18 @@
       </div>
     </el-drawer>
 
+    <el-dialog v-model="tagVisible" title="任务标签" width="380px">
+      <el-checkbox-group v-model="selectedTagIds">
+        <el-checkbox v-for="tag in projectTags" :key="tag.id" :value="tag.id" :label="tag.id">
+          {{ tag.name }}
+        </el-checkbox>
+      </el-checkbox-group>
+      <template #footer>
+        <el-button @click="tagVisible = false">取消</el-button>
+        <el-button type="primary" :loading="tagSaving" @click="saveTags">保存</el-button>
+      </template>
+    </el-dialog>
+
     <el-drawer v-model="fileVisible" title="任务附件" size="460px">
       <el-upload :auto-upload="false" :show-file-list="false" :on-change="onFileChange">
         <el-button type="primary">选择文件</el-button>
@@ -147,13 +164,19 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { AttachmentView, CommentView, MilestoneView, TaskView, WorklogView } from "@workbench/api";
+import type { AttachmentView, CommentView, MilestoneView, TagView, TaskView, WorklogView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => Number(route.params.projectId ?? 0));
 
+const tagFilter = ref<number | undefined>(undefined);
+const projectTags = ref<TagView[]>([]);
+const tagVisible = ref(false);
+const tagSaving = ref(false);
+const tagTaskId = ref(0);
+const selectedTagIds = ref<number[]>([]);
 const fileVisible = ref(false);
 const fileTaskId = ref(0);
 const attachments = ref<AttachmentView[]>([]);
@@ -344,6 +367,60 @@ async function removeWorklog(row: WorklogView): Promise<void> {
   }
 }
 
+async function loadTags(): Promise<void> {
+  if (!projectId.value) return;
+  try {
+    projectTags.value = await client.listTags(projectId.value);
+  } catch {
+    projectTags.value = [];
+  }
+}
+
+async function createTag(): Promise<void> {
+  const name = window.prompt("标签名");
+  if (!name) return;
+  try {
+    await client.createTag(projectId.value, name.trim());
+    await loadTags();
+    ElMessage.success("已创建标签");
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "创建标签失败");
+  }
+}
+
+async function openTagDialog(row: TaskView): Promise<void> {
+  tagTaskId.value = row.id;
+  selectedTagIds.value = [];
+  try {
+    const current = await client.tagsOfTask(row.id);
+    selectedTagIds.value = current.map((tag) => tag.id);
+  } catch {
+    selectedTagIds.value = [];
+  }
+  tagVisible.value = true;
+}
+
+async function saveTags(): Promise<void> {
+  tagSaving.value = true;
+  try {
+    const current = await client.tagsOfTask(tagTaskId.value);
+    const currentIds = current.map((tag) => tag.id);
+    for (const id of currentIds) {
+      if (!selectedTagIds.value.includes(id)) await client.detachTag(tagTaskId.value, id);
+    }
+    for (const id of selectedTagIds.value) {
+      if (!currentIds.includes(id)) await client.attachTag(tagTaskId.value, id);
+    }
+    tagVisible.value = false;
+    ElMessage.success("已保存标签");
+    await reload();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "保存标签失败");
+  } finally {
+    tagSaving.value = false;
+  }
+}
+
 async function loadMilestones(): Promise<void> {
   if (!projectId.value) return;
   try {
@@ -370,7 +447,8 @@ async function reload(): Promise<void> {
     const result = await client.listTasks(projectId.value, {
       page: page.value,
       size: size.value,
-      keyword: keyword.value
+      keyword: keyword.value,
+      tagId: tagFilter.value
     });
     rows.value = result.list;
     total.value = result.total;
@@ -455,6 +533,7 @@ async function goBack(): Promise<void> {
 onMounted(() => {
   void reload();
   void loadMilestones();
+  void loadTags();
 });
 </script>
 

@@ -36,9 +36,10 @@ public class TaskController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long ownerUserid,
-            @RequestParam(required = false) Long milestoneId) {
+            @RequestParam(required = false) Long milestoneId,
+            @RequestParam(required = false) Long tagId) {
         return ApiResponse.ok(taskService.page(currentUserid(principal), projectId, page, size, keyword,
-                ownerUserid, milestoneId));
+                ownerUserid, milestoneId, tagId));
     }
 
     @PostMapping("/projects/{projectId}/tasks")
@@ -47,6 +48,11 @@ public class TaskController {
             @PathVariable long projectId,
             @Valid @RequestBody SaveTaskRequest request) {
         return ApiResponse.ok(taskService.create(currentUserid(principal), projectId, request));
+    }
+
+    @GetMapping("/tasks/{taskId}/children")
+    public ApiResponse<java.util.List<TaskView>> children(Principal principal, @PathVariable long taskId) {
+        return ApiResponse.ok(taskService.children(currentUserid(principal), taskId));
     }
 
     @PutMapping("/tasks/{taskId}")

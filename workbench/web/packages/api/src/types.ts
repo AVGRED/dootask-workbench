@@ -362,6 +362,12 @@ export interface BoardColumnWithCards {
   cards: BoardCard[];
 }
 
+export interface TagView {
+  id: number;
+  name: string;
+  color: string;
+}
+
 export interface BoardView {
   projectId: number;
   columns: BoardColumnWithCards[];

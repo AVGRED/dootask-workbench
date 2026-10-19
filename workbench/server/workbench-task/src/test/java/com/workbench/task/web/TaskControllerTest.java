@@ -34,7 +34,7 @@ class TaskControllerTest {
     private MockMvc mockMvc;
 
     private static TaskView view(long id, long projectId, String name, long owner, int pLevel, Long milestoneId) {
-        return new TaskView(id, projectId, name, "", owner, null, null, null, pLevel, false, milestoneId);
+        return new TaskView(id, projectId, name, "", owner, null, null, null, pLevel, false, milestoneId, 0L);
     }
 
     @BeforeEach
@@ -50,7 +50,7 @@ class TaskControllerTest {
 
     @Test
     void listReturnsTasks() throws Exception {
-        given(taskService.page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any(), any()))
+        given(taskService.page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any(), any(), any()))
                 .willReturn(PageResult.of(List.of(view(1L, 3L, "写文档", 0L, 0, null)), 1, 1, 20));
 
         mockMvc.perform(get("/api/v1/projects/3/tasks").principal(principal))
@@ -61,7 +61,7 @@ class TaskControllerTest {
 
     @Test
     void listFiltersByMilestone() throws Exception {
-        given(taskService.page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any(), eq(12L)))
+        given(taskService.page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any(), eq(12L), any()))
                 .willReturn(PageResult.of(List.of(view(1L, 3L, "里程碑任务", 0L, 0, 12L)), 1, 1, 20));
 
         mockMvc.perform(get("/api/v1/projects/3/tasks").principal(principal).param("milestoneId", "12"))
@@ -145,7 +145,7 @@ class TaskControllerTest {
     @Test
     void nonMemberIsRejected() throws Exception {
         Mockito.doThrow(new BusinessException("无权访问该项目"))
-                .when(taskService).page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any(), any());
+                .when(taskService).page(eq(7L), eq(3L), anyInt(), anyInt(), any(), any(), any(), any());
 
         mockMvc.perform(get("/api/v1/projects/3/tasks").principal(principal))
                 .andExpect(status().isOk())

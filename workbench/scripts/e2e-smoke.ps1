@@ -447,6 +447,27 @@ Assert-True "甘特图范围覆盖任务" ($gantt.rangeStart -le "2026-10-05" -a
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$($ganttA.data.id)" | Out-Null
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$($ganttB.data.id)" | Out-Null
 
+# 6.18 标签与子任务
+$tag = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tags" -Body @{ name = "E2E 标签"; color = "#409eff" }
+Assert-True "创建标签成功" ($tag.data.name -eq "E2E 标签") "name=$($tag.data.name)"
+$tagId = $tag.data.id
+Invoke-Api -Method Post -Path "/api/v1/tasks/$taskId/tags" -Body @{ tagId = $tagId } | Out-Null
+$taskTags = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/tags").data
+Assert-True "任务打上标签" ([bool]($taskTags | Where-Object { $_.id -eq $tagId })) "count=$($taskTags.Count)"
+$byTag = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks?tagId=$tagId").data
+Assert-True "按标签筛选命中任务" ([bool]($byTag.list | Where-Object { $_.id -eq $taskId })) "total=$($byTag.total)"
+
+$sub = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks" -Body @{ name = "E2E 子任务"; parentId = $taskId }
+Assert-True "创建子任务" ($sub.data.parentId -eq $taskId) "parentId=$($sub.data.parentId)"
+$children = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/children").data
+Assert-True "父任务能查到子任务" ([bool]($children | Where-Object { $_.id -eq $sub.data.id })) "count=$($children.Count)"
+
+Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId/tags/$tagId" | Out-Null
+$taskTagsAfter = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/tags").data
+Assert-True "取消标签后为空" ($taskTagsAfter.Count -eq 0) "count=$($taskTagsAfter.Count)"
+Invoke-Api -Method Delete -Path "/api/v1/tasks/$($sub.data.id)" | Out-Null
+Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/tags/$tagId" | Out-Null
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total

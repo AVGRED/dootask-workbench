@@ -17,7 +17,8 @@ public final class TaskDtos {
             LocalDateTime startAt,
             LocalDateTime endAt,
             Integer pLevel,
-            Long milestoneId
+            Long milestoneId,
+            Long parentId
     ) {
     }
 
@@ -32,7 +33,8 @@ public final class TaskDtos {
             LocalDateTime completeAt,
             int pLevel,
             boolean completed,
-            Long milestoneId
+            Long milestoneId,
+            long parentId
     ) {
     }
 }
