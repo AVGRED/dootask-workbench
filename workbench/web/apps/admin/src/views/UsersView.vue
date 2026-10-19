@@ -13,9 +13,11 @@
       <div class="toolbar">
         <el-input v-model="keyword" placeholder="搜索邮箱或昵称" clearable style="width: 240px" @keyup.enter="reload" />
         <el-button @click="reload">查询</el-button>
+          <el-button type="danger" :disabled="selectedUserids.length === 0" @click="batchDelete">批量删除</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="rows" border>
+      <el-table v-loading="loading" :data="rows" border @selection-change="onSelect">
+        <el-table-column type="selection" width="44" />
         <el-table-column prop="userid" label="ID" width="80" />
         <el-table-column prop="email" label="邮箱" min-width="200" />
         <el-table-column prop="nickname" label="昵称" width="140" />
@@ -89,9 +91,26 @@ const page = ref(1);
 const size = ref(20);
 const keyword = ref("");
 const loading = ref(false);
+const selectedUserids = ref<number[]>([]);
 const saving = ref(false);
 const createVisible = ref(false);
 const createForm = reactive<CreateUserRequest>({ email: "", nickname: "", profession: "", password: "" });
+
+function onSelect(selection: { userid: number }[]): void {
+  selectedUserids.value = selection.map((item) => item.userid);
+}
+
+async function batchDelete(): Promise<void> {
+  if (selectedUserids.value.length === 0) return;
+  try {
+    const result = await client.batchDeleteUsers(selectedUserids.value);
+    ElMessage.success(`已删除 ${result.affected} 个用户`);
+    selectedUserids.value = [];
+    await reload();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "批量删除失败");
+  }
+}
 
 async function reload(): Promise<void> {
   loading.value = true;

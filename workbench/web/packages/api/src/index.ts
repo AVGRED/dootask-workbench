@@ -468,6 +468,13 @@ export class ApiClient {
     return this.request<{ status: string; note: string }>("PUT", "/api/v1/me/status", { status, note });
   }
 
+  async batchDeleteUsers(userids: number[]): Promise<{ affected: number; action: string }> {
+    return this.request<{ affected: number; action: string }>("POST", "/api/v1/admin/users/batch", {
+      action: "delete",
+      userids
+    });
+  }
+
   async adminProjects(): Promise<AdminProjectRow[]> {
     return this.request<AdminProjectRow[]>("GET", "/api/v1/admin/projects");
   }
