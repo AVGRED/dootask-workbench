@@ -24,6 +24,9 @@ Vue.config.errorHandler = error => {
 
 const componentStub = name => ({
     name,
+    methods: {
+        focus() {},
+    },
     render(h) {
         return h('div', {class: `stub-${name}`}, this.$slots.default);
     },
@@ -37,6 +40,8 @@ Vue.prototype.$L = (text, ...args) => {
     return String(text).replace(/\(\*\)/g, () => (args[index++] ?? ''));
 };
 const modalErrors = [];
+const copiedTexts = [];
+Vue.prototype.copyText = value => copiedTexts.push(value);
 const appHelpers = {
     dayjs,
     modalError: message => modalErrors.push(message),
@@ -423,6 +428,86 @@ test('ProjectSettingDrawer fills from the project and saves normalized schedule 
     assert.deepEqual(update.payload.data.task_schedule_holidays, ['2026-10-01', '2026-10-02']);
     assert.deepEqual(emitted, [false]);
     assert.ok(calls.some(call => call.action === 'saveProject'), 'saved project should refresh the store');
+
+    vm.$destroy();
+});
+
+test('ProjectInviteDialog fetches the link, copies it and refreshes on demand', async () => {
+    const calls = [];
+    copiedTexts.length = 0;
+    const store = {
+        state: {},
+        dispatch: (action, payload) => {
+            calls.push(payload);
+            return Promise.resolve({data: {url: 'https://example.com/invite/abc'}});
+        },
+    };
+    const options = loadComponent('resources/assets/js/pages/manage/components/ProjectInviteDialog.vue', {
+        mapState: () => ({formOptions: () => ({})}),
+    });
+    const vm = new Vue({
+        components: {Panel: options},
+        data: {visible: false},
+        render(h) {
+            return h('Panel', {ref: 'panel', props: {visible: this.visible, projectId: 9}});
+        },
+    }).$mount();
+    const panel = vm.$refs.panel;
+    panel.$store = store;
+
+    vm.visible = true;
+    await flush();
+
+    assert.deepEqual(calls[0].data, {project_id: 9, refresh: 'no'});
+    assert.equal(calls[0].url, 'project/invite');
+    assert.equal(panel.inviteData.url, 'https://example.com/invite/abc');
+    assert.deepEqual(copiedTexts, ['https://example.com/invite/abc']);
+
+    panel.get(true);
+    await flush();
+    assert.deepEqual(calls[1].data, {project_id: 9, refresh: 'yes'});
+
+    vm.$destroy();
+});
+
+test('ProjectTransferDialog transfers the project and refreshes the caches', async () => {
+    const calls = [];
+    const store = {
+        state: {},
+        dispatch: (action, payload) => {
+            calls.push(payload);
+            return Promise.resolve({msg: '已移交'});
+        },
+    };
+    const options = loadComponent('resources/assets/js/pages/manage/components/ProjectTransferDialog.vue', {
+        UserSelect: {props: ['value', 'projectId', 'multipleMax', 'title'], render(h) { return h('div'); }},
+        mapState: () => ({formOptions: () => ({})}),
+    });
+    const emitted = [];
+    const vm = new Vue({
+        components: {Panel: options},
+        data: {visible: false},
+        render(h) {
+            return h('Panel', {
+                ref: 'panel',
+                props: {visible: this.visible, projectId: 9},
+                on: {'update:visible': value => emitted.push(value)},
+            });
+        },
+    }).$mount();
+    const panel = vm.$refs.panel;
+    panel.$store = store;
+
+    vm.visible = true;
+    await flush();
+    assert.deepEqual(panel.transferData.owner_userid, []);
+
+    panel.transferData.owner_userid = [7];
+    panel.submit();
+    await flush();
+
+    assert.deepEqual(calls[0].data, {project_id: 9, owner_userid: 7});
+    assert.deepEqual(emitted, [false]);
 
     vm.$destroy();
 });
