@@ -131,14 +131,14 @@ const searchKeyword = ref("");
 const searchResult = ref<{ projects: unknown[]; tasks: unknown[]; users: unknown[] } | null>(null);
 
 const PALETTE = [
-  { bg: "#e8f1ff", border: "#b9d4f7" },
-  { bg: "#e9f7ec", border: "#bfe3c8" },
-  { bg: "#fdf1e3", border: "#f0d2ac" },
-  { bg: "#fdeaf1", border: "#f2c2d3" },
-  { bg: "#eeecfb", border: "#cfc8ef" },
-  { bg: "#e6f6f7", border: "#b6dfe2" },
-  { bg: "#fbf6dd", border: "#e8dda6" },
-  { bg: "#f2f4f7", border: "#d9dee6" }
+  { bg: "#dbe8fb", border: "#a8c6ee" },
+  { bg: "#dbf0e0", border: "#a6d1b3" },
+  { bg: "#fbe6d0", border: "#eac095" },
+  { bg: "#fbdee8", border: "#eeb2c6" },
+  { bg: "#e3dff6", border: "#bdb3e2" },
+  { bg: "#d6eeee", border: "#9fd0d4" },
+  { bg: "#f7eec6", border: "#e0d18b" },
+  { bg: "#e5e9f0", border: "#c0c9d7" }
 ];
 
 const bentoRef = ref<HTMLElement | null>(null);
