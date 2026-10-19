@@ -31,6 +31,17 @@
 | 新增 5 个 Feature 测试类 | **85 tests / 168 assertions PASS** |
 | 完整 `Feature` 套件（273 项） | **273 项全部通过，744 assertions；2 项因需要 Swoole 运行时跳过**（`AdminCreateUserTest` 的端到端注册） |
 
+### 后续增量（同一天，前端拆分与补测）
+
+| 套件 | 结果 |
+|---|---|
+| 完整 `Feature` 套件（最新一次全量） | **316 tests / 857 assertions PASS；3 项跳过**（2 项 Swoole 端到端 + 1 项需 `DOOTASK_PERF_SMOKE=1` 的性能冒烟） |
+| `node --test`（前端） | **47 / 47 通过**：CSV 转义 7、排期解析 5、组件挂载冒烟 7（里程碑管理 / 提醒记录 / 工时 / 容量 / 设置 / 邀请 / 移交）、其余为既有纯逻辑用例 |
+| `check:vue-wiring` | 17 个工作台组件通过；全仓扫描仍有 64 处存量告警（局部 mixin 与插槽导致的误报，待单独清理） |
+| 性能冒烟（`DOOTASK_PERF_SMOKE=1`） | 200 任务 / 199 依赖：预演 0.106s / 94 查询，容量 0.012s / 9，风险 0.041s / 7，甘特 0.055s / 7 |
+
+拆分结果：`ProjectPanel.vue` 3,381 → 2,424 行（抽出里程碑管理、提醒记录、容量汇总、项目设置、邀请、移交 6 个组件），`TaskDetail.vue` 2,799 → 2,630 行（抽出工时面板）。前端单测此前从未在 CI 执行，现已加入 `tests.yml` 的 frontend job。
+
 ## 本轮发现并修复的缺陷
 
 1. **工时接口查询了不存在的列**（`app/Module/ProjectTaskWorkService.php`）：`users` 表只有 `nickname` / `userimg`，代码却 `select userid, name, avatar`，导致登记工时、工时历史、成员容量汇总全部 500。改为查询真实列，并在返回结构中显式映射为前端使用的 `name` / `avatar`。
