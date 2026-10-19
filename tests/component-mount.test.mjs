@@ -30,9 +30,10 @@ Vue.prototype.$L = (text, ...args) => {
     let index = 0;
     return String(text).replace(/\(\*\)/g, () => (args[index++] ?? ''));
 };
+const modalErrors = [];
 const appHelpers = {
     dayjs,
-    modalError() {},
+    modalError: message => modalErrors.push(message),
     messageSuccess() {},
 };
 Vue.prototype.$A = appHelpers;
@@ -194,5 +195,89 @@ test('TaskWork renders logs, reports estimate changes and hides editing when rea
     assert.equal(readOnly.vm.$el.textContent.includes('登记工时'), false);
 
     readOnly.vm.$destroy();
+    vm.$destroy();
+});
+
+test('MilestoneManager saves, deletes and reorders through the expected endpoints', async () => {
+    const calls = [];
+    const events = [];
+    const store = {
+        state: {},
+        dispatch: (action, payload) => {
+            calls.push(payload);
+            if (payload.url === 'projectmilestone/save') return Promise.resolve({data: {id: 9}});
+            if (payload.url === 'projectmilestone/sort') return Promise.resolve({msg: '已保存'});
+            return Promise.resolve({data: {}});
+        },
+    };
+    const milestones = [
+        {id: 1, name: '里程碑A', status: 'open', task_count: 2, completed_count: 1, overdue_count: 0, progress_percent: 50},
+        {id: 2, name: '里程碑B', status: 'completed', task_count: 0, completed_count: 0, overdue_count: 0, progress_percent: 0},
+    ];
+    const options = loadComponent('resources/assets/js/pages/manage/components/MilestoneManager.vue', {
+        Draggable: {props: ['list'], render(h) { return h('div', {class: 'draggable-stub'}, this.$slots.default); }},
+        mapState: () => ({formOptions: () => ({})}),
+        UserSelect: {props: ['value', 'projectId', 'multipleMax', 'title'], render(h) { return h('div'); }},
+        MilestoneReminderAttempts: {props: ['visible', 'projectId', 'milestone'], render(h) { return h('div'); }},
+        emitter: {on() {}, off() {}, emit: (...args) => events.push(args)},
+    });
+
+    const previousStore = Vue.prototype.$store;
+    Vue.prototype.$store = store;
+    const vm = new Vue({
+        components: {Panel: options},
+        render(h) {
+            return h('Panel', {
+                ref: 'panel',
+                props: {visible: true, projectId: 3, milestones, canManage: true, loading: false, loadFailed: false},
+            });
+        },
+    }).$mount();
+    Vue.prototype.$store = previousStore;
+    await flush();
+
+    const panel = vm.$refs.panel;
+    panel.$store = store;
+    assert.match(vm.$el.textContent, /里程碑A/);
+    assert.match(vm.$el.textContent, /里程碑B/);
+
+    // A blank name is rejected locally instead of hitting the API.
+    modalErrors.length = 0;
+    panel.form.name = '   ';
+    await panel.save();
+    assert.equal(calls.length, 0);
+    assert.equal(modalErrors.length, 1);
+
+    panel.form.name = '新里程碑';
+    panel.form.description = '说明';
+    panel.form.target_at = '';
+    panel.form.status = 'open';
+    panel.form.reminder_days = -1;
+    await panel.save();
+    const saveCall = calls.find(call => call.url === 'projectmilestone/save');
+    assert.deepEqual(saveCall.data, {
+        project_id: 3,
+        milestone_id: 0,
+        name: '新里程碑',
+        description: '说明',
+        target_at: '',
+        status: 'open',
+        reminder_days: -1,
+        owner_userid: 0,
+    });
+    assert.deepEqual(events.at(-1), ['projectMilestonesUpdate', 3]);
+    // The form resets after a successful create.
+    assert.equal(panel.form.name, '');
+
+    await panel.remove({id: 2});
+    const deleteCall = calls.find(call => call.url === 'projectmilestone/delete');
+    assert.deepEqual(deleteCall.data, {project_id: 3, milestone_id: 2});
+    assert.deepEqual(events.at(-1), ['projectMilestonesUpdate', 3]);
+
+    panel.milestones.reverse();
+    await panel.saveSort();
+    const sortCall = calls.find(call => call.url === 'projectmilestone/sort');
+    assert.deepEqual(sortCall.data, {project_id: 3, milestones: [2, 1]});
+
     vm.$destroy();
 });
