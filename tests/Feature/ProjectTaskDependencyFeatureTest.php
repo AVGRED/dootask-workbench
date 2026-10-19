@@ -222,4 +222,100 @@ class ProjectTaskDependencyFeatureTest extends TestCase
         $this->assertSame($otherProject->id, (int)$moved->project_id);
         $this->assertSame(0, $this->edgeCount());
     }
+
+    public function test_risk_summary_reports_a_schedule_conflict(): void
+    {
+        $predecessor = $this->planningTask($this->project, [
+            'name' => 'Predecessor',
+            'start_at' => '2027-03-01 09:00:00',
+            'end_at' => '2027-03-10 18:00:00',
+        ]);
+        $successor = $this->planningTask($this->project, [
+            'name' => 'Successor',
+            'start_at' => '2027-03-05 09:00:00',
+            'end_at' => '2027-03-06 18:00:00',
+        ]);
+        // add($successor, $predecessor, 'predecessor'): predecessor blocks successor.
+        ProjectTaskDependencyService::add($successor->id, $predecessor->id, 'predecessor');
+
+        $risks = ProjectTaskDependencyService::riskSummary($this->project->id);
+
+        $this->assertTrue($risks['enabled']);
+        $this->assertSame(1, $risks['schedule_conflicts']);
+        $this->assertSame(0, $risks['overdue_blockers']);
+        $this->assertSame(1, $risks['total_risk_edges']);
+        $this->assertContains('schedule_conflict', $risks['items'][0]['types']);
+        $this->assertSame($successor->id, $risks['items'][0]['successor']['id']);
+    }
+
+    public function test_risk_summary_reports_an_overdue_blocker(): void
+    {
+        $predecessor = $this->planningTask($this->project, [
+            'name' => 'Late predecessor',
+            'start_at' => now()->subDays(5)->toDateTimeString(),
+            'end_at' => now()->subDays(2)->toDateTimeString(),
+        ]);
+        $successor = $this->planningTask($this->project, [
+            'name' => 'Waiting successor',
+            'start_at' => now()->addDays(2)->toDateTimeString(),
+            'end_at' => now()->addDays(4)->toDateTimeString(),
+        ]);
+        ProjectTaskDependencyService::add($successor->id, $predecessor->id, 'predecessor');
+
+        $risks = ProjectTaskDependencyService::riskSummary($this->project->id);
+
+        $this->assertSame(0, $risks['schedule_conflicts']);
+        $this->assertSame(1, $risks['overdue_blockers']);
+        $this->assertContains('overdue_blocker', $risks['items'][0]['types']);
+    }
+
+    public function test_risk_summary_skips_edges_with_tasks_the_caller_cannot_see(): void
+    {
+        $predecessor = $this->planningTask($this->project, [
+            'name' => 'Visible predecessor',
+            'start_at' => now()->subDays(5)->toDateTimeString(),
+            'end_at' => now()->subDays(2)->toDateTimeString(),
+        ]);
+        $hiddenSuccessor = $this->planningPrivateTask($this->project, $this->owner);
+        $hiddenSuccessor->start_at = now()->subDays(4)->toDateTimeString();
+        $hiddenSuccessor->end_at = now()->addDays(2)->toDateTimeString();
+        $hiddenSuccessor->save();
+        ProjectTaskDependencyService::add($hiddenSuccessor->id, $predecessor->id, 'predecessor');
+
+        $asOwner = ProjectTaskDependencyService::riskSummary($this->project->id);
+        $this->assertSame(1, $asOwner['total_risk_edges']);
+
+        $this->planningLogin($this->member);
+        $asMember = ProjectTaskDependencyService::riskSummary($this->project->id);
+        $this->assertSame(0, $asMember['total_risk_edges']);
+        $this->assertSame([], $asMember['items']);
+    }
+
+    public function test_gantt_dependency_query_returns_edges_and_excludes_foreign_tasks(): void
+    {
+        $dependency = ProjectTaskDependencyService::add($this->taskB->id, $this->taskA->id, 'predecessor');
+        $otherProject = $this->planningProject($this->owner);
+        $foreignTask = $this->planningTask($otherProject, ['name' => 'Foreign task']);
+
+        $edges = ProjectTaskDependencyService::projectLists(
+            $this->project->id,
+            [$this->taskA->id, $this->taskB->id, $foreignTask->id]
+        );
+
+        $this->assertCount(1, $edges);
+        $this->assertSame((int)$dependency->id, $edges[0]['id']);
+        $this->assertSame($this->taskA->id, $edges[0]['predecessor']['id']);
+        $this->assertSame($this->taskB->id, $edges[0]['successor']['id']);
+    }
+
+    public function test_gantt_dependency_query_returns_nothing_when_the_project_disables_dependencies(): void
+    {
+        ProjectTaskDependencyService::add($this->taskB->id, $this->taskA->id, 'predecessor');
+        $this->project->task_dependency = 'close';
+        $this->project->save();
+
+        $edges = ProjectTaskDependencyService::projectLists($this->project->id, [$this->taskA->id, $this->taskB->id]);
+
+        $this->assertSame([], $edges);
+    }
 }
