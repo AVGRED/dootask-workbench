@@ -274,7 +274,7 @@ export class ApiClient {
       headers,
       body: form
     });
-    const payload = (await response.json()) as ApiResponse<AttachmentView>;
+    const payload = await parsePayload<AttachmentView>(response);
     if (payload.code !== 0) throw new ApiError(payload.code, payload.message);
     return payload.data;
   }
@@ -392,8 +392,25 @@ export class ApiClient {
       headers,
       body: body === undefined ? undefined : JSON.stringify(body)
     });
-    const payload = (await response.json()) as ApiResponse<T>;
+    const payload = await parsePayload<T>(response);
     if (payload.code !== 0) throw new ApiError(payload.code, payload.message);
     return payload.data;
+  }
+}
+
+/**
+ * 解析响应体：dev server 代理不可达、或后端返回非 JSON 时，
+ * 直接抛带状态码的可读错误，而不是让 `response.json()` 抛出
+ * "Unexpected end of JSON input" 这类对用户无意义的异常。
+ */
+async function parsePayload<T>(response: Response): Promise<ApiResponse<T>> {
+  const text = await response.text();
+  if (!text) {
+    throw new ApiError(response.status || 500, `服务无响应（HTTP ${response.status}），请确认后端已启动`);
+  }
+  try {
+    return JSON.parse(text) as ApiResponse<T>;
+  } catch {
+    throw new ApiError(response.status || 500, `响应不是合法 JSON（HTTP ${response.status}）：${text.slice(0, 120)}`);
   }
 }
