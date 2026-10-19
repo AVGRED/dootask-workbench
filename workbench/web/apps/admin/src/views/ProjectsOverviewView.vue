@@ -18,6 +18,7 @@
           <span>{{ row.done }}/{{ row.total }} 完成</span>
           <span class="pct">{{ percent(row) }}%</span>
         </div>
+        <div class="updated-line">更新于 {{ (row.updated_at || "").slice(0, 16).replace("T", " ") || "—" }}</div>
       </div>
     </div>
     <div v-if="filtered.length === 0" class="empty">没有匹配的项目</div>
@@ -60,7 +61,7 @@ onMounted(load);
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .hint {
   color: #909399;
@@ -68,55 +69,79 @@ onMounted(load);
 }
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  gap: 16px;
 }
 .card {
+  position: relative;
   background: #fff;
   border: 1px solid #ebeef5;
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: 14px;
+  padding: 20px 22px;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
 }
 .card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
 }
 .name {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .overdue {
   font-size: 12px;
   color: #f56c6c;
   background: #fef0f0;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 10px;
+  flex: 0 0 auto;
 }
 .meta {
   color: #909399;
-  font-size: 12px;
-  margin: 6px 0 10px;
+  font-size: 13px;
+  margin: 10px 0 16px;
 }
 .progress {
-  height: 8px;
+  height: 12px;
   background: #f0f2f5;
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
 }
 .bar {
   height: 100%;
+  border-radius: 6px;
   background: linear-gradient(90deg, #409eff, #79bbff);
 }
 .stats {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  margin-top: 8px;
-  font-size: 13px;
+  margin-top: 12px;
+  font-size: 14px;
   color: #606266;
 }
 .pct {
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: #409eff;
+}
+.updated-line {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #c0c4cc;
 }
 .empty {
   padding: 40px;
