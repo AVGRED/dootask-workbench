@@ -648,6 +648,24 @@ $legacyChange = Invoke-Api -Method Put -Path "/api/v1/users/$memberId/role" -Bod
 Assert-True "普通用户改他人角色被拒（管理员已存在）" ($legacyChange.code -eq 403) "code=$($legacyChange.code)"
 
 $script:token = $adminLogin.data.token
+# 6.23 E2E 自清理：删掉本轮创建的测试账号（保留 demo 与 legacy）
+$cleanupTeam = (Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/v1/team/status" -Headers @{ Authorization = "Bearer $script:token" }).data
+Assert-True "自清理能读到用户列表" (@($cleanupTeam).Count -ge 2) "count=$(@($cleanupTeam).Count)"
+$cleanupIds = @($cleanupTeam | Where-Object {
+    $_.userid -ne 1 -and $_.userid -ne 9001 -and (
+      $_.email -like 'e2e-*' -or $_.email -like 'viewer-*' -or
+      $_.email -like 'x*@workbench.local' -or $_.email -like 'batch-del-test*')
+  } | ForEach-Object { $_.userid })
+$cleanupDeleted = 0
+for ($i = 0; $i -lt $cleanupIds.Count; $i += 20) {
+  $chunk = @($cleanupIds[$i..([math]::Min($i + 19, $cleanupIds.Count - 1))])
+  $batchBody = @{ action = "delete"; userids = $chunk } | ConvertTo-Json -Depth 4
+  $res = Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/v1/admin/users/batch" -Method Post -Headers @{ Authorization = "Bearer $script:token"; "Content-Type" = "application/json" } -Body $batchBody
+  if ($res.code -eq 0) { $cleanupDeleted += $res.data.affected }
+}
+$cleanupRemaining = @($cleanupIds).Count - $cleanupDeleted
+Assert-True "E2E 自清理测试账号" ($cleanupRemaining -le 0) "found=$($cleanupIds.Count) deleted=$cleanupDeleted"
+
 $reverted = Invoke-Api -Method Put -Path "/api/v1/users/$me/role" -Body @{ role = "staff" }
 Assert-True "管理员可把角色改回 staff" ($reverted.data.role -eq "staff") "role=$($reverted.data.role)"
 
@@ -661,23 +679,6 @@ Assert-True "用户分页 total>0" ($users.data.total -gt 0) "total=$($users.dat
 Assert-True "用户分页 size 生效" ($users.data.size -eq 5) "size=$($users.data.size)"
 
 Write-Host ""
-# 6.23 E2E 自清理：删掉本轮创建的测试账号（保留 demo 与 legacy）
-$cleanupTeam = (Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/v1/team/status" -Headers @{ Authorization = "Bearer $script:adminToken" }).data
-$cleanupIds = @($cleanupTeam | Where-Object {
-    $_.userid -ne 1 -and $_.userid -ne 9001 -and (
-      $_.email -like 'e2e-*' -or $_.email -like 'viewer-*' -or
-      $_.email -like 'x*@workbench.local' -or $_.email -like 'batch-del-test*')
-  } | ForEach-Object { $_.userid })
-$cleanupDeleted = 0
-for ($i = 0; $i -lt $cleanupIds.Count; $i += 20) {
-  $chunk = @($cleanupIds[$i..([math]::Min($i + 19, $cleanupIds.Count - 1))])
-  $batchBody = @{ action = "delete"; userids = $chunk } | ConvertTo-Json -Depth 4
-  $res = Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/v1/admin/users/batch" -Method Post -Headers @{ Authorization = "Bearer $script:adminToken"; "Content-Type" = "application/json" } -Body $batchBody
-  if ($res.code -eq 0) { $cleanupDeleted += $res.data.affected }
-}
-$cleanupRemaining = @($cleanupIds).Count - $cleanupDeleted
-Assert-True "E2E 自清理测试账号" ($cleanupRemaining -le 0) "found=$($cleanupIds.Count) deleted=$cleanupDeleted"
-
 # 6.22 登出使旧令牌失效
 $logoutLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "demo@workbench.local"; password = "secret123" }
 $oldToken = $logoutLogin.data.token
