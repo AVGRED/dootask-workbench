@@ -381,6 +381,35 @@ class ProjectTaskScheduleFeatureTest extends TestCase
         }
     }
 
+    public function test_working_days_in_range_counts_only_configured_weekdays(): void
+    {
+        // 2027-01-04 is a Monday; the range below covers one full working week.
+        $start = \Carbon\Carbon::parse('2027-01-04 09:00:00');
+        $end = \Carbon\Carbon::parse('2027-01-08 18:00:00');
+
+        $this->assertSame(5, ProjectTaskScheduleService::workingDaysInRange($start, $end, [1, 2, 3, 4, 5]));
+        $this->assertSame(4, ProjectTaskScheduleService::workingDaysInRange($start, $end, [1, 2, 3, 4, 5], ['2027-01-06']));
+        $this->assertSame(0, ProjectTaskScheduleService::workingDaysInRange($start, $end, [6, 7]));
+        $this->assertSame(0, ProjectTaskScheduleService::workingDaysInRange($start, $end, []));
+    }
+
+    public function test_working_days_in_range_handles_reversed_and_partial_weeks(): void
+    {
+        $monday = \Carbon\Carbon::parse('2027-01-04 09:00:00');
+        $sunday = \Carbon\Carbon::parse('2027-01-10 18:00:00');
+
+        // A reversed range never reports days.
+        $this->assertSame(0, ProjectTaskScheduleService::workingDaysInRange($sunday, $monday, [1, 2, 3, 4, 5]));
+        // Monday..Sunday still counts five working days across the weekend.
+        $this->assertSame(5, ProjectTaskScheduleService::workingDaysInRange($monday, $sunday, [1, 2, 3, 4, 5]));
+        // A saturday/sunday range has none.
+        $this->assertSame(0, ProjectTaskScheduleService::workingDaysInRange(
+            \Carbon\Carbon::parse('2027-01-09 09:00:00'),
+            \Carbon\Carbon::parse('2027-01-10 18:00:00'),
+            [1, 2, 3, 4, 5]
+        ));
+    }
+
     public function test_batches_are_listed_for_the_project(): void
     {
         [$anchor] = $this->seedChain();

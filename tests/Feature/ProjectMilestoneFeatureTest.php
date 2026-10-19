@@ -308,4 +308,48 @@ class ProjectMilestoneFeatureTest extends TestCase
         $this->expectException(ApiException::class);
         ProjectMilestoneService::reminderAttempts($this->project->id, (int)$milestone->id);
     }
+
+    public function test_milestone_task_list_is_ordered_visible_and_paginated(): void
+    {
+        $milestone = $this->saveMilestone();
+        $later = $this->planningTask($this->project, ['name' => 'Later', 'end_at' => '2027-01-05 18:00:00']);
+        $earlier = $this->planningTask($this->project, ['name' => 'Earlier', 'end_at' => '2027-01-03 18:00:00']);
+        $middle = $this->planningTask($this->project, ['name' => 'Middle', 'end_at' => '2027-01-04 18:00:00']);
+        $archived = $this->planningTask($this->project, ['name' => 'Archived', 'end_at' => '2027-01-06 18:00:00']);
+        foreach ([$later, $earlier, $middle, $archived] as $task) {
+            ProjectMilestoneService::assign($task->id, (int)$milestone->id);
+        }
+        $archived->archived_at = now();
+        $archived->save();
+
+        $page = ProjectMilestoneService::tasks($this->project->id, (int)$milestone->id, 1, 10);
+        $this->assertSame(3, $page['total']);
+        $this->assertSame([$earlier->id, $middle->id, $later->id], array_column($page['list'], 'id'));
+
+        $first = ProjectMilestoneService::tasks($this->project->id, (int)$milestone->id, 1, 2);
+        $this->assertCount(2, $first['list']);
+        $this->assertSame(3, $first['total']);
+    }
+
+    public function test_milestone_task_list_hides_tasks_the_member_cannot_see(): void
+    {
+        $milestone = $this->saveMilestone();
+        $private = $this->planningPrivateTask($this->project, $this->owner);
+        ProjectMilestoneService::assign($private->id, (int)$milestone->id);
+
+        $this->planningLogin($this->member);
+        $page = ProjectMilestoneService::tasks($this->project->id, (int)$milestone->id);
+
+        $this->assertSame(0, $page['total']);
+        $this->assertSame([], $page['list']);
+    }
+
+    public function test_milestone_task_list_rejects_a_milestone_from_another_project(): void
+    {
+        $otherProject = $this->planningProject($this->owner);
+        $foreign = $this->planningMilestone($otherProject, ['name' => 'Foreign']);
+
+        $this->expectException(ApiException::class);
+        ProjectMilestoneService::tasks($this->project->id, (int)$foreign->id);
+    }
 }
