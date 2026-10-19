@@ -3,6 +3,7 @@
     <el-header class="page-header">
       <span>用户管理</span>
       <span>
+        <el-button link type="primary" @click="goSettings">系统设置</el-button>
         <el-button type="primary" @click="openCreate">新建用户</el-button>
         <el-button link type="primary" @click="logout">退出</el-button>
       </span>
@@ -19,6 +20,18 @@
         <el-table-column prop="nickname" label="昵称" width="140" />
         <el-table-column prop="profession" label="职位" width="140" />
         <el-table-column prop="loginNum" label="登录次数" width="100" />
+        <el-table-column label="角色" width="140">
+          <template #default="{ row }">
+            <el-select
+              :model-value="row.role ?? 'staff'"
+              size="small"
+              @change="(value: string) => changeRole(row as UserView, value)"
+            >
+              <el-option label="员工" value="staff" />
+              <el-option label="管理员" value="admin" />
+            </el-select>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
             <el-button link type="danger" @click="remove(row as UserView)">删除</el-button>
@@ -117,6 +130,20 @@ async function submitCreate(): Promise<void> {
   } finally {
     saving.value = false;
   }
+}
+
+async function changeRole(row: UserView, role: string): Promise<void> {
+  try {
+    await client.changeRole(row.userid, role);
+    row.role = role;
+    ElMessage.success("角色已更新");
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "更新失败");
+  }
+}
+
+async function goSettings(): Promise<void> {
+  await router.push({ name: "settings" });
 }
 
 async function remove(row: UserView): Promise<void> {

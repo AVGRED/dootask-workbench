@@ -33,6 +33,7 @@ export interface UserView {
   profession: string;
   userimg: string;
   loginNum: number;
+  role?: string;
 }
 
 export interface CreateUserRequest {
@@ -298,4 +299,32 @@ export interface ActivityView {
   actionText: string;
   detail: string;
   createdAt: string;
+}
+
+export interface SettingView {
+  key: string;
+  value: string;
+  description: string;
+  updatedAt: string | null;
+}
+
+export interface PublicSettingsView {
+  items: SettingView[];
+}
+
+export interface DictItemView {
+  id: number;
+  type: string;
+  code: string;
+  label: string;
+  sort: number;
+  enabled: boolean;
+}
+
+export interface SaveDictRequest {
+  type: string;
+  code: string;
+  label: string;
+  sort?: number;
+  enabled?: boolean;
 }

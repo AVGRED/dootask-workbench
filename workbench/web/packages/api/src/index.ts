@@ -12,6 +12,7 @@ import type {
   DailyReportView,
   DepartmentView,
   DependencyView,
+  DictItemView,
   LoginRequest,
   LoginResponse,
   MemberView,
@@ -19,8 +20,10 @@ import type {
   NotificationView,
   PageResult,
   ProjectView,
+  PublicSettingsView,
   RiskSummaryView,
   SaveDailyReportRequest,
+  SaveDictRequest,
   SaveMilestoneRequest,
   SaveProjectRequest,
   SaveTaskRequest,
@@ -28,6 +31,7 @@ import type {
   ScheduleBatchView,
   SchedulePreviewRequest,
   SchedulePreviewResponse,
+  SettingView,
   TaskView,
   TemplateRevisionView,
   TemplateView,
@@ -336,6 +340,42 @@ export class ApiClient {
       "GET",
       `/api/v1/projects/${projectId}/activities?${query.toString()}`
     );
+  }
+
+  async listSettings(): Promise<SettingView[]> {
+    return this.request<SettingView[]>("GET", "/api/v1/admin/settings");
+  }
+
+  async saveSetting(key: string, value: string, description?: string): Promise<SettingView> {
+    return this.request<SettingView>("PUT", `/api/v1/admin/settings/${encodeURIComponent(key)}`, {
+      value,
+      description
+    });
+  }
+
+  async publicSettings(): Promise<PublicSettingsView> {
+    return this.request<PublicSettingsView>("GET", "/api/v1/system/public/settings");
+  }
+
+  async listDicts(type: string): Promise<DictItemView[]> {
+    return this.request<DictItemView[]>("GET", `/api/v1/dicts/${encodeURIComponent(type)}`);
+  }
+
+  async adminDicts(type?: string): Promise<DictItemView[]> {
+    const suffix = type ? `?type=${encodeURIComponent(type)}` : "";
+    return this.request<DictItemView[]>("GET", `/api/v1/admin/dicts${suffix}`);
+  }
+
+  async createDict(payload: SaveDictRequest): Promise<DictItemView> {
+    return this.request<DictItemView>("POST", "/api/v1/admin/dicts", payload);
+  }
+
+  async deleteDict(id: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/admin/dicts/${id}`);
+  }
+
+  async changeRole(userid: number, role: string): Promise<UserView> {
+    return this.request<UserView>("PUT", `/api/v1/users/${userid}/role`, { role });
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

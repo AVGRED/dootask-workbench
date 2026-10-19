@@ -412,6 +412,49 @@ Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId" | Out-Null
 $projectsAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects?page=1&size=50").data.list
 Assert-True "删除项目后不可见" (-not ($projectsAfterDelete | Where-Object { $_.id -eq $projectId })) ""
 
+# 6.14 系统管理：设置、字典、角色
+$nonAdminChange = Invoke-Api -Method Put -Path "/api/v1/users/$memberId/role" -Body @{ role = "admin" }
+Assert-True "非管理员改他人角色被拒" ($nonAdminChange.code -eq 403) "code=$($nonAdminChange.code)"
+
+$bootstrap = Invoke-Api -Method Put -Path "/api/v1/users/$me/role" -Body @{ role = "admin" }
+Assert-True "首个管理员可自举" ($bootstrap.data.role -eq "admin") "role=$($bootstrap.data.role)"
+
+$adminLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $Username; password = $Password }
+Assert-True "管理员登录角色为 admin" ($adminLogin.data.role -eq "admin") "role=$($adminLogin.data.role)"
+$script:token = $adminLogin.data.token
+
+$settingsList = (Invoke-Api -Method Get -Path "/api/v1/admin/settings").data
+Assert-True "管理员可读设置" ([bool]($settingsList | Where-Object { $_.key -eq "app.name" })) ""
+
+$savedSetting = Invoke-Api -Method Put -Path "/api/v1/admin/settings/app.name" -Body @{ value = "工作台E2E"; description = "E2E 修改" }
+Assert-True "设置写入成功" ($savedSetting.data.value -eq "工作台E2E") "value=$($savedSetting.data.value)"
+
+$publicRaw = Invoke-WebRequest -Uri "$BaseUrl/api/v1/system/public/settings"
+$publicBody = [System.Text.Encoding]::UTF8.GetString($publicRaw.RawContentStream.ToArray())
+Assert-True "公开设置可匿名读" ($publicBody -like '*app.name*') "body=$publicBody"
+
+$dictCreated = Invoke-Api -Method Post -Path "/api/v1/admin/dicts" -Body @{ type = "e2e_dict"; code = "a"; label = "甲"; sort = 1 }
+Assert-True "创建字典项" ($dictCreated.data.code -eq "a") "code=$($dictCreated.data.code)"
+$dictList = (Invoke-Api -Method Get -Path "/api/v1/dicts/e2e_dict").data
+Assert-True "按类型读取字典" ([bool]($dictList | Where-Object { $_.code -eq "a" })) ""
+Invoke-Api -Method Delete -Path "/api/v1/admin/dicts/$($dictCreated.data.id)" | Out-Null
+$dictAfter = (Invoke-Api -Method Get -Path "/api/v1/dicts/e2e_dict").data
+Assert-True "删除字典项后为空" ($dictAfter.Count -eq 0) "count=$($dictAfter.Count)"
+
+$legacyLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "legacy@example.com"; password = "secret123" }
+$legacyToken = $legacyLogin.data.token
+$script:token = $legacyToken
+$legacyChange = Invoke-Api -Method Put -Path "/api/v1/users/$memberId/role" -Body @{ role = "admin" }
+Assert-True "普通用户改他人角色被拒（管理员已存在）" ($legacyChange.code -eq 403) "code=$($legacyChange.code)"
+
+$script:token = $adminLogin.data.token
+$reverted = Invoke-Api -Method Put -Path "/api/v1/users/$me/role" -Body @{ role = "staff" }
+Assert-True "管理员可把角色改回 staff" ($reverted.data.role -eq "staff") "role=$($reverted.data.role)"
+
+$staffLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $Username; password = $Password }
+Assert-True "改回后登录角色为 staff" ($staffLogin.data.role -eq "staff") "role=$($staffLogin.data.role)"
+$script:token = $staffLogin.data.token
+
 # 8. 分页与中文
 $users = Invoke-Api -Method Get -Path "/api/v1/users?page=1&size=5"
 Assert-True "用户分页 total>0" ($users.data.total -gt 0) "total=$($users.data.total)"
