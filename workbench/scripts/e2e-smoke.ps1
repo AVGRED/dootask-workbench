@@ -380,6 +380,24 @@ Assert-True "非法里程碑被拒绝" ($badMilestone.code -eq 400) "code=$($bad
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$linkedId" | Out-Null
 Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/milestones/$m2Id" | Out-Null
 
+# 6.13 项目动态与审计
+$actTask = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks" -Body @{ name = "E2E 动态任务" }
+$actTaskId = $actTask.data.id
+Invoke-Api -Method Post -Path "/api/v1/tasks/$actTaskId/complete" | Out-Null
+
+$acts = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/activities?taskId=$actTaskId").data
+Assert-True "任务动态至少两条" ($acts.total -ge 2) "total=$($acts.total)"
+$actions = ($acts.list | ForEach-Object { $_.action }) -join ","
+Assert-True "动态含 task.create" ($actions -like "*task.create*") "actions=$actions"
+Assert-True "动态含 task.complete" ($actions -like "*task.complete*") "actions=$actions"
+Assert-True "动态带中文文案" ([bool]($acts.list | Where-Object { $_.actionText -eq "创建任务" })) ""
+
+$allActs = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/activities?size=5").data
+Assert-True "动态分页 size 生效" ($allActs.size -eq 5) "size=$($allActs.size)"
+Assert-True "动态列表非空" ($allActs.total -ge 1) "total=$($allActs.total)"
+
+Invoke-Api -Method Delete -Path "/api/v1/tasks/$actTaskId" | Out-Null
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total

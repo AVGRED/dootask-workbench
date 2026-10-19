@@ -29,6 +29,7 @@
           <template #default="{ row }">
             <el-button link type="primary" @click="openTasks(row as ProjectView)">任务</el-button>
             <el-button link type="primary" @click="openPlanning(row as ProjectView)">规划</el-button>
+            <el-button link type="primary" @click="openActivities(row as ProjectView)">动态</el-button>
             <el-button link type="primary" @click="openMembers(row as ProjectView)">成员</el-button>
             <el-button v-if="!row.archived" link @click="archive(row as ProjectView)">归档</el-button>
             <el-button link type="danger" @click="remove(row as ProjectView)">删除</el-button>
@@ -83,6 +84,23 @@
       </div>
     </el-drawer>
 
+    <el-drawer v-model="activityVisible" :title="`动态 · ${activityProject?.name ?? ''}`" size="480px">
+      <el-table :data="activities" size="small" border>
+        <el-table-column prop="createdAt" label="时间" width="160" />
+        <el-table-column prop="userid" label="用户" width="70" />
+        <el-table-column prop="actionText" label="动作" width="100" />
+        <el-table-column prop="detail" label="详情" min-width="160" show-overflow-tooltip />
+      </el-table>
+      <el-pagination
+        class="pager"
+        layout="total, prev, pager, next"
+        :total="activityTotal"
+        :page-size="10"
+        :current-page="activityPage"
+        @current-change="onActivityPage"
+      />
+    </el-drawer>
+
     <el-drawer v-model="notifyVisible" title="消息" size="420px">
       <div class="notify-actions">
         <el-button size="small" @click="readAll">全部已读</el-button>
@@ -105,7 +123,7 @@
 import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { MemberView, NotificationView, ProjectView } from "@workbench/api";
+import type { ActivityView, MemberView, NotificationView, ProjectView } from "@workbench/api";
 import { client, useAuthStore } from "../stores/auth";
 
 const auth = useAuthStore();
@@ -125,6 +143,11 @@ const membersVisible = ref(false);
 const current = ref<ProjectView | null>(null);
 const members = ref<MemberView[]>([]);
 const newUserid = ref("");
+const activityVisible = ref(false);
+const activityProject = ref<ProjectView | null>(null);
+const activities = ref<ActivityView[]>([]);
+const activityTotal = ref(0);
+const activityPage = ref(1);
 const notifyVisible = ref(false);
 const notifications = ref<NotificationView[]>([]);
 const unread = ref(0);
@@ -135,6 +158,32 @@ async function refreshUnread(): Promise<void> {
   } catch {
     unread.value = 0;
   }
+}
+
+async function openActivities(row: ProjectView): Promise<void> {
+  activityProject.value = row;
+  activityPage.value = 1;
+  activityVisible.value = true;
+  await loadActivities();
+}
+
+async function loadActivities(): Promise<void> {
+  if (!activityProject.value) return;
+  try {
+    const result = await client.listActivities(activityProject.value.id, {
+      page: activityPage.value,
+      size: 10
+    });
+    activities.value = result.list;
+    activityTotal.value = result.total;
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "加载动态失败");
+  }
+}
+
+function onActivityPage(next: number): void {
+  activityPage.value = next;
+  void loadActivities();
 }
 
 async function openNotifications(): Promise<void> {

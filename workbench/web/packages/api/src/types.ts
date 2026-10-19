@@ -289,3 +289,13 @@ export interface ScheduleBatchView {
   createdAt: string;
   undone: boolean;
 }
+
+export interface ActivityView {
+  id: number;
+  taskId: number | null;
+  userid: number;
+  action: string;
+  actionText: string;
+  detail: string;
+  createdAt: string;
+}

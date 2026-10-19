@@ -1,4 +1,5 @@
 import type {
+  ActivityView,
   ApiResponse,
   ApplyScheduleRequest,
   ApplyTemplateResult,
@@ -321,6 +322,20 @@ export class ApiClient {
 
   async listScheduleBatches(projectId: number): Promise<ScheduleBatchView[]> {
     return this.request<ScheduleBatchView[]>("GET", `/api/v1/projects/${projectId}/schedule/batches`);
+  }
+
+  async listActivities(
+    projectId: number,
+    params: { page?: number; size?: number; taskId?: number } = {}
+  ): Promise<PageResult<ActivityView>> {
+    const query = new URLSearchParams();
+    query.set("page", String(params.page ?? 1));
+    query.set("size", String(params.size ?? 20));
+    if (params.taskId) query.set("taskId", String(params.taskId));
+    return this.request<PageResult<ActivityView>>(
+      "GET",
+      `/api/v1/projects/${projectId}/activities?${query.toString()}`
+    );
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
