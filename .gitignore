@@ -65,3 +65,6 @@ README_LOCAL.md
 # playwright
 .playwright-mcp/
 /.phpunit.cache
+
+# workbench local uploads
+workbench/server/data/
