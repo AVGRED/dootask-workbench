@@ -413,6 +413,17 @@ Assert-True "动态列表非空" ($allActs.total -ge 1) "total=$($allActs.total)
 
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$actTaskId" | Out-Null
 
+# 6.15 全局搜索
+$search = Invoke-Api -Method Get -Path "/api/v1/search?keyword=$suffix"
+Assert-True "搜索命中项目" ([bool]($search.data.projects | Where-Object { $_.id -eq $projectId })) "hits=$($search.data.projects.Count)"
+$taskKeyword = [uri]::EscapeDataString("E2E 任务改名")
+$searchTask = Invoke-Api -Method Get -Path "/api/v1/search?keyword=$taskKeyword"
+Assert-True "搜索命中任务" ([bool]($searchTask.data.tasks | Where-Object { $_.id -eq $taskId })) "hits=$($searchTask.data.tasks.Count)"
+$searchBlank = Invoke-Api -Method Get -Path "/api/v1/search?keyword="
+Assert-True "空关键词返回空结果" ($searchBlank.data.projects.Count -eq 0) "count=$($searchBlank.data.projects.Count)"
+$searchNone = Invoke-Api -Method Get -Path "/api/v1/search?keyword=zzz-not-exists-zzz"
+Assert-True "无匹配时为空" (($searchNone.data.projects.Count -eq 0) -and ($searchNone.data.tasks.Count -eq 0)) ""
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total

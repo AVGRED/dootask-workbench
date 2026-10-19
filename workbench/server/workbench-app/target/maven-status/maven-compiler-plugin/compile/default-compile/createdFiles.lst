@@ -1,5 +1,9 @@
+com\workbench\app\search\SearchController.class
 com\workbench\app\config\MybatisPlusConfig.class
 com\workbench\app\WorkbenchApplication.class
+com\workbench\app\search\SearchResult.class
+com\workbench\app\search\SearchService.class
+com\workbench\app\search\SearchResult$Item.class
 com\workbench\app\migrate\LegacyMigrationRunner.class
 com\workbench\app\migrate\MigrationPlan.class
 com\workbench\app\migrate\MigrationPlan$TableStep.class
