@@ -90,9 +90,18 @@ public class TaskService {
     public void complete(long currentUserid, long taskId, boolean completed) {
         Task task = requireTask(taskId);
         requireAccess(currentUserid, Objects.requireNonNull(task.getProjectId()));
-        task.setCompleteAt(completed ? LocalDateTime.now() : null);
-        task.setUpdatedAt(LocalDateTime.now());
-        taskMapper.updateById(task);
+        LocalDateTime now = LocalDateTime.now();
+        if (completed) {
+            task.setCompleteAt(now);
+            task.setUpdatedAt(now);
+            taskMapper.updateById(task);
+        } else {
+            // updateById 会忽略 null 字段，取消完成必须用 UpdateWrapper 显式置空。
+            taskMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Task>()
+                    .eq(Task::getId, taskId)
+                    .set(Task::getCompleteAt, null)
+                    .set(Task::getUpdatedAt, now));
+        }
     }
 
     public void delete(long currentUserid, long taskId) {

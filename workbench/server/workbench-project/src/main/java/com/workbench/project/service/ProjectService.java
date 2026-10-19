@@ -99,10 +99,20 @@ public class ProjectService {
 
     public void archive(long currentUserid, long projectId, boolean archived) {
         Project project = requireOwner(currentUserid, projectId);
-        project.setArchivedAt(archived ? LocalDateTime.now() : null);
-        project.setArchivedUserid(archived ? currentUserid : 0L);
-        project.setUpdatedAt(LocalDateTime.now());
-        projectMapper.updateById(project);
+        LocalDateTime now = LocalDateTime.now();
+        if (archived) {
+            project.setArchivedAt(now);
+            project.setArchivedUserid(currentUserid);
+            project.setUpdatedAt(now);
+            projectMapper.updateById(project);
+        } else {
+            // updateById 忽略 null 字段，恢复归档必须显式置空。
+            projectMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Project>()
+                    .eq(Project::getId, projectId)
+                    .set(Project::getArchivedAt, null)
+                    .set(Project::getArchivedUserid, 0L)
+                    .set(Project::getUpdatedAt, now));
+        }
     }
 
     @Transactional
