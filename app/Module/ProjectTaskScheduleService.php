@@ -843,7 +843,10 @@ class ProjectTaskScheduleService
         if (in_array(ProjectPermission::PERMISSIONS['project_leader'], $permissions, true) && $project->owner) {
             return true;
         }
-        // preview() has already required manager status and loaded this project through userProject().
+        // preview() already requires manager status, so this branch exists for managers
+        // whose project role no longer includes the leader permission. Do not reuse this
+        // helper outside the manager-only scheduling flow, or it would let any member
+        // adjust dates.
         if (in_array(ProjectPermission::PERMISSIONS['project_member'], $permissions, true)) {
             return true;
         }
