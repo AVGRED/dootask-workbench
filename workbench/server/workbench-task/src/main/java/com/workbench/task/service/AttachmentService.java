@@ -38,6 +38,24 @@ public class AttachmentService {
         this.projectAccess = projectAccess;
     }
 
+    private static final java.util.List<String> ALLOWED_PREFIXES = java.util.List.of(
+            "image/", "text/plain", "text/csv", "application/pdf", "application/zip",
+            "application/json", "application/msword", "application/vnd.ms-excel",
+            "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.");
+
+    private void checkFileType(String contentType, String filename) {
+        String type = contentType == null ? "" : contentType.toLowerCase(java.util.Locale.ROOT);
+        String name = filename == null ? "" : filename.toLowerCase(java.util.Locale.ROOT);
+        if (name.endsWith(".html") || name.endsWith(".htm") || name.endsWith(".svg")
+                || name.endsWith(".js") || name.endsWith(".exe") || name.endsWith(".sh")
+                || name.endsWith(".bat") || name.endsWith(".jar")) {
+            throw new BusinessException("不支持该文件类型");
+        }
+        if (ALLOWED_PREFIXES.stream().noneMatch(type::startsWith)) {
+            throw new BusinessException("不支持该文件类型：" + type);
+        }
+    }
+
     public AttachmentView upload(long currentUserid, long taskId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("请选择要上传的文件");
@@ -45,6 +63,7 @@ public class AttachmentService {
         if (file.getSize() > AttachmentStorage.MAX_SIZE_BYTES) {
             throw new BusinessException("文件不能超过 20MB");
         }
+        checkFileType(file.getContentType(), file.getOriginalFilename());
         Long projectId = jdbcTemplate.query(
                 "select project_id from project_tasks where id = ? and deleted_at is null",
                 resultSet -> resultSet.next() ? resultSet.getLong("project_id") : null,

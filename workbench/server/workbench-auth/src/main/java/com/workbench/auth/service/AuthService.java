@@ -24,6 +24,43 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthService {
 
+    private static final int LOGIN_MAX_FAILURES = 5;
+    private static final long LOGIN_WINDOW_MS = 15 * 60 * 1000L;
+    private final java.util.Map<String, java.util.Deque<Long>> loginFailures = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private void checkLoginRate(String username) {
+        String key = username == null ? "" : username.toLowerCase(java.util.Locale.ROOT);
+        java.util.Deque<Long> attempts = loginFailures.get(key);
+        if (attempts == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        synchronized (attempts) {
+            while (!attempts.isEmpty() && now - attempts.peekFirst() > LOGIN_WINDOW_MS) {
+                attempts.pollFirst();
+            }
+            if (attempts.size() >= LOGIN_MAX_FAILURES) {
+                throw new BusinessException(429, "登录失败次数过多，请 15 分钟后再试");
+            }
+        }
+    }
+
+    private void recordLoginFailure(String username) {
+        String key = username == null ? "" : username.toLowerCase(java.util.Locale.ROOT);
+        java.util.Deque<Long> attempts = loginFailures.computeIfAbsent(key,
+                ignored -> new java.util.concurrent.ConcurrentLinkedDeque<>());
+        long now = System.currentTimeMillis();
+        synchronized (attempts) {
+            attempts.addLast(now);
+            while (!attempts.isEmpty() && now - attempts.peekFirst() > LOGIN_WINDOW_MS) {
+                attempts.pollFirst();
+            }
+            while (attempts.size() > LOGIN_MAX_FAILURES) {
+                attempts.pollFirst();
+            }
+        }
+    }
+
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -35,8 +72,10 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
+        checkLoginRate(request.username());
         List<Map<String, Object>> rows = findByEmail(request.username());
         if (rows.isEmpty()) {
+            recordLoginFailure(request.username());
             throw new BusinessException("账号或密码错误");
         }
         Map<String, Object> user = rows.get(0);
@@ -44,8 +83,10 @@ public class AuthService {
         String stored = (String) user.get("password");
         String salt = (String) user.get("encrypt");
         if (!matches(request.password(), stored, salt)) {
+            recordLoginFailure(request.username());
             throw new BusinessException("账号或密码错误");
         }
+        loginFailures.remove(request.username() == null ? "" : request.username().toLowerCase(java.util.Locale.ROOT));
         if (isBcrypt(stored)) {
             // already upgraded
         } else {
