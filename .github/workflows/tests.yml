@@ -51,6 +51,9 @@ jobs:
       - name: Vue Template Wiring Check
         run: npm run check:vue-wiring
 
+      - name: Frontend Unit Tests
+        run: node --test tests/*.test.mjs
+
   phpunit:
     runs-on: ubuntu-latest
     services:

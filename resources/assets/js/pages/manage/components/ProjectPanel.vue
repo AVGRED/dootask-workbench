@@ -851,6 +851,7 @@ import transformEmojiToHtml from "../../../utils/emoji";
 import {projectTableGroups, normalizeProjectTableGroups, projectWeekRanges, taskMatchesProjectGroup} from "../../../utils/projectTableGroups";
 import {scrollToStableTarget} from "../../../utils/scrollToStableTarget";
 import {emptyProjectFlowFilter, projectFlowFilterCount, taskMatchesProjectFlowFilter} from "../../../utils/projectFlowFilter";
+import {buildCapacityCsv} from "../../../utils/capacityCsv";
 
 export default {
     name: "ProjectPanel",
@@ -2086,11 +2087,6 @@ export default {
                 this.$L('剩余'),
                 this.$L('超出'),
             ];
-            const escape = value => {
-                let text = String(value ?? '');
-                if (/^\s*[=+\-@]/.test(text)) text = `'${text}`;
-                return `"${text.replace(/"/g, '""')}"`;
-            };
             const rows = members.map(row => [
                 row.user && row.user.name || `#${row.userid}`,
                 row.task_count,
@@ -2099,7 +2095,7 @@ export default {
                 this.formatWorkMinutes(row.remaining_minutes),
                 this.formatWorkMinutes(row.overrun_minutes),
             ]);
-            const csv = `\uFEFF${[columns, ...rows].map(row => row.map(escape).join(',')).join('\r\n')}`;
+            const csv = buildCapacityCsv([columns, ...rows]);
             const blobUrl = window.URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
             const link = document.createElement('a');
             link.href = blobUrl;
