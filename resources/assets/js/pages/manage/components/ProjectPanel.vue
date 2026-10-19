@@ -648,131 +648,15 @@
             </div>
         </Modal>
 
-        <Modal v-model="milestoneShow" :title="$L('项目里程碑')" :mask-closable="false" width="680">
-            <div class="project-milestone-manager">
-                <div class="project-milestone-manager-toolbar">
-                    <p class="form-tip">{{$L('里程碑用于标记项目交付目标；任务可以关联一个里程碑。')}}</p>
-                    <Button size="small" type="text" :loading="milestoneLoading" @click="loadMilestones">{{$L('重新加载')}}</Button>
-                </div>
-                <Form v-if="milestoneCanManage" :model="milestoneForm" v-bind="formOptions" @submit.native.prevent>
-                    <FormItem :label="$L('名称')">
-                        <Input v-model="milestoneForm.name" :maxlength="100" :placeholder="$L('请输入里程碑名称')"/>
-                    </FormItem>
-                    <FormItem :label="$L('说明')">
-                        <Input v-model="milestoneForm.description" type="textarea" :autosize="{ minRows: 2, maxRows: 3 }" :maxlength="500" :placeholder="$L('选填')"/>
-                    </FormItem>
-                    <FormItem :label="$L('负责人')">
-                        <UserSelect v-model="milestoneForm.owner_userids" :project-id="projectId" :multiple-max="1" :title="$L('选择负责人')"/>
-                    </FormItem>
-                    <FormItem :label="$L('目标日期')">
-                        <DatePicker v-model="milestoneForm.target_at" type="date" format="yyyy-MM-dd" :placeholder="$L('选填')" clearable transfer/>
-                    </FormItem>
-                    <FormItem :label="$L('提醒')">
-                        <Select v-model="milestoneForm.reminder_days" :disabled="!milestoneForm.target_at" style="width:180px">
-                            <Option :value="-1">{{$L('关闭提醒')}}</Option>
-                            <Option :value="0">{{$L('目标日期当天提醒')}}</Option>
-                            <Option :value="1">{{$L('提前(*)天提醒', 1)}}</Option>
-                            <Option :value="3">{{$L('提前(*)天提醒', 3)}}</Option>
-                            <Option :value="7">{{$L('提前(*)天提醒', 7)}}</Option>
-                        </Select>
-                        <div class="form-tip">{{$L('提醒默认关闭；设置目标日期后可开启，并通过项目群聊发送一次弱提醒。')}}</div>
-                    </FormItem>
-                    <FormItem :label="$L('状态')">
-                        <Select v-model="milestoneForm.status" style="width:180px">
-                            <Option value="open">{{$L('进行中')}}</Option>
-                            <Option value="completed">{{$L('已完成')}}</Option>
-                        </Select>
-                    </FormItem>
-                    <div class="adaption">
-                        <Button v-if="milestoneForm.id" type="default" :disabled="milestoneSaving" @click="resetMilestoneForm">{{$L('取消编辑')}}</Button>
-                        <Button type="primary" :loading="milestoneSaving" @click="saveMilestone">{{$L(milestoneForm.id ? '保存修改' : '添加里程碑')}}</Button>
-                    </div>
-                </Form>
-                <div v-if="milestoneLoading" class="form-tip">{{$L('加载中...')}}</div>
-                <div v-else-if="milestoneLoadFailed" class="project-capacity-load-state">
-                    <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
-                    <Button size="small" type="text" :disabled="milestoneLoading" @click="loadMilestones">{{$L('重试')}}</Button>
-                </div>
-                <div v-else-if="milestoneList.length === 0" class="form-tip">{{$L('暂无里程碑')}}</div>
-                <Draggable
-                    v-else
-                    class="project-milestone-list"
-                    tag="ul"
-                    :list="milestoneList"
-                    :animation="150"
-                    :disabled="!milestoneCanManage || milestoneSortSaving"
-                    item-key="id"
-                    handle=".project-milestone-drag-handle"
-                    @end="saveMilestoneSort">
-                    <li v-for="item in milestoneList" :key="item.id">
-                        <div class="project-milestone-main">
-                            <div class="project-milestone-heading">
-                                <strong>{{item.name}}</strong>
-                                <UserAvatar v-if="item.owner_userid" :userid="item.owner_userid" :size="20" showName/>
-                                <span v-if="item.target_at">{{item.target_at}}</span>
-                                <Tag :color="item.status === 'completed' ? 'success' : 'default'">{{$L(item.status === 'completed' ? '已完成' : '进行中')}}</Tag>
-                            </div>
-                            <p v-if="item.description">{{item.description}}</p>
-                            <div class="project-milestone-stats">
-                                <span>{{$L('关联任务')}} {{item.task_count || 0}}</span>
-                                <span>{{$L('已完成')}} {{item.completed_count || 0}}</span>
-                                <span>{{$L('逾期')}} {{item.overdue_count || 0}}</span>
-                                <span>{{$L('完成率')}} {{item.progress_percent || 0}}%</span>
-                                <Button size="small" type="text" :loading="milestoneTaskLoading && milestoneTaskId === item.id" @click="toggleMilestoneTasks(item)">{{$L(milestoneTaskId === item.id ? '收起任务' : '查看任务')}}</Button>
-                            </div>
-                            <div v-if="milestoneCanManage && item.reminder_days >= 0 && item.target_at" class="project-milestone-reminder-state">
-                                <template v-if="item.reminded_at">{{$L('已发送')}} · {{item.reminded_at}}</template>
-                                <template v-else-if="item.reminder_attempt_count">
-                                    {{$L('重试次数')}} {{item.reminder_attempt_count}} · {{item.reminder_last_attempt_at}} ·
-                                    {{$L(item.reminder_last_error_code === 'bot_unavailable' ? '提醒机器人不可用' : item.reminder_last_error_code === 'chat_unavailable' ? '项目群聊不可用' : '提醒消息投递失败')}}
-                                </template>
-                                <template v-else>{{$L('等待提醒')}}</template>
-                                <Button size="small" type="text" @click="openReminderAttempts(item)">{{$L('提醒记录')}}</Button>
-                            </div>
-                            <div v-if="item.flow_statuses && item.flow_statuses.length" class="project-milestone-statuses">
-                                <Tag v-for="status in item.flow_statuses" :key="status.name" :color="status.color || 'default'">{{status.name}} {{status.count}}</Tag>
-                            </div>
-                            <div v-if="milestoneTaskId === item.id" class="project-milestone-tasks">
-                                <div v-if="milestoneTaskLoading && milestoneTasks.length === 0" class="form-tip">{{$L('加载中...')}}</div>
-                                <div v-else-if="milestoneTaskLoadFailed" class="project-capacity-load-state">
-                                    <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
-                                    <Button size="small" type="text" :disabled="milestoneTaskLoading" @click="loadMilestoneTasks(milestoneTasks.length === 0)">{{$L('重试')}}</Button>
-                                </div>
-                                <div v-else-if="milestoneTasks.length === 0" class="form-tip">{{$L('没有关联任务')}}</div>
-                                <ul v-else>
-                                    <li v-for="task in milestoneTasks" :key="task.id" @click="openMilestoneTask(task)">
-                                        <span class="project-milestone-task-name">#{{task.id}} {{task.name}}</span>
-                                        <span class="project-milestone-task-meta">
-                                            <Tag v-if="task.complete_at" color="success">{{$L('已完成')}}</Tag>
-                                            <Tag v-else-if="task.flow_item_name" :color="task.flow_item_color || 'default'">{{task.flow_item_name}}</Tag>
-                                            <Tag v-else-if="task.overdue" color="error">{{$L('逾期')}}</Tag>
-                                            <span v-if="task.column_name">{{task.column_name}}</span>
-                                            <span v-if="task.end_at">{{task.end_at.slice(0, 10)}}</span>
-                                        </span>
-                                    </li>
-                                </ul>
-                                <Button v-if="!milestoneTaskLoadFailed && milestoneTasks.length < milestoneTaskTotal" size="small" long :loading="milestoneTaskLoading" @click="loadMilestoneTasks(false)">{{$L('加载更多')}}</Button>
-                            </div>
-                        </div>
-                        <div v-if="milestoneCanManage" class="project-milestone-actions">
-                            <span class="project-milestone-drag-handle" :title="$L('拖拽调整排序')"><Icon type="md-menu" /></span>
-                            <Button size="small" @click="editMilestone(item)">{{$L('编辑')}}</Button>
-                            <Poptip confirm :title="$L('删除后将解除该里程碑与所有任务的关联，确定继续吗？')" :ok-text="$L('删除')" :cancel-text="$L('取消')" @on-ok="deleteMilestone(item)">
-                                <Button size="small" type="error">{{$L('删除')}}</Button>
-                            </Poptip>
-                        </div>
-                    </li>
-                </Draggable>
-            </div>
-            <div slot="footer" class="adaption">
-                <Button type="default" @click="milestoneShow=false">{{$L('关闭')}}</Button>
-            </div>
-        </Modal>
-
-        <MilestoneReminderAttempts
-            :visible.sync="reminderAttemptsShow"
+        <MilestoneManager
+            :visible.sync="milestoneShow"
             :project-id="projectId"
-            :milestone="reminderAttemptsMilestone" />
+            :milestones="milestoneList"
+            :can-manage="milestoneCanManage"
+            :loading="milestoneLoading"
+            :load-failed="milestoneLoadFailed"
+            @refresh="loadMilestones"
+            @open-task="openMilestoneTask" />
 
         <!--项目权限-->
         <DrawerOverlay
@@ -956,7 +840,7 @@ import TaskMenu from "./TaskMenu";
 import TaskDeleted from "./TaskDeleted";
 import TaskTag from "./ProjectTaskTag/tags.vue";
 import ProjectGantt from "./ProjectGantt";
-import MilestoneReminderAttempts from "./MilestoneReminderAttempts.vue";
+import MilestoneManager from "./MilestoneManager.vue";
 import ProjectTableGroupDropdown from "./ProjectTableGroupDropdown.vue";
 import ProjectFlowFilterDropdown from "./ProjectFlowFilterDropdown.vue";
 import UserSelect from "../../../components/UserSelect.vue";
@@ -988,7 +872,7 @@ export default {
         TaskDeleted,
         TaskTag,
         ProjectGantt,
-        MilestoneReminderAttempts,
+        MilestoneManager,
         ProjectTableGroupDropdown,
         ProjectFlowFilterDropdown,
     },
@@ -1040,22 +924,11 @@ export default {
             ],
             milestoneLoading: false,
             milestoneLoadFailed: false,
-            reminderAttemptsShow: false,
-            reminderAttemptsMilestone: null,
-            milestoneSaving: false,
-            milestoneSortSaving: false,
             milestoneCanManage: false,
             milestoneList: [],
-            milestoneForm: {id: 0, name: '', description: '', owner_userids: [], target_at: '', status: 'open', reminder_days: -1},
             milestoneFilterId: null,
             taskDateRange: [],
             tableFields: ['column', 'priority', 'owner', 'due'],
-            milestoneTaskId: 0,
-            milestoneTasks: [],
-            milestoneTaskTotal: 0,
-            milestoneTaskPage: 1,
-            milestoneTaskLoading: false,
-            milestoneTaskLoadFailed: false,
             taskViews: [],
             taskViewsLoading: false,
             taskViewsLoadFailed: false,
@@ -1623,11 +1496,6 @@ export default {
     },
 
     watch: {
-        'milestoneForm.target_at'(value) {
-            if (!value && this.milestoneForm.reminder_days >= 0) {
-                this.milestoneForm.reminder_days = -1;
-            }
-        },
         tabTypeActive(type) {
             if (type !== 'table') {
                 this.tableGroupsOpen = false;
@@ -1663,23 +1531,10 @@ export default {
                 this.tableFields = ['column', 'priority', 'owner', 'due'];
                 this.milestoneList = [];
                 this.milestoneCanManage = false;
-                this._milestoneTaskRequestKey = (this._milestoneTaskRequestKey || 0) + 1;
-                this.milestoneTaskId = 0;
-                this.milestoneTasks = [];
-                this.milestoneTaskTotal = 0;
-                this.milestoneTaskLoading = false;
-                this.milestoneTaskLoadFailed = false;
                 this.milestoneLoadFailed = false;
+                this.milestoneShow = false;
                 this.capacitySummary = {};
                 this.capacityLoadFailed = false;
-                this._milestoneSaveRequestKey = (this._milestoneSaveRequestKey || 0) + 1;
-                this.milestoneSaving = false;
-                this._milestoneSortRequestKey = (this._milestoneSortRequestKey || 0) + 1;
-                this.milestoneSortSaving = false;
-                this.milestoneShow = false;
-                this.reminderAttemptsShow = false;
-                this.reminderAttemptsMilestone = null;
-                this.resetMilestoneForm();
                 if (id > 0) {
                     this.getFlowData();
                     this.loadMilestones().then(() => {
@@ -2115,12 +1970,6 @@ export default {
                         $A.messageWarning(this.$L('视图中的里程碑已不可用，已清除该筛选'));
                     }
                 }
-                if (this.milestoneTaskId && !this.milestoneList.some(item => Number(item.id) === Number(this.milestoneTaskId))) {
-                    this.milestoneTaskId = 0;
-                    this.milestoneTasks = [];
-                    this.milestoneTaskTotal = 0;
-                }
-                if (!this.milestoneCanManage) this.resetMilestoneForm();
             } catch (e) {
                 if (requestKey === this._milestoneRequestKey) this.milestoneLoadFailed = true;
             } finally {
@@ -2128,21 +1977,9 @@ export default {
             }
         },
 
-        openReminderAttempts(item) {
-            if (!this.milestoneCanManage || !item || !item.id) return;
-            this.reminderAttemptsMilestone = {id: Number(item.id), name: item.name || ''};
-            this.reminderAttemptsShow = true;
-        },
-
         onProjectMilestonesUpdate(projectId) {
             if (Number(projectId) !== Number(this.projectId)) return;
             this.loadMilestones();
-            if (this.milestoneTaskId) {
-                this._milestoneTaskRequestKey = (this._milestoneTaskRequestKey || 0) + 1;
-                this.milestoneTaskLoading = false;
-                this.milestoneTaskPage = 1;
-                this.loadMilestoneTasks(true);
-            }
         },
 
         openMilestoneOverview() {
@@ -2273,147 +2110,9 @@ export default {
             window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 0);
         },
 
-        async toggleMilestoneTasks(item) {
-            this._milestoneTaskRequestKey = (this._milestoneTaskRequestKey || 0) + 1;
-            this.milestoneTaskLoading = false;
-            if (Number(this.milestoneTaskId) === Number(item.id)) {
-                this.milestoneTaskId = 0;
-                this.milestoneTasks = [];
-                this.milestoneTaskTotal = 0;
-                return;
-            }
-            this.milestoneTaskId = item.id;
-            this.milestoneTasks = [];
-            this.milestoneTaskTotal = 0;
-            this.milestoneTaskPage = 1;
-            await this.loadMilestoneTasks(true);
-        },
-
-        async loadMilestoneTasks(reset = false) {
-            const milestoneId = Number(this.milestoneTaskId);
-            if (!milestoneId || this.milestoneTaskLoading) return;
-            const requestKey = this._milestoneTaskRequestKey = (this._milestoneTaskRequestKey || 0) + 1;
-            const projectId = this.projectId;
-            const page = reset ? 1 : this.milestoneTaskPage + 1;
-            this.milestoneTaskLoading = true;
-            this.milestoneTaskLoadFailed = false;
-            try {
-                const {data} = await this.$store.dispatch("call", {
-                    url: 'projectmilestone/tasks',
-                    data: {project_id: projectId, milestone_id: milestoneId, page, per_page: 30},
-                });
-                if (requestKey !== this._milestoneTaskRequestKey || projectId !== this.projectId || milestoneId !== Number(this.milestoneTaskId)) return;
-                this.milestoneTasks = reset ? (data.list || []) : [...this.milestoneTasks, ...(data.list || [])];
-                this.milestoneTaskTotal = Number(data.total) || 0;
-                this.milestoneTaskPage = Number(data.page) || page;
-            } catch (e) {
-                if (requestKey === this._milestoneTaskRequestKey) this.milestoneTaskLoadFailed = true;
-            } finally {
-                if (requestKey === this._milestoneTaskRequestKey) this.milestoneTaskLoading = false;
-            }
-        },
-
         openMilestoneTask(task) {
             const cachedTask = this.cacheTasks.find(item => Number(item.id) === Number(task.id));
             this.openTask(cachedTask || {id: Number(task.id), project_id: this.projectId});
-        },
-
-        resetMilestoneForm() {
-            this.milestoneForm = {id: 0, name: '', description: '', owner_userids: [], target_at: '', status: 'open', reminder_days: -1};
-        },
-
-        editMilestone(item) {
-            if (!this.milestoneCanManage || !item || !this.milestoneList.some(({id}) => Number(id) === Number(item.id))) return;
-            this.milestoneForm = {
-                ...item,
-                owner_userids: item.owner_userid ? [Number(item.owner_userid)] : [],
-                target_at: item.target_at ? $A.dayjs(item.target_at).toDate() : '',
-            };
-        },
-
-        async saveMilestone() {
-            if (this.milestoneSaving) return;
-            if (!this.milestoneForm.name.trim()) {
-                $A.modalError(this.$L('请输入里程碑名称'));
-                return;
-            }
-            const projectId = this.projectId;
-            const form = {...this.milestoneForm};
-            const submittedForm = JSON.stringify(form);
-            const requestKey = this._milestoneSaveRequestKey = (this._milestoneSaveRequestKey || 0) + 1;
-            this.milestoneSaving = true;
-            try {
-                const targetAt = form.target_at
-                    ? $A.dayjs(form.target_at).format('YYYY-MM-DD')
-                    : '';
-                const {data} = await this.$store.dispatch("call", {
-                    url: 'projectmilestone/save',
-                    data: {
-                        project_id: projectId,
-                        milestone_id: form.id || 0,
-                        name: form.name,
-                        description: form.description,
-                        target_at: targetAt,
-                        status: form.status,
-                        reminder_days: form.reminder_days,
-                        owner_userid: Number(form.owner_userids[0]) || 0,
-                    },
-                });
-                emitter.emit('projectMilestonesUpdate', projectId);
-                if (requestKey === this._milestoneSaveRequestKey && projectId === this.projectId) {
-                    if (JSON.stringify(this.milestoneForm) === submittedForm) {
-                        this.resetMilestoneForm();
-                    } else if (!form.id && data && data.id) {
-                        // Keep edits made while the create request was in flight attached to
-                        // the newly created milestone instead of creating a duplicate.
-                        this.$set(this.milestoneForm, 'id', Number(data.id));
-                    }
-                }
-            } catch ({msg}) {
-                if (projectId === this.projectId) $A.modalError(msg);
-            } finally {
-                if (requestKey === this._milestoneSaveRequestKey) this.milestoneSaving = false;
-            }
-        },
-
-        async deleteMilestone(item) {
-            if (!this.milestoneCanManage || !item || !this.milestoneList.some(({id}) => Number(id) === Number(item.id))) return;
-            const projectId = this.projectId;
-            const milestoneId = Number(item.id);
-            try {
-                await this.$store.dispatch("call", {
-                    url: 'projectmilestone/delete',
-                    data: {project_id: projectId, milestone_id: milestoneId},
-                });
-                if (projectId === this.projectId && Number(this.milestoneForm.id) === milestoneId) this.resetMilestoneForm();
-                emitter.emit('projectMilestonesUpdate', projectId);
-            } catch ({msg}) {
-                if (projectId === this.projectId) $A.modalError(msg);
-            }
-        },
-
-        async saveMilestoneSort() {
-            if (!this.milestoneCanManage || this.milestoneSortSaving) return;
-            const projectId = this.projectId;
-            const requestKey = this._milestoneSortRequestKey = (this._milestoneSortRequestKey || 0) + 1;
-            this.milestoneSortSaving = true;
-            try {
-                const {msg} = await this.$store.dispatch("call", {
-                    url: 'projectmilestone/sort',
-                    data: {project_id: projectId, milestones: this.milestoneList.map(item => Number(item.id))},
-                });
-                if (requestKey === this._milestoneSortRequestKey && projectId === this.projectId) {
-                    $A.messageSuccess(msg);
-                    emitter.emit('projectMilestonesUpdate', projectId);
-                }
-            } catch ({msg}) {
-                if (requestKey === this._milestoneSortRequestKey && projectId === this.projectId) {
-                    $A.modalError(msg);
-                    await this.loadMilestones();
-                }
-            } finally {
-                if (requestKey === this._milestoneSortRequestKey) this.milestoneSortSaving = false;
-            }
         },
 
         onUser() {
