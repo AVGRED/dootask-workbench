@@ -15,6 +15,7 @@ import type {
   DepartmentView,
   DependencyView,
   DictItemView,
+  GanttView,
   LoginRequest,
   LoginResponse,
   MemberView,
@@ -399,6 +400,10 @@ export class ApiClient {
 
   async moveTask(taskId: number, columnId: number | null): Promise<void> {
     await this.request<null>("PUT", `/api/v1/tasks/${taskId}/move`, { columnId });
+  }
+
+  async gantt(projectId: number): Promise<GanttView> {
+    return this.request<GanttView>("GET", `/api/v1/projects/${projectId}/gantt`);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

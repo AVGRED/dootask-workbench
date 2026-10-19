@@ -1,8 +1,10 @@
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\mapper\ScheduleBatchMapper.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\web\ScheduleApplyDtos.java
+D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\web\GanttController.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\mapper\TaskDependencyMapper.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\mapper\MilestoneMapper.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\service\DependencyService.java
+D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\web\GanttDtos.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\web\ScheduleController.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\web\MilestoneController.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\service\TemplateService.java
@@ -13,6 +15,7 @@ D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\web\DependencyController.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\web\DependencyDtos.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\service\MilestoneService.java
+D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\service\GanttService.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\entity\Template.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\web\ScheduleApplyController.java
 D:\repos\workbench\dootask\workbench\server\workbench-planning\src\main\java\com\workbench\planning\mapper\TemplateRevisionMapper.java

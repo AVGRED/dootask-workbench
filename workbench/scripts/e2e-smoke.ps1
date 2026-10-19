@@ -436,6 +436,17 @@ $newColumn = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/columns"
 Assert-True "新增看板列成功" ($newColumn.data.name -eq "E2E 新列") "name=$($newColumn.data.name)"
 Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/columns/$($newColumn.data.id)" | Out-Null
 
+# 6.17 甘特图
+$ganttA = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks" -Body @{ name = "甘特任务A"; startAt = "2026-10-05T09:00:00"; endAt = "2026-10-07T18:00:00" }
+$ganttB = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks" -Body @{ name = "甘特任务B"; startAt = "2026-10-08T09:00:00"; endAt = "2026-10-10T18:00:00" }
+Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/dependencies" -Body @{ predecessorTaskId = $ganttA.data.id; successorTaskId = $ganttB.data.id } | Out-Null
+$gantt = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/gantt").data
+Assert-True "甘特图返回任务" ($gantt.tasks.Count -ge 2) "tasks=$($gantt.tasks.Count)"
+Assert-True "甘特图返回依赖边" ([bool]($gantt.edges | Where-Object { $_.predecessorTaskId -eq $ganttA.data.id -and $_.successorTaskId -eq $ganttB.data.id })) ""
+Assert-True "甘特图范围覆盖任务" ($gantt.rangeStart -le "2026-10-05" -and $gantt.rangeEnd -ge "2026-10-10") "range=$($gantt.rangeStart)~$($gantt.rangeEnd)"
+Invoke-Api -Method Delete -Path "/api/v1/tasks/$($ganttA.data.id)" | Out-Null
+Invoke-Api -Method Delete -Path "/api/v1/tasks/$($ganttB.data.id)" | Out-Null
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total
