@@ -61,6 +61,7 @@ function Invoke-Api {
 
 function New-Suffix { return (Get-Date -Format "HHmmss") }
 
+$port = ([uri]$BaseUrl).Port
 Write-Host "== Workbench E2E: $BaseUrl ==" -ForegroundColor Cyan
 
 # 1. 登录
@@ -273,7 +274,33 @@ Invoke-Api -Method Delete -Path "/api/v1/comments/$commentId" | Out-Null
 $commentsAfter = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/comments").data
 Assert-True "删除评论后列表为空" ($commentsAfter.Count -eq 0) "count=$($commentsAfter.Count)"
 
+# 6.9 附件（multipart 用 curl，PS5.1 的 Invoke-WebRequest 不支持 -Form）
+$uploadFile = Join-Path $env:TEMP "e2e-note.txt"
+[System.IO.File]::WriteAllText($uploadFile, "attached-by-e2e", (New-Object System.Text.UTF8Encoding($false)))
 
+$uploadRaw = & curl.exe -s -X POST "http://127.0.0.1:$port/api/v1/tasks/$taskId/attachments" -H "Authorization: Bearer $script:token" -F "file=@$uploadFile;type=text/plain"
+$upload = $uploadRaw | ConvertFrom-Json
+Assert-True "上传附件 code=0" ($upload.code -eq 0) "code=$($upload.code)"
+$attachmentId = $upload.data.id
+Assert-True "附件大小为 15" ($upload.data.sizeBytes -eq 15) "size=$($upload.data.sizeBytes)"
+
+$attachmentList = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/attachments").data
+Assert-True "附件列表只有一条" ($attachmentList.Count -eq 1) "count=$($attachmentList.Count)"
+
+$downloadFile = Join-Path $env:TEMP "e2e-note-downloaded.txt"
+& curl.exe -s -H "Authorization: Bearer $script:token" -o $downloadFile "http://127.0.0.1:$port/api/v1/attachments/$attachmentId/download"
+$downloaded = [System.IO.File]::ReadAllText($downloadFile)
+Assert-True "下载内容一致" ($downloaded -eq "attached-by-e2e") "actual=$downloaded"
+
+$badFile = Join-Path $env:TEMP "e2e-bad.exe"
+[System.IO.File]::WriteAllText($badFile, "MZ", (New-Object System.Text.UTF8Encoding($false)))
+$badRaw = & curl.exe -s -X POST "http://127.0.0.1:$port/api/v1/tasks/$taskId/attachments" -H "Authorization: Bearer $script:token" -F "file=@$badFile"
+$bad = $badRaw | ConvertFrom-Json
+Assert-True "非法扩展名被拒绝" ($bad.code -eq 400) "code=$($bad.code)"
+
+Invoke-Api -Method Delete -Path "/api/v1/attachments/$attachmentId" | Out-Null
+$attachmentsAfter = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/attachments").data
+Assert-True "删除附件后列表为空" ($attachmentsAfter.Count -eq 0) "count=$($attachmentsAfter.Count)"
 
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null

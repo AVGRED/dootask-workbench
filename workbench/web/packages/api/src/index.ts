@@ -1,5 +1,6 @@
 import type {
   ApiResponse,
+  AttachmentView,
   CapacitySummary,
   CommentView,
   CreateCommentRequest,
@@ -238,6 +239,41 @@ export class ApiClient {
   async markAllNotificationsRead(): Promise<number> {
     const result = await this.request<UnreadCountView>("POST", "/api/v1/notifications/read-all");
     return result.unread;
+  }
+
+  async listAttachments(taskId: number): Promise<AttachmentView[]> {
+    return this.request<AttachmentView[]>("GET", `/api/v1/tasks/${taskId}/attachments`);
+  }
+
+  /** multipart 上传：不能带 Content-Type，交给浏览器设置 boundary。 */
+  async uploadAttachment(taskId: number, file: File): Promise<AttachmentView> {
+    const form = new FormData();
+    form.append("file", file);
+    const headers: Record<string, string> = {};
+    const token = this.options.getToken?.();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`${this.options.baseUrl}/api/v1/tasks/${taskId}/attachments`, {
+      method: "POST",
+      headers,
+      body: form
+    });
+    const payload = (await response.json()) as ApiResponse<AttachmentView>;
+    if (payload.code !== 0) throw new ApiError(payload.code, payload.message);
+    return payload.data;
+  }
+
+  async deleteAttachment(id: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/attachments/${id}`);
+  }
+
+  /** 下载走鉴权请求再转 Blob：直接把 URL 放进 <a href> 不会带 Authorization 头。 */
+  async downloadAttachment(id: number): Promise<Blob> {
+    const headers: Record<string, string> = {};
+    const token = this.options.getToken?.();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`${this.options.baseUrl}/api/v1/attachments/${id}/download`, { headers });
+    if (!response.ok) throw new ApiError(response.status, `下载失败（${response.status}）`);
+    return response.blob();
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

@@ -29,6 +29,7 @@
           <template #default="{ row }">
             <el-button link type="primary" @click="openWorklogs(row as TaskView)">工时</el-button>
             <el-button link type="primary" @click="openComments(row as TaskView)">评论</el-button>
+            <el-button link type="primary" @click="openFiles(row as TaskView)">附件</el-button>
             <el-button link type="primary" @click="complete(row as TaskView)">完成</el-button>
             <el-button link type="danger" @click="remove(row as TaskView)">删除</el-button>
           </template>
@@ -111,6 +112,25 @@
         <el-button link type="danger" @click="removeComment(item as CommentView)">删除</el-button>
       </div>
     </el-drawer>
+
+    <el-drawer v-model="fileVisible" title="任务附件" size="460px">
+      <el-upload :auto-upload="false" :show-file-list="false" :on-change="onFileChange">
+        <el-button type="primary">选择文件</el-button>
+        <template #tip>
+          <div class="upload-tip">支持 png/jpg/gif/webp/pdf/txt/md/csv/xlsx/docx/zip，单文件 ≤ 20MB</div>
+        </template>
+      </el-upload>
+      <el-empty v-if="attachments.length === 0" description="还没有附件" />
+      <div v-for="item in attachments" :key="item.id" class="attachment-item">
+        <div class="attachment-name">
+          <a href="javascript:void(0)" @click="downloadAttachment(item as AttachmentView)">{{ item.originalName }}</a>
+        </div>
+        <div class="attachment-meta">
+          {{ formatSize(item.sizeBytes) }} · 用户 {{ item.userid }} · {{ item.createdAt }}
+        </div>
+        <el-button link type="danger" @click="removeAttachment(item as AttachmentView)">删除</el-button>
+      </div>
+    </el-drawer>
   </el-container>
 </template>
 
@@ -118,12 +138,73 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { CommentView, TaskView, WorklogView } from "@workbench/api";
+import type { AttachmentView, CommentView, TaskView, WorklogView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => Number(route.params.projectId ?? 0));
+
+const fileVisible = ref(false);
+const fileTaskId = ref(0);
+const attachments = ref<AttachmentView[]>([]);
+
+async function openFiles(row: TaskView): Promise<void> {
+  fileTaskId.value = row.id;
+  fileVisible.value = true;
+  await loadAttachments();
+}
+
+async function loadAttachments(): Promise<void> {
+  if (!fileTaskId.value) return;
+  try {
+    attachments.value = await client.listAttachments(fileTaskId.value);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "加载附件失败");
+  }
+}
+
+async function onFileChange(uploadFile: { raw?: File }): Promise<void> {
+  const file = uploadFile.raw;
+  if (!file || !fileTaskId.value) return;
+  try {
+    await client.uploadAttachment(fileTaskId.value, file);
+    ElMessage.success("已上传");
+    await loadAttachments();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "上传失败");
+  }
+}
+
+async function downloadAttachment(item: AttachmentView): Promise<void> {
+  try {
+    const blob = await client.downloadAttachment(item.id);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = item.originalName;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "下载失败");
+  }
+}
+
+async function removeAttachment(item: AttachmentView): Promise<void> {
+  try {
+    await client.deleteAttachment(item.id);
+    ElMessage.success("已删除");
+    await loadAttachments();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
+  }
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 
 const commentVisible = ref(false);
 const commentTaskId = ref(0);
@@ -366,5 +447,23 @@ onMounted(() => {
 .comment-content {
   margin: 4px 0 6px;
   white-space: pre-wrap;
+}
+.upload-tip {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.attachment-item {
+  padding: 10px 0;
+  border-top: 1px solid #ebeef5;
+}
+.attachment-name a {
+  color: #409eff;
+  text-decoration: none;
+}
+.attachment-meta {
+  color: #909399;
+  font-size: 12px;
+  margin: 4px 0;
 }
 </style>

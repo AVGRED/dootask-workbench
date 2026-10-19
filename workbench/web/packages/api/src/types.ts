@@ -233,3 +233,13 @@ export interface NotificationView {
 export interface UnreadCountView {
   unread: number;
 }
+
+export interface AttachmentView {
+  id: number;
+  taskId: number;
+  userid: number;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
