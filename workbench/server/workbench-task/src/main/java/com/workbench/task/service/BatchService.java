@@ -12,6 +12,7 @@ import com.workbench.task.web.BatchDtos.BatchRequest;
 import com.workbench.task.web.BatchDtos.BatchResult;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,11 +23,14 @@ public class BatchService {
     private final TaskMapper taskMapper;
     private final TaskTagMapper taskTagMapper;
     private final ProjectAccess projectAccess;
+    private final JdbcTemplate jdbc;
 
-    public BatchService(TaskMapper taskMapper, TaskTagMapper taskTagMapper, ProjectAccess projectAccess) {
+    public BatchService(TaskMapper taskMapper, TaskTagMapper taskTagMapper, ProjectAccess projectAccess,
+                        JdbcTemplate jdbc) {
         this.taskMapper = taskMapper;
         this.taskTagMapper = taskTagMapper;
         this.projectAccess = projectAccess;
+        this.jdbc = jdbc;
     }
 
     @Transactional
@@ -63,6 +67,14 @@ public class BatchService {
                 }
             }
             case "delete" -> {
+                for (Task task : tasks) {
+                    Long children = jdbc.queryForObject(
+                            "select count(*) from project_tasks where parent_id = ? and deleted_at is null",
+                            Long.class, task.getId());
+                    if (children != null && children > 0) {
+                        throw new BusinessException("任务「" + task.getName() + "」还有子任务，请先处理");
+                    }
+                }
                 for (Task task : tasks) {
                     taskMapper.deleteById(task.getId());
                     affected++;

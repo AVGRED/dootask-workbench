@@ -166,6 +166,7 @@ public class TaskService {
 
     public void delete(long currentUserid, long taskId) {
         Task task = requireTask(taskId);
+        ensureNoChildren(taskId);
         requireWrite(currentUserid, Objects.requireNonNull(task.getProjectId()));
         taskMapper.deleteById(taskId);
         activityService.record(Objects.requireNonNull(task.getProjectId()), taskId, currentUserid, "task.delete",
@@ -182,6 +183,16 @@ public class TaskService {
                 .stream()
                 .map(TaskService::toView)
                 .toList();
+    }
+
+    /** 删除保护：先处理子任务再删父任务。 */
+    private void ensureNoChildren(long taskId) {
+        Long children = taskMapper.selectCount(new LambdaQueryWrapper<Task>()
+                .eq(Task::getParentId, taskId)
+                .isNull(Task::getDeletedAt));
+        if (children != null && children > 0) {
+            throw new BusinessException("该任务还有 " + children + " 个子任务，请先处理子任务");
+        }
     }
 
     private Task requireTask(long taskId) {
