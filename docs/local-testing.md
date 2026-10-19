@@ -49,3 +49,14 @@ DooTask 的正常运行依赖未随仓库分发的授权 FFI 库。Feature 套�
 ## 已知跳过项
 
 `AdminCreateUserTest` 中两处端到端注册用例需要 Swoole/LaravelS 常驻运行时，在 CLI 下按设计跳过（`markTestSkipped`），不计为通过。
+
+## 备份尚未推送的提交
+
+当本地提交无法推送到远端时（没有写权限、凭据不可用），用 bundle 做一份可移植备份：
+
+```bash
+bash scripts/backup-local-bundle.sh            # 默认以当前分支的上游（回退 origin/pro）为基准
+bash scripts/backup-local-bundle.sh origin/pro # 或显式指定基准
+```
+
+脚本会在仓库同级的 `backups/`（可用 `DOOTASK_BACKUP_DIR` 覆盖）生成 `dootask-<时间戳>.bundle`，并校验可读性。在另一台已检出同一基准提交的机器上执行 `git bundle unbundle <文件>` 即可取回这些提交。bundle 只是本地容灾，不能替代远端仓库。
