@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.security.Principal;
+
 import com.workbench.common.api.BusinessException;
 import com.workbench.common.api.GlobalExceptionHandler;
 import com.workbench.common.api.PageResult;
@@ -45,7 +47,7 @@ class UserControllerTest {
     @Test
     void listReturnsPage() throws Exception {
         given(userService.page(anyInt(), anyInt(), any())).willReturn(
-                PageResult.of(List.of(new UserView(7L, "a@b.com", "张三", "开发", "", 3)), 1, 1, 20));
+                PageResult.of(List.of(new UserView(7L, "a@b.com", "张三", "开发", "", 3, "staff")), 1, 1, 20));
 
         mockMvc.perform(get("/api/v1/users").param("page", "1").param("size", "20"))
                 .andExpect(status().isOk())
@@ -87,7 +89,7 @@ class UserControllerTest {
     @Test
     void updatePassesNickname() throws Exception {
         given(userService.update(anyLong(), any())).willReturn(
-                new UserView(7L, "a@b.com", "李四", "开发", "", 3));
+                new UserView(7L, "a@b.com", "李四", "开发", "", 3, "staff"));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .put("/api/v1/users/7")
@@ -104,5 +106,47 @@ class UserControllerTest {
         mockMvc.perform(get("/api/v1/users").param("keyword", "张"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.total").value(0));
+    }
+
+    @Test
+    void changeRoleReturnsUpdatedUser() throws Exception {
+        Principal principal = () -> "7";
+        given(userService.changeRole(7L, 7L, "admin")).willReturn(
+                new UserView(7L, "a@b.com", "张三", "开发", "", 3, "admin"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/v1/users/7/role").principal(principal)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"admin\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.role").value("admin"));
+    }
+
+    @Test
+    void changeRoleRejectsNonAdmin() throws Exception {
+        Principal principal = () -> "7";
+        given(userService.changeRole(7L, 9L, "admin"))
+                .willThrow(new BusinessException(403, "需要管理员权限"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/v1/users/9/role").principal(principal)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"admin\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(403));
+    }
+
+    @Test
+    void changeRoleRejectsInvalidRole() throws Exception {
+        Principal principal = () -> "7";
+        given(userService.changeRole(7L, 7L, "root"))
+                .willThrow(new BusinessException("角色只能是 admin 或 staff"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/v1/users/7/role").principal(principal)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"root\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400));
     }
 }

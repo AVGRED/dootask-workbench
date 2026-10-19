@@ -1,12 +1,15 @@
 package com.workbench.user.web;
 
 import com.workbench.common.api.ApiResponse;
+import com.workbench.common.api.BusinessException;
 import com.workbench.common.api.PageResult;
 import com.workbench.user.service.UserService;
+import com.workbench.user.web.SystemDtos.ChangeRoleRequest;
 import com.workbench.user.web.UserDtos.CreateUserRequest;
 import com.workbench.user.web.UserDtos.UpdateUserRequest;
 import com.workbench.user.web.UserDtos.UserView;
 import jakarta.validation.Valid;
+import java.security.Principal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,5 +52,21 @@ public class UserController {
     public ApiResponse<Void> delete(@PathVariable long userid) {
         userService.delete(userid);
         return ApiResponse.ok(null);
+    }
+
+    /** 修改角色：需要管理员；系统还没有管理员时允许首个用户自举为 admin。 */
+    @PutMapping("/{userid}/role")
+    public ApiResponse<UserView> changeRole(
+            Principal principal,
+            @PathVariable long userid,
+            @Valid @RequestBody ChangeRoleRequest request) {
+        return ApiResponse.ok(userService.changeRole(currentUserid(principal), userid, request.role()));
+    }
+
+    private long currentUserid(Principal principal) {
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            throw new BusinessException(401, "未登录");
+        }
+        return Long.parseLong(principal.getName());
     }
 }

@@ -53,8 +53,19 @@ public class AuthService {
         }
         String email = (String) user.get("email");
         String nickname = (String) user.get("nickname");
-        String token = jwtService.issue(userid, email, "staff");
-        return new LoginResponse(token, userid, email, nickname, "staff", 12 * 3600L);
+        String role = roleOf(userid);
+        String token = jwtService.issue(userid, email, role);
+        return new LoginResponse(token, userid, email, nickname, role, 12 * 3600L);
+    }
+
+    /** 角色存于 users.role；列不存在（旧库）或为空时按 staff 处理。 */
+    private String roleOf(long userid) {
+        try {
+            String role = jdbcTemplate.queryForObject("select role from users where userid = ?", String.class, userid);
+            return role == null || role.isBlank() ? "staff" : role;
+        } catch (RuntimeException exception) {
+            return "staff";
+        }
     }
 
     /**

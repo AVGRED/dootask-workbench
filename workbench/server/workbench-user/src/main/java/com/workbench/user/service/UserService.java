@@ -23,10 +23,12 @@ public class UserService {
 
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final SystemAdmin systemAdmin;
 
-    public UserService(UserMapper userMapper, PasswordEncoder passwordEncoder) {
+    public UserService(UserMapper userMapper, PasswordEncoder passwordEncoder, SystemAdmin systemAdmin) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
+        this.systemAdmin = systemAdmin;
     }
 
     public PageResult<UserView> page(int page, int size, String keyword) {
@@ -55,6 +57,7 @@ public class UserService {
         user.setUserimg(request.userimg() == null ? "" : request.userimg());
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setEncrypt("");
+        user.setRole(SystemAdmin.ROLE_STAFF);
         user.setLoginNum(0);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
@@ -77,6 +80,21 @@ public class UserService {
         userMapper.deleteById(userid);
     }
 
+    public UserView changeRole(long callerUserid, long userid, String role) {
+        if (!SystemAdmin.ROLE_ADMIN.equals(role) && !SystemAdmin.ROLE_STAFF.equals(role)) {
+            throw new BusinessException("角色只能是 admin 或 staff");
+        }
+        User user = require(userid);
+        boolean allowed = callerUserid == userid && systemAdmin.allowBootstrap(callerUserid, userid, role);
+        if (!allowed) {
+            systemAdmin.requireAdmin(callerUserid);
+        }
+        user.setRole(role);
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+        return toView(user);
+    }
+
     private User require(long userid) {
         User user = userMapper.selectById(userid);
         if (user == null) {
@@ -92,6 +110,7 @@ public class UserService {
                 user.getNickname(),
                 user.getProfession(),
                 user.getUserimg(),
-                user.getLoginNum() == null ? 0 : user.getLoginNum());
+                user.getLoginNum() == null ? 0 : user.getLoginNum(),
+                user.getRole() == null ? SystemAdmin.ROLE_STAFF : user.getRole());
     }
 }

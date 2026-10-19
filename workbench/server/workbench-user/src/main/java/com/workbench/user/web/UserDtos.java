@@ -34,7 +34,8 @@ public final class UserDtos {
             String nickname,
             String profession,
             String userimg,
-            int loginNum
+            int loginNum,
+            String role
     ) {
     }
 }

@@ -20,6 +20,7 @@ public class User {
     private String email;
     private String nickname;
     private String profession;
+    private String role;
     private String userimg;
     private String password;
     private String encrypt;
@@ -60,6 +61,14 @@ public class User {
 
     public void setProfession(String profession) {
         this.profession = profession;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 
     public String getUserimg() {
