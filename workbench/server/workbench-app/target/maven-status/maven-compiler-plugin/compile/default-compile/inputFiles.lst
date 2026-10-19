@@ -1,2 +1,4 @@
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\config\MybatisPlusConfig.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\migrate\LegacyMigrationRunner.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\WorkbenchApplication.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\migrate\MigrationPlan.java

@@ -1,2 +1,5 @@
 com\workbench\app\config\MybatisPlusConfig.class
 com\workbench\app\WorkbenchApplication.class
+com\workbench\app\migrate\LegacyMigrationRunner.class
+com\workbench\app\migrate\MigrationPlan.class
+com\workbench\app\migrate\MigrationPlan$TableStep.class
