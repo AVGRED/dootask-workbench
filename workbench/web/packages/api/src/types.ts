@@ -414,6 +414,32 @@ export interface DashboardView {
   statusNote: string;
 }
 
+export interface AdminProjectRow {
+  id: number;
+  name: string;
+  owner_userid: number;
+  owner_name: string | null;
+  members: number;
+  total: number;
+  done: number;
+  overdue: number;
+  updated_at: string | null;
+}
+
+export interface AdminReportRow {
+  id: number;
+  userid: number;
+  nickname: string | null;
+  email: string | null;
+  report_date: string;
+  content_done: string;
+  content_blocker: string | null;
+  content_plan: string | null;
+  minutes: number | null;
+  status: number;
+  submitted_at: string | null;
+}
+
 export interface TeamStatusRow {
   userid: number;
   nickname: string;

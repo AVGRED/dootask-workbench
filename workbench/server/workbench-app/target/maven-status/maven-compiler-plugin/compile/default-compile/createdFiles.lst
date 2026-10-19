@@ -16,6 +16,7 @@ com\workbench\app\mail\MailController$MailTestResult.class
 com\workbench\app\search\SearchResult$Item.class
 com\workbench\app\dashboard\DashboardDtos$SaveLayoutRequest.class
 com\workbench\app\dashboard\DashboardDtos$LayoutView.class
+com\workbench\app\admin\AdminOverviewController.class
 com\workbench\app\migrate\LegacyMigrationRunner.class
 com\workbench\app\migrate\MigrationPlan.class
 com\workbench\app\mail\MailController.class

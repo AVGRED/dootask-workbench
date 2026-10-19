@@ -1,5 +1,7 @@
 import type {
   ActivityView,
+  AdminProjectRow,
+  AdminReportRow,
   ApiResponse,
   ApplyScheduleRequest,
   ApplyTemplateResult,
@@ -440,6 +442,23 @@ export class ApiClient {
 
   async setStatus(status: string, note?: string): Promise<{ status: string; note: string }> {
     return this.request<{ status: string; note: string }>("PUT", "/api/v1/me/status", { status, note });
+  }
+
+  async adminProjects(): Promise<AdminProjectRow[]> {
+    return this.request<AdminProjectRow[]>("GET", "/api/v1/admin/projects");
+  }
+
+  async adminReports(date?: string): Promise<AdminReportRow[]> {
+    const suffix = date ? `?date=${date}` : "";
+    return this.request<AdminReportRow[]>("GET", `/api/v1/admin/reports${suffix}`);
+  }
+
+  async adminMissingReports(date?: string): Promise<{ userid: number; nickname: string | null; email: string }[]> {
+    const suffix = date ? `?date=${date}` : "";
+    return this.request<{ userid: number; nickname: string | null; email: string }[]>(
+      "GET",
+      `/api/v1/admin/reports/missing${suffix}`
+    );
   }
 
   async teamStatus(): Promise<TeamStatusRow[]> {

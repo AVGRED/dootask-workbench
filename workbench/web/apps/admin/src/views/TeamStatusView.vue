@@ -1,52 +1,46 @@
 <template>
-  <el-container class="page">
-    <el-header class="page-header">
-      <span>员工状态墙</span>
-      <span class="tools">
-        <el-input v-model="keyword" placeholder="筛选姓名/邮箱/任务" size="small" style="width: 220px" clearable />
-        <el-button size="small" @click="goUsers">用户管理</el-button>
-        <el-button link type="primary" @click="logout">退出</el-button>
-      </span>
-    </el-header>
-    <el-main>
-      <div v-if="error" class="error">{{ error }}</div>
-      <div class="wall">
-        <div v-for="row in filtered" :key="row.userid" class="person" :class="row.status">
-          <div class="person-head">
-            <span class="avatar">{{ (row.nickname || row.email || "?").slice(0, 1) }}</span>
-            <span class="names">
-              <span class="name">{{ row.nickname || row.email }}</span>
-              <span class="email">{{ row.email }}</span>
-            </span>
-            <span class="badge">{{ statusText(row.status) }}</span>
-          </div>
-          <div v-if="row.note" class="note">“{{ row.note }}”</div>
-          <div class="row">
-            <span class="label">在做</span>
-            <span class="value">{{ row.current_task || "—" }}</span>
-          </div>
-          <div class="row">
-            <span class="label">日报</span>
-            <span class="value" :class="{ ok: row.report_today > 0 }">{{ row.report_today > 0 ? "已提交" : "未提交" }}</span>
-          </div>
-          <div class="row">
-            <span class="label">近 7 天</span>
-            <span class="value">{{ row.week_minutes }} 分钟</span>
-          </div>
+  <div>
+    <div class="toolbar">
+      <el-input v-model="keyword" placeholder="筛选姓名 / ID / 任务" size="small" style="width: 220px" clearable />
+      <span class="count">{{ filtered.length }} 人</span>
+    </div>
+    <div v-if="error" class="error">{{ error }}</div>
+    <div class="wall">
+      <div v-for="row in filtered" :key="row.userid" class="person" :class="row.status">
+        <div class="person-head">
+          <span class="avatar">{{ (row.nickname || "?").slice(0, 1) }}</span>
+          <span class="names">
+            <span class="name">{{ row.nickname || "未命名" }}</span>
+            <span class="uid">#{{ row.userid }}</span>
+          </span>
+          <span class="badge">{{ statusText(row.status) }}</span>
+        </div>
+        <div v-if="row.note" class="note">“{{ row.note }}”</div>
+        <div class="row">
+          <span class="label">在做</span>
+          <span class="value">{{ row.current_task || "—" }}</span>
+        </div>
+        <div class="row">
+          <span class="label">日报</span>
+          <span class="value" :class="{ ok: row.report_today > 0 }">
+            {{ row.report_today > 0 ? "已提交" : "未提交" }}
+          </span>
+        </div>
+        <div class="row">
+          <span class="label">近 7 天</span>
+          <span class="value">{{ row.week_minutes }} 分钟</span>
         </div>
       </div>
-      <div v-if="filtered.length === 0" class="empty">没有匹配的员工</div>
-    </el-main>
-  </el-container>
+    </div>
+    <div v-if="filtered.length === 0" class="empty">没有匹配的员工</div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
 import type { TeamStatusRow } from "@workbench/api";
 import { client } from "../stores/auth";
 
-const router = useRouter();
 const rows = ref<TeamStatusRow[]>([]);
 const keyword = ref("");
 const error = ref("");
@@ -69,7 +63,7 @@ const filtered = computed(() => {
   return rows.value.filter(
     (row) =>
       (row.nickname ?? "").includes(text) ||
-      (row.email ?? "").includes(text) ||
+      String(row.userid) === text ||
       (row.current_task ?? "").includes(text)
   );
 });
@@ -82,34 +76,23 @@ async function load(): Promise<void> {
   }
 }
 
-async function goUsers(): Promise<void> {
-  await router.push({ name: "users" });
-}
-
-async function logout(): Promise<void> {
-  localStorage.removeItem("workbench.admin.token");
-  localStorage.removeItem("workbench.admin.user");
-  await router.replace({ name: "login" });
-}
-
 onMounted(load);
 </script>
 
 <style scoped>
-.page-header {
+.toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid #ebeef5;
+  gap: 12px;
+  margin-bottom: 12px;
 }
-.tools {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+.count {
+  color: #909399;
+  font-size: 13px;
 }
 .wall {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
 }
 .person {
@@ -149,11 +132,9 @@ onMounted(load);
 .name {
   font-weight: 600;
 }
-.email {
+.uid {
   color: #909399;
   font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .badge {
   font-size: 12px;
