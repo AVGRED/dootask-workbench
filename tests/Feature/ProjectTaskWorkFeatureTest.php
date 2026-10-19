@@ -267,4 +267,40 @@ class ProjectTaskWorkFeatureTest extends TestCase
         $this->assertSame(0, $row['available_minutes']);
         $this->assertSame(120, $row['logged_minutes']);
     }
+
+    public function test_moving_a_task_between_projects_moves_its_worklog_history(): void
+    {
+        $target = $this->planningProject($this->owner);
+        $created = $this->addLog('req-move-0001', 90);
+        $logId = (int)$created['log']['id'];
+
+        ProjectTaskWorkService::handleProjectMove($this->project->id, $target->id, [$this->task->id]);
+
+        $moved = ProjectTaskWorkLog::query()->whereKey($logId)->first();
+        $this->assertSame($target->id, (int)$moved->project_id);
+        $this->assertSame('req-move-0001', $moved->request_id);
+        // The payload hash embeds the project id, so the destination must rebind it.
+        $this->assertNull($moved->request_payload_hash);
+    }
+
+    public function test_worklog_request_id_conflicts_are_renamed_deterministically_on_move(): void
+    {
+        $target = $this->planningProject($this->owner);
+        $created = $this->addLog('req-move-0002', 90);
+        $logId = (int)$created['log']['id'];
+        ProjectTaskWorkLog::createInstance([
+            'project_id' => $target->id,
+            'task_id' => $this->task->id,
+            'userid' => $this->owner->userid,
+            'request_id' => 'req-move-0002',
+            'minutes' => 30,
+            'work_date' => '2026-03-02',
+        ])->save();
+
+        ProjectTaskWorkService::handleProjectMove($this->project->id, $target->id, [$this->task->id]);
+
+        $moved = ProjectTaskWorkLog::query()->whereKey($logId)->first();
+        $this->assertSame($target->id, (int)$moved->project_id);
+        $this->assertSame('move:' . $this->project->id . ':' . $logId, $moved->request_id);
+    }
 }
