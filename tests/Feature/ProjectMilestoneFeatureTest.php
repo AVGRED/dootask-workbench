@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Exceptions\ApiException;
 use App\Models\Project;
+use App\Models\ProjectLog;
 use App\Models\ProjectMilestone;
 use App\Models\ProjectTask;
 use App\Models\User;
@@ -199,6 +200,34 @@ class ProjectMilestoneFeatureTest extends TestCase
 
         $this->assertSame(0, ProjectMilestone::query()->where('project_id', $this->project->id)->count());
         $this->assertNull($task->fresh()->milestone_id);
+        // The bulk unlink must still leave one activity entry per affected task.
+        $this->assertSame(1, ProjectLog::query()
+            ->where('project_id', $this->project->id)
+            ->where('task_id', $task->id)
+            ->where('detail', '取消关联里程碑')
+            ->count());
+    }
+
+    public function test_deleting_a_milestone_unlinks_many_tasks_in_chunks(): void
+    {
+        $milestone = $this->saveMilestone();
+        $tasks = [];
+        for ($i = 1; $i <= 25; $i++) {
+            $task = $this->planningTask($this->project, ['name' => 'Batch task ' . $i]);
+            ProjectMilestoneService::assign($task->id, (int)$milestone->id);
+            $tasks[] = $task;
+        }
+
+        ProjectMilestoneService::delete($this->project->id, (int)$milestone->id);
+
+        $this->assertSame(0, ProjectTask::query()
+            ->where('project_id', $this->project->id)
+            ->whereNotNull('milestone_id')
+            ->count());
+        $this->assertSame(25, ProjectLog::query()
+            ->where('project_id', $this->project->id)
+            ->where('detail', '取消关联里程碑')
+            ->count());
     }
 
     public function test_member_cannot_create_or_delete_milestones(): void

@@ -336,21 +336,23 @@ class ProjectMilestoneService
                 throw new ApiException('里程碑不存在');
             }
             $deletedMilestoneName = $lockedMilestone->name;
-            // Keep the per-row save: it fires the task observers that keep the search
-            // index and websocket payloads in sync. A bulk UPDATE would be faster but
-            // would silently skip them, so a large milestone may hold this transaction
-            // open longer than usual; batch reindexing is a separate change.
+            // milestone_id is not a searchable field, so a bulk UPDATE is safe here:
+            // the observer would not have queued a search sync for this change either.
+            // Activity logs and websocket pushes are written after the commit below.
             ProjectTask::withTrashed()
                 ->where('project_id', $project->id)
                 ->where('milestone_id', $lockedMilestone->id)
-                ->chunkById(100, function ($tasks) use (&$taskIds) {
+                ->select('id')
+                ->chunkById(1000, function ($tasks) use (&$taskIds) {
                     foreach ($tasks as $task) {
-                        $task->milestone_id = null;
-                        $task->save();
-                        $task->addLog('取消关联里程碑');
                         $taskIds[] = (int)$task->id;
                     }
                 });
+            foreach (array_chunk($taskIds, 1000) as $taskIdChunk) {
+                ProjectTask::withTrashed()
+                    ->whereIn('id', $taskIdChunk)
+                    ->update(['milestone_id' => null]);
+            }
             $lockedMilestone->delete();
             $project->addLog('删除项目里程碑', ['change' => [$deletedMilestoneName]]);
         });
@@ -363,6 +365,7 @@ class ProjectMilestoneService
                 ->whereIn('id', $taskIdChunk)
                 ->chunkById(100, function ($tasks) {
                     foreach ($tasks as $task) {
+                        $task->addLog('取消关联里程碑');
                         self::publishTaskUpdate($task);
                     }
                 });
