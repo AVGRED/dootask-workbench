@@ -48,6 +48,9 @@ jobs:
       - name: AI Knowledge Base Check
         run: npm run check:ai-kb
 
+      - name: Vue Template Wiring Check
+        run: npm run check:vue-wiring
+
   phpunit:
     runs-on: ubuntu-latest
     services:

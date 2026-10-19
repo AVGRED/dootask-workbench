@@ -50,6 +50,17 @@ DooTask 的正常运行依赖未随仓库分发的授权 FFI 库。Feature 套�
 
 `AdminCreateUserTest` 中两处端到端注册用例需要 Swoole/LaravelS 常驻运行时，在 CLI 下按设计跳过（`markTestSkipped`），不计为通过。
 
+## 组件拆分后的模板连线检查
+
+把大组件拆成子组件时，最容易漏掉的是模板里仍指向已移走的状态或方法。ESLint 能解析模板但不解析标识符，浏览器验收又不是随时可跑，因此提供静态检查：
+
+```bash
+npm run check:vue-wiring          # 默认检查工作台的 12 个组件
+node scripts/check-vue-wiring.mjs --all   # 全仓扫描（存量组件仍有 64 处待清理）
+```
+
+脚本会解析模板表达式，跟踪 `v-for` / 插槽作用域局部变量，并与组件的 `props/data/computed/methods`、全局 mixin 与 `$` 开头的实例属性对照，报告无法解析的标识符。默认只覆盖工作台组件，CI 已接入；存量组件的告警待单独清理后再扩大范围。
+
 ## 备份尚未推送的提交
 
 当本地提交无法推送到远端时（没有写权限、凭据不可用），用 bundle 做一份可移植备份：

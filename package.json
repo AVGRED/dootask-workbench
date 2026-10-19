@@ -10,6 +10,7 @@
         "check:lang": "node scripts/check-language.mjs",
         "check:api-lang": "node scripts/check-api-language.mjs",
         "check:ai-kb": "node scripts/check-ai-kb.mjs",
+        "check:vue-wiring": "node scripts/check-vue-wiring.mjs",
         "events:map": "node scripts/gen-events-map.mjs",
         "api:map": "node scripts/gen-api-map.mjs",
         "api:map:check": "node scripts/gen-api-map.mjs --check"
