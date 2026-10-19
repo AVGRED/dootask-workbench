@@ -4,6 +4,8 @@
   "packageManager": "pnpm@9.12.0",
   "scripts": {
     "typecheck": "pnpm -r typecheck",
-    "dev:staff": "pnpm --filter @workbench/staff dev"
+    "build": "pnpm -r build",
+    "dev:staff": "pnpm --filter @workbench/staff dev",
+    "dev:mobile": "pnpm --filter @workbench/mobile dev"
   }
 }

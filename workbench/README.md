@@ -70,8 +70,21 @@ mvn spring-boot:run        # 端口 9000，需要本地 MySQL 与已执行的 Fl
 # 前端
 cd workbench\web
 pnpm install
-pnpm dev --filter @workbench/staff   # 端口 5180，/api 代理到 127.0.0.1:9000
+pnpm dev:staff     # 员工端，端口 5180，/api 代理到 127.0.0.1:9000
+pnpm dev:mobile    # 移动端 H5/PWA，端口 5182
 ```
+
+## 三个门户
+
+| 门户 | 目录 | 端口 | 说明 |
+|---|---|---|---|
+| 员工端 | `web/apps/staff` | 5180 | 项目、任务、规划、工时、日报、评论、附件、模板、动态 |
+| 管理端 | `web/apps/admin` | 5181 | 用户与部门管理 |
+| 移动端 | `web/apps/mobile` | 5182 | H5/PWA：登录、项目、任务（完成/登记工时）、日报、消息 |
+
+移动端是纯 Vite + Vue 3，不引入 Element Plus（体积更小、触控样式自写）；`public/manifest.webmanifest` + `public/sw.js` 提供安装与离线壳缓存（只缓存静态资源，`/api` 始终走网络）。
+
+构建：`pnpm build`（会依次构建 staff/admin/mobile，CI 中已加入该步骤）。
 
 已知限制：登录按旧库规则校验（`md5(明文 + encrypt 盐)`），成功后自动升级为 BCrypt；旧 `users` 表没有 `deleted_at`，查询已做容错。
 

@@ -40,3 +40,6 @@ jobs:
       - name: Typecheck
         working-directory: workbench/web
         run: pnpm typecheck
+      - name: Build web apps
+        working-directory: workbench/web
+        run: pnpm build

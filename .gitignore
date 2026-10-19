@@ -68,3 +68,6 @@ README_LOCAL.md
 
 # workbench local uploads
 workbench/server/data/
+
+# workbench web build output
+workbench/web/**/dist/
