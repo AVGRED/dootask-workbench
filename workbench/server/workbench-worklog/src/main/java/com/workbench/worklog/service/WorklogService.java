@@ -128,6 +128,38 @@ public class WorklogService {
         return new CapacitySummary(from, to, result.workdays(), CapacityCalculator.DAILY_MINUTES, result.members());
     }
 
+    /** 导出项目工时 CSV。 */
+    public String exportCsv(long projectId, long currentUserid) {
+        projectAccess.requireAccess(projectId, currentUserid);
+        List<WorkLog> logs = workLogMapper.selectList(new LambdaQueryWrapper<WorkLog>()
+                .eq(WorkLog::getProjectId, projectId)
+                .orderByAsc(WorkLog::getWorkDate)
+                .orderByAsc(WorkLog::getId));
+        StringBuilder csv = new StringBuilder();
+        csv.append("id,task_id,userid,work_date,minutes,note\n");
+        for (WorkLog log : logs) {
+            csv.append(log.getId()).append(',')
+                    .append(log.getTaskId()).append(',')
+                    .append(log.getUserid()).append(',')
+                    .append(log.getWorkDate()).append(',')
+                    .append(log.getMinutes()).append(',')
+                    .append(escapeCsv(log.getNote()))
+                    .append('\n');
+        }
+        return csv.toString();
+    }
+
+    private static String escapeCsv(String value) {
+        if (value == null) {
+            return "";
+        }
+        String text = value.replace("\"", "\"\"");
+        if (text.contains(",") || text.contains("\n") || text.contains("\"")) {
+            return "\"" + text + "\"";
+        }
+        return text;
+    }
+
     private void requireTaskAccess(long taskId, long currentUserid) {
         Long projectId = jdbcTemplate.query(
                 "select project_id from project_tasks where id = ? and deleted_at is null",

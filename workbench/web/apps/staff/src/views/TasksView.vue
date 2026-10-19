@@ -15,9 +15,14 @@
           <el-option v-for="tag in projectTags" :key="tag.id" :label="tag.name" :value="tag.id" />
         </el-select>
         <el-button @click="createTag">新建标签</el-button>
+        <el-button :disabled="selectedIds.length === 0" @click="batchComplete">批量完成</el-button>
+        <el-button :disabled="selectedIds.length === 0" @click="batchDelete">批量删除</el-button>
+        <el-button @click="exportTasks">导出任务</el-button>
+        <el-button @click="exportWorklogs">导出工时</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="rows" border>
+      <el-table v-loading="loading" :data="rows" border @selection-change="onSelectionChange">
+        <el-table-column type="selection" width="44" />
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="name" label="标题" min-width="220" />
         <el-table-column prop="desc" label="描述" min-width="220" />
@@ -171,6 +176,7 @@ const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => Number(route.params.projectId ?? 0));
 
+const selectedIds = ref<number[]>([]);
 const tagFilter = ref<number | undefined>(undefined);
 const projectTags = ref<TagView[]>([]);
 const tagVisible = ref(false);
@@ -364,6 +370,62 @@ async function removeWorklog(row: WorklogView): Promise<void> {
     await loadWorklogs();
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
+  }
+}
+
+function onSelectionChange(selection: TaskView[]): void {
+  selectedIds.value = selection.map((item) => item.id);
+}
+
+async function batchComplete(): Promise<void> {
+  try {
+    const result = await client.batchTasks(projectId.value, "complete", selectedIds.value);
+    ElMessage.success(`已完成 ${result.affected} 个任务`);
+    selectedIds.value = [];
+    await reload();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "批量完成失败");
+  }
+}
+
+async function batchDelete(): Promise<void> {
+  try {
+    await ElMessageBox.confirm(`删除选中的 ${selectedIds.value.length} 个任务？`, "批量删除", { type: "warning" });
+  } catch {
+    return;
+  }
+  try {
+    const result = await client.batchTasks(projectId.value, "delete", selectedIds.value);
+    ElMessage.success(`已删除 ${result.affected} 个任务`);
+    selectedIds.value = [];
+    await reload();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "批量删除失败");
+  }
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function exportTasks(): Promise<void> {
+  try {
+    downloadBlob(await client.exportTasksCsv(projectId.value), `tasks-${projectId.value}.csv`);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "导出失败");
+  }
+}
+
+async function exportWorklogs(): Promise<void> {
+  try {
+    downloadBlob(await client.exportWorklogsCsv(projectId.value), `worklogs-${projectId.value}.csv`);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "导出失败");
   }
 }
 

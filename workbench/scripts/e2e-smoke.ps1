@@ -468,6 +468,26 @@ Assert-True "取消标签后为空" ($taskTagsAfter.Count -eq 0) "count=$($taskT
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$($sub.data.id)" | Out-Null
 Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/tags/$tagId" | Out-Null
 
+# 6.19 批量操作与导出
+$batchA = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks" -Body @{ name = "批量任务A" }
+$batchB = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks" -Body @{ name = "批量任务B" }
+$batchResult = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks/batch" -Body @{ action = "complete"; taskIds = @($batchA.data.id, $batchB.data.id) }
+Assert-True "批量完成 2 个任务" ($batchResult.data.affected -eq 2) "affected=$($batchResult.data.affected)"
+$batchAssign = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks/batch" -Body @{ action = "assign"; taskIds = @($batchA.data.id, $batchB.data.id); ownerUserid = $me }
+Assert-True "批量指派受影响 2 个" ($batchAssign.data.affected -eq 2) "affected=$($batchAssign.data.affected)"
+Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks/batch" -Body @{ action = "delete"; taskIds = @($batchA.data.id, $batchB.data.id) } | Out-Null
+$afterBatch = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data
+Assert-True "批量删除后不可见" (-not ($afterBatch.list | Where-Object { $_.id -eq $batchA.data.id })) ""
+
+$tasksCsvRaw = & curl.exe -s -H "Authorization: Bearer $script:token" "http://127.0.0.1:$port/api/v1/projects/$projectId/tasks/export"
+$tasksCsvText = ($tasksCsvRaw -join "`n")
+Assert-True "任务导出含表头" ($tasksCsvText -like "*id,name*") ""
+Assert-True "任务导出含任务名" ($tasksCsvText -like "*E2E*") ""
+
+$worklogsCsvRaw = & curl.exe -s -H "Authorization: Bearer $script:token" "http://127.0.0.1:$port/api/v1/projects/$projectId/worklogs/export"
+$worklogsCsvText = ($worklogsCsvRaw -join "`n")
+Assert-True "工时导出含表头" ($worklogsCsvText -like "*id,task_id,userid,work_date,minutes*") ""
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total

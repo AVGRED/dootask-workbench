@@ -137,6 +137,36 @@ export class ApiClient {
     return this.request<TaskView>("POST", `/api/v1/projects/${projectId}/tasks`, payload);
   }
 
+  async batchTasks(
+    projectId: number,
+    action: string,
+    taskIds: number[],
+    ownerUserid?: number
+  ): Promise<{ affected: number; action: string }> {
+    return this.request<{ affected: number; action: string }>(
+      "POST",
+      `/api/v1/projects/${projectId}/tasks/batch`,
+      { action, taskIds, ownerUserid }
+    );
+  }
+
+  async exportTasksCsv(projectId: number): Promise<Blob> {
+    return this.downloadBlob(`/api/v1/projects/${projectId}/tasks/export`);
+  }
+
+  async exportWorklogsCsv(projectId: number): Promise<Blob> {
+    return this.downloadBlob(`/api/v1/projects/${projectId}/worklogs/export`);
+  }
+
+  private async downloadBlob(path: string): Promise<Blob> {
+    const headers: Record<string, string> = {};
+    const token = this.options.getToken?.();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`${this.options.baseUrl}${path}`, { headers });
+    if (!response.ok) throw new ApiError(response.status, `下载失败（${response.status}）`);
+    return response.blob();
+  }
+
   async updateTask(taskId: number, payload: SaveTaskRequest): Promise<TaskView> {
     return this.request<TaskView>("PUT", `/api/v1/tasks/${taskId}`, payload);
   }

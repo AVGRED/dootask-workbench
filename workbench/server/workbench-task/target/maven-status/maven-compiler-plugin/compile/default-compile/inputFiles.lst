@@ -17,6 +17,7 @@ D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\wor
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\web\TagDtos.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\web\CommentController.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\entity\TaskTag.java
+D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\web\BatchController.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\entity\TaskColumn.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\mapper\TaskMapper.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\mapper\TaskTagMapper.java
@@ -26,8 +27,10 @@ D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\wor
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\web\AttachmentDtos.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\storage\AttachmentStorage.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\web\NotificationController.java
+D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\service\BatchService.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\web\TagController.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\mapper\NotificationMapper.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\service\NotificationService.java
+D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\web\BatchDtos.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\mapper\TaskCommentMapper.java
 D:\repos\workbench\dootask\workbench\server\workbench-task\src\main\java\com\workbench\task\entity\Notification.java
