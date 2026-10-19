@@ -285,6 +285,7 @@ const DEFAULT_TARGETS = [
     'resources/assets/js/pages/manage/components/ProjectPanel.vue',
     'resources/assets/js/pages/manage/components/ProjectGantt.vue',
     'resources/assets/js/pages/manage/components/TaskDetail.vue',
+    'resources/assets/js/pages/manage/components/TaskWork.vue',
     'resources/assets/js/pages/manage/components/TaskAdd.vue',
     'resources/assets/js/pages/manage/components/TaskRow.vue',
     'resources/assets/js/pages/manage/components/TaskMove.vue',
