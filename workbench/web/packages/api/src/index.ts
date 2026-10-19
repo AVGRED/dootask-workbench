@@ -8,6 +8,8 @@ import type {
   PageResult,
   ProjectView,
   SaveProjectRequest,
+  SaveTaskRequest,
+  TaskView,
   UserView,
 } from "./types";
 
@@ -82,6 +84,34 @@ export class ApiClient {
 
   async removeMember(projectId: number, userid: number): Promise<void> {
     await this.request<null>("DELETE", `/api/v1/projects/${projectId}/members/${userid}`);
+  }
+
+  async listTasks(
+    projectId: number,
+    params: { page?: number; size?: number; keyword?: string; ownerUserid?: number } = {}
+  ): Promise<PageResult<TaskView>> {
+    const query = new URLSearchParams();
+    query.set("page", String(params.page ?? 1));
+    query.set("size", String(params.size ?? 20));
+    if (params.keyword) query.set("keyword", params.keyword);
+    if (params.ownerUserid) query.set("ownerUserid", String(params.ownerUserid));
+    return this.request<PageResult<TaskView>>("GET", `/api/v1/projects/${projectId}/tasks?${query.toString()}`);
+  }
+
+  async createTask(projectId: number, payload: SaveTaskRequest): Promise<TaskView> {
+    return this.request<TaskView>("POST", `/api/v1/projects/${projectId}/tasks`, payload);
+  }
+
+  async completeTask(taskId: number): Promise<void> {
+    await this.request<null>("POST", `/api/v1/tasks/${taskId}/complete`);
+  }
+
+  async reopenTask(taskId: number): Promise<void> {
+    await this.request<null>("POST", `/api/v1/tasks/${taskId}/reopen`);
+  }
+
+  async deleteTask(taskId: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/tasks/${taskId}`);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

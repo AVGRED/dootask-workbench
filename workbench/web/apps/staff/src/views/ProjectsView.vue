@@ -25,6 +25,7 @@
         </el-table-column>
         <el-table-column label="操作" width="260">
           <template #default="{ row }">
+            <el-button link type="primary" @click="openTasks(row as ProjectView)">任务</el-button>
             <el-button link type="primary" @click="openMembers(row as ProjectView)">成员</el-button>
             <el-button v-if="!row.archived" link @click="archive(row as ProjectView)">归档</el-button>
             <el-button link type="danger" @click="remove(row as ProjectView)">删除</el-button>
@@ -178,6 +179,10 @@ async function openMembers(row: ProjectView): Promise<void> {
   current.value = row;
   membersVisible.value = true;
   await loadMembers(row.id);
+}
+
+async function openTasks(row: ProjectView): Promise<void> {
+  await router.push({ name: "tasks", params: { projectId: row.id } });
 }
 
 async function loadMembers(projectId: number): Promise<void> {

@@ -68,3 +68,25 @@ export interface MemberView {
   userid: number;
   owner: boolean;
 }
+
+export interface TaskView {
+  id: number;
+  projectId: number;
+  name: string;
+  desc: string;
+  ownerUserid: number;
+  startAt: string | null;
+  endAt: string | null;
+  completeAt: string | null;
+  pLevel: number;
+  completed: boolean;
+}
+
+export interface SaveTaskRequest {
+  name: string;
+  desc?: string;
+  ownerUserid?: number | null;
+  startAt?: string | null;
+  endAt?: string | null;
+  pLevel?: number | null;
+}
