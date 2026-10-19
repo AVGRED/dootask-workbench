@@ -8,6 +8,7 @@ import com.workbench.project.entity.Project;
 import com.workbench.project.entity.ProjectMember;
 import com.workbench.project.mapper.ProjectMapper;
 import com.workbench.project.mapper.ProjectMemberMapper;
+import com.workbench.project.service.ActivityService;
 import com.workbench.task.entity.Task;
 import com.workbench.task.mapper.TaskMapper;
 import com.workbench.task.web.TaskDtos.SaveTaskRequest;
@@ -26,13 +27,15 @@ public class TaskService {
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper memberMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final ActivityService activityService;
 
     public TaskService(TaskMapper taskMapper, ProjectMapper projectMapper, ProjectMemberMapper memberMapper,
-                       JdbcTemplate jdbcTemplate) {
+                       JdbcTemplate jdbcTemplate, ActivityService activityService) {
         this.taskMapper = taskMapper;
         this.projectMapper = projectMapper;
         this.memberMapper = memberMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.activityService = activityService;
     }
 
     public PageResult<TaskView> page(long currentUserid, long projectId, int page, int size, String keyword,
@@ -80,6 +83,8 @@ public class TaskService {
         task.setCreatedAt(LocalDateTime.now());
         task.setUpdatedAt(LocalDateTime.now());
         taskMapper.insert(task);
+        activityService.record(projectId, task.getId(), currentUserid, "task.create", "task", task.getId(),
+                "创建任务：" + task.getName());
         return toView(task);
     }
 
@@ -105,6 +110,8 @@ public class TaskService {
                     .set(Task::getMilestoneId, null));
             task.setMilestoneId(null);
         }
+        activityService.record(Objects.requireNonNull(task.getProjectId()), taskId, currentUserid, "task.update",
+                "task", taskId, "更新任务：" + task.getName());
         return toView(task);
     }
 
@@ -137,12 +144,17 @@ public class TaskService {
                     .set(Task::getCompleteAt, null)
                     .set(Task::getUpdatedAt, now));
         }
+        activityService.record(Objects.requireNonNull(task.getProjectId()), taskId, currentUserid,
+                completed ? "task.complete" : "task.reopen", "task", taskId,
+                (completed ? "完成任务：" : "取消完成：") + task.getName());
     }
 
     public void delete(long currentUserid, long taskId) {
         Task task = requireTask(taskId);
         requireAccess(currentUserid, Objects.requireNonNull(task.getProjectId()));
         taskMapper.deleteById(taskId);
+        activityService.record(Objects.requireNonNull(task.getProjectId()), taskId, currentUserid, "task.delete",
+                "task", taskId, "删除任务：" + task.getName());
     }
 
     private Task requireTask(long taskId) {

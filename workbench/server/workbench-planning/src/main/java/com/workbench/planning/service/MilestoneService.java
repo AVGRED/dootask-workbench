@@ -6,6 +6,7 @@ import com.workbench.planning.entity.Milestone;
 import com.workbench.planning.mapper.MilestoneMapper;
 import com.workbench.planning.web.MilestoneDtos.MilestoneView;
 import com.workbench.planning.web.MilestoneDtos.SaveMilestoneRequest;
+import com.workbench.project.service.ActivityService;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -24,10 +25,13 @@ public class MilestoneService {
 
     private final MilestoneMapper milestoneMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final ActivityService activityService;
 
-    public MilestoneService(MilestoneMapper milestoneMapper, JdbcTemplate jdbcTemplate) {
+    public MilestoneService(MilestoneMapper milestoneMapper, JdbcTemplate jdbcTemplate,
+                            ActivityService activityService) {
         this.milestoneMapper = milestoneMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.activityService = activityService;
     }
 
     public List<MilestoneView> list(long projectId) {
@@ -55,6 +59,8 @@ public class MilestoneService {
         milestone.setCreatedAt(LocalDateTime.now());
         milestone.setUpdatedAt(LocalDateTime.now());
         milestoneMapper.insert(milestone);
+        activityService.record(projectId, null, currentUserid, "milestone.create", "milestone", milestone.getId(),
+                "创建里程碑：" + milestone.getName());
         return toView(milestone, new long[]{0, 0});
     }
 
@@ -74,10 +80,12 @@ public class MilestoneService {
     /** 删除时把所有关联任务的 milestone_id 置空，任务本身保留。 */
     @Transactional
     public void delete(long projectId, long id) {
-        require(projectId, id);
+        Milestone milestone = require(projectId, id);
         jdbcTemplate.update("update project_tasks set milestone_id = null where project_id = ? and milestone_id = ?",
                 projectId, id);
         milestoneMapper.deleteById(id);
+        activityService.record(projectId, null, milestone.getCreatedBy() == null ? 0L : milestone.getCreatedBy(),
+                "milestone.delete", "milestone", id, "删除里程碑：" + milestone.getName());
     }
 
     private Milestone require(long projectId, long id) {

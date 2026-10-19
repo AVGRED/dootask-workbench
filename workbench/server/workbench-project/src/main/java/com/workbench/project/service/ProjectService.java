@@ -26,10 +26,13 @@ public class ProjectService {
 
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper memberMapper;
+    private final ActivityService activityService;
 
-    public ProjectService(ProjectMapper projectMapper, ProjectMemberMapper memberMapper) {
+    public ProjectService(ProjectMapper projectMapper, ProjectMemberMapper memberMapper,
+                          ActivityService activityService) {
         this.projectMapper = projectMapper;
         this.memberMapper = memberMapper;
+        this.activityService = activityService;
     }
 
     public PageResult<ProjectView> page(long currentUserid, int page, int size, String keyword) {
@@ -85,6 +88,8 @@ public class ProjectService {
         member.setUpdatedAt(LocalDateTime.now());
         memberMapper.insert(member);
 
+        activityService.record(project.getId(), null, currentUserid, "project.create", "project", project.getId(),
+                "创建项目：" + project.getName());
         return toView(project, 1);
     }
 
@@ -113,6 +118,8 @@ public class ProjectService {
                     .set(Project::getArchivedUserid, 0L)
                     .set(Project::getUpdatedAt, now));
         }
+        activityService.record(projectId, null, currentUserid, archived ? "project.archive" : "project.restore",
+                "project", projectId, archived ? "归档项目" : "恢复项目");
     }
 
     @Transactional
