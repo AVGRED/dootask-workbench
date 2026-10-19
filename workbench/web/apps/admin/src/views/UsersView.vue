@@ -3,6 +3,7 @@
     <el-header class="page-header">
       <span>用户管理</span>
       <span>
+        <el-button link type="primary" @click="goTeam">员工状态墙</el-button>
         <el-button link type="primary" @click="goSettings">系统设置</el-button>
         <el-button type="primary" @click="openCreate">新建用户</el-button>
         <el-button link type="primary" @click="logout">退出</el-button>
@@ -140,6 +141,10 @@ async function changeRole(row: UserView, role: string): Promise<void> {
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "更新失败");
   }
+}
+
+async function goTeam(): Promise<void> {
+  await router.push({ name: "team" });
 }
 
 async function goSettings(): Promise<void> {

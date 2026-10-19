@@ -390,6 +390,42 @@ export interface ProjectReport {
   days: ReportDayPoint[];
 }
 
+export interface WidgetDef {
+  id: string;
+  title: string;
+  group: string;
+  defaultW: number;
+  defaultH: number;
+}
+
+export interface LayoutItem {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface DashboardView {
+  catalog: WidgetDef[];
+  layout: LayoutItem[];
+  data: Record<string, unknown>;
+  status: string;
+  statusNote: string;
+}
+
+export interface TeamStatusRow {
+  userid: number;
+  nickname: string;
+  email: string;
+  status: string;
+  note: string;
+  status_at: string | null;
+  current_task: string | null;
+  report_today: number;
+  week_minutes: number;
+}
+
 export interface TagView {
   id: number;
   name: string;

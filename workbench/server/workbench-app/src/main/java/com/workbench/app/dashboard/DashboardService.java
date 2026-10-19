@@ -27,7 +27,6 @@ public class DashboardService {
 
     private static final List<WidgetDef> CATALOG = List.of(
             new WidgetDef("my-tasks", "我的任务", "工作", 6, 2),
-            new WidgetDef("my-projects", "我的项目", "工作", 6, 2),
             new WidgetDef("daily-report", "今日日报", "协作", 4, 1),
             new WidgetDef("capacity", "工时容量", "工作", 4, 1),
             new WidgetDef("notifications", "未读通知", "协作", 4, 1),
@@ -39,15 +38,14 @@ public class DashboardService {
 
     private static final List<LayoutItem> DEFAULT_LAYOUT = List.of(
             new LayoutItem("my-tasks", 0, 0, 6, 2),
-            new LayoutItem("my-projects", 6, 0, 6, 2),
-            new LayoutItem("daily-report", 0, 2, 4, 1),
-            new LayoutItem("capacity", 4, 2, 4, 1),
-            new LayoutItem("notifications", 8, 2, 4, 1),
-            new LayoutItem("activity", 0, 3, 6, 2),
-            new LayoutItem("summary", 6, 3, 6, 1),
-            new LayoutItem("board", 0, 5, 6, 2),
-            new LayoutItem("gantt", 6, 5, 6, 2),
-            new LayoutItem("search", 0, 7, 12, 1));
+            new LayoutItem("daily-report", 6, 0, 3, 1),
+            new LayoutItem("capacity", 9, 0, 3, 1),
+            new LayoutItem("notifications", 6, 1, 3, 1),
+            new LayoutItem("summary", 9, 1, 3, 1),
+            new LayoutItem("activity", 0, 2, 6, 2),
+            new LayoutItem("board", 6, 2, 6, 2),
+            new LayoutItem("gantt", 0, 4, 6, 2),
+            new LayoutItem("search", 6, 4, 6, 1));
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -71,8 +69,24 @@ public class DashboardService {
         }
         Set<String> known = CATALOG.stream().map(WidgetDef::id).collect(java.util.stream.Collectors.toSet());
         for (LayoutItem item : items) {
-            if (!known.contains(item.id())) {
+            if (!known.contains(item.id()) && !item.id().startsWith("project:")) {
                 throw new BusinessException("未知板块：" + item.id());
+            }
+            if (item.id().startsWith("project:")) {
+                String rawId = item.id().substring("project:".length());
+                try {
+                    Long projectId = Long.parseLong(rawId);
+                    Long visible = jdbc.queryForObject(
+                            "select count(*) from projects p where p.id = ? and p.deleted_at is null and "
+                                    + "(p.userid = ? or exists (select 1 from project_users pu "
+                                    + "where pu.project_id = p.id and pu.userid = ?))",
+                            Long.class, projectId, userid, userid);
+                    if (visible == null || visible == 0) {
+                        throw new BusinessException("无权添加该项目板块");
+                    }
+                } catch (NumberFormatException exception) {
+                    throw new BusinessException("项目板块 id 非法");
+                }
             }
             if (item.w() < 1 || item.w() > 12 || item.h() < 1 || item.h() > 6 || item.x() < 0 || item.y() < 0) {
                 throw new BusinessException("板块尺寸超出范围");
@@ -117,11 +131,27 @@ public class DashboardService {
                 "select id, name, project_id, end_at, p_level from project_tasks "
                         + "where owner_userid = ? and complete_at is null and deleted_at is null "
                         + "order by (end_at is null), end_at asc, id desc limit 8", userid));
-        data.put("my-projects", jdbc.queryForList(
-                "select p.id, p.name, (select count(*) from project_users pu2 where pu2.project_id = p.id) as members "
+        List<Map<String, Object>> projects = jdbc.queryForList(
+                "select p.id, p.name, "
+                        + "(select count(*) from project_users pu2 where pu2.project_id = p.id) as members, "
+                        + "(select count(*) from project_tasks t where t.project_id = p.id and t.deleted_at is null) as total, "
+                        + "(select count(*) from project_tasks t where t.project_id = p.id and t.deleted_at is null "
+                        + "and t.complete_at is not null) as done "
                         + "from projects p where p.deleted_at is null and (p.userid = ? or exists ("
                         + "select 1 from project_users pu where pu.project_id = p.id and pu.userid = ?)) "
-                        + "order by p.id desc limit 8", userid, userid));
+                        + "order by p.id desc", userid, userid);
+        for (Map<String, Object> project : projects) {
+            long total = ((Number) project.get("total")).longValue();
+            long done = ((Number) project.get("done")).longValue();
+            long percent = total == 0 ? 0 : Math.round(done * 100.0 / total);
+            data.put("project:" + project.get("id"), Map.of(
+                    "id", project.get("id"),
+                    "name", project.get("name"),
+                    "members", project.get("members"),
+                    "total", total,
+                    "done", done,
+                    "percent", percent));
+        }
         data.put("daily-report", jdbc.queryForList(
                 "select id, status, submitted_at from daily_reports where userid = ? and report_date = curdate() "
                         + "and deleted_at is null limit 1", userid));

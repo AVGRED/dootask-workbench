@@ -11,11 +11,13 @@ import type {
   CreateCommentRequest,
   CreateUserRequest,
   CreateWorklogRequest,
+  DashboardView,
   DailyReportView,
   DepartmentView,
   DependencyView,
   DictItemView,
   GanttView,
+  LayoutItem,
   LoginRequest,
   LoginResponse,
   MemberView,
@@ -39,6 +41,7 @@ import type {
   SettingView,
   TagView,
   TaskView,
+  TeamStatusRow,
   TemplateRevisionView,
   TemplateView,
   UnreadCountView,
@@ -417,6 +420,30 @@ export class ApiClient {
 
   async search(keyword: string): Promise<SearchResult> {
     return this.request<SearchResult>("GET", `/api/v1/search?keyword=${encodeURIComponent(keyword)}`);
+  }
+
+  async dashboardMe(): Promise<DashboardView> {
+    return this.request<DashboardView>("GET", "/api/v1/dashboard/me");
+  }
+
+  async saveDashboardLayout(items: LayoutItem[]): Promise<{ items: LayoutItem[] }> {
+    return this.request<{ items: LayoutItem[] }>("PUT", "/api/v1/dashboard/me/layout", { items });
+  }
+
+  async resetDashboardLayout(): Promise<{ items: LayoutItem[] }> {
+    return this.request<{ items: LayoutItem[] }>("POST", "/api/v1/dashboard/me/layout/reset");
+  }
+
+  async myStatus(): Promise<{ status: string; note: string }> {
+    return this.request<{ status: string; note: string }>("GET", "/api/v1/me/status");
+  }
+
+  async setStatus(status: string, note?: string): Promise<{ status: string; note: string }> {
+    return this.request<{ status: string; note: string }>("PUT", "/api/v1/me/status", { status, note });
+  }
+
+  async teamStatus(): Promise<TeamStatusRow[]> {
+    return this.request<TeamStatusRow[]>("GET", "/api/v1/team/status");
   }
 
   async projectReport(projectId: number, from?: string, to?: string): Promise<ProjectReport> {
