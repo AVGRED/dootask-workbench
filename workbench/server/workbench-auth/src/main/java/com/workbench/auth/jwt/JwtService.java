@@ -31,11 +31,17 @@ public class JwtService {
 
     /** 签发令牌。 */
     public String issue(long userId, String username, String role) {
+        return issue(userId, username, role, 0);
+    }
+
+    /** 签发带 token 版本号的令牌；版本号变化后旧令牌自动失效。 */
+    public String issue(long userId, String username, String role, int tokenVersion) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("username", username)
                 .claim("role", role)
+                .claim("ver", tokenVersion)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(ttl)))
                 .signWith(key)

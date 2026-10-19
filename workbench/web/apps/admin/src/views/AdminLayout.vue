@@ -29,6 +29,7 @@
 
 <script setup lang="ts">
 import { useRoute, useRouter } from "vue-router";
+import { client } from "../stores/auth";
 
 const route = useRoute();
 const router = useRouter();
@@ -44,6 +45,7 @@ async function go(name: string): Promise<void> {
 }
 
 async function logout(): Promise<void> {
+  await client.logout().catch(() => undefined);
   localStorage.removeItem("workbench.admin.token");
   localStorage.removeItem("workbench.admin.user");
   await router.replace({ name: "login" });

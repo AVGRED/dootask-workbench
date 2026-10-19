@@ -660,6 +660,17 @@ Assert-True "用户分页 total>0" ($users.data.total -gt 0) "total=$($users.dat
 Assert-True "用户分页 size 生效" ($users.data.size -eq 5) "size=$($users.data.size)"
 
 Write-Host ""
+# 6.22 登出使旧令牌失效
+$logoutLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "demo@workbench.local"; password = "secret123" }
+$oldToken = $logoutLogin.data.token
+$logoutResp = Invoke-Api -Method Post -Path "/api/v1/auth/logout"
+Assert-True "登出接口成功" ($logoutResp.code -eq 0) "code=$($logoutResp.code)"
+$oldHeaders = @{ Authorization = "Bearer $oldToken" }
+$reuseStatus = & curl.exe -s -o NUL -w "%{http_code}" -H "Authorization: Bearer $oldToken" "http://127.0.0.1:$port/api/v1/projects"
+Assert-True "登出后旧令牌失效" ($reuseStatus -ne "200") "http=$reuseStatus"
+$freshLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "demo@workbench.local"; password = "secret123" }
+Assert-True "重新登录拿到新令牌" ([bool]$freshLogin.data.token) ""
+
 if ($script:failures -eq 0) {
     Write-Host ("RESULT: PASS  ($script:checks checks)") -ForegroundColor Green
     exit 0

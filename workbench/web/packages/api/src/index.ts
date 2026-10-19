@@ -69,6 +69,14 @@ export class ApiError extends Error {
 export class ApiClient {
   constructor(private readonly options: ClientOptions) {}
 
+  async logout(): Promise<void> {
+    try {
+      await this.request<null>("POST", "/api/v1/auth/logout");
+    } catch {
+      // 忽略：本地登出始终成功
+    }
+  }
+
   async login(payload: LoginRequest): Promise<LoginResponse> {
     return this.request<LoginResponse>("POST", "/api/v1/auth/login", payload);
   }

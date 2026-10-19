@@ -455,6 +455,7 @@ async function goProjects(): Promise<void> {
   await router.push({ name: "projects" });
 }
 async function logout(): Promise<void> {
+  await client.logout().catch(() => undefined);
   localStorage.removeItem("workbench.token");
   localStorage.removeItem("workbench.user");
   await router.replace({ name: "login" });

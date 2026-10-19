@@ -95,7 +95,9 @@ public class AuthService {
         String email = (String) user.get("email");
         String nickname = (String) user.get("nickname");
         String role = roleOf(userid);
-        String token = jwtService.issue(userid, email, role);
+        Integer tokenVersion = jdbcTemplate.queryForObject(
+                "select token_version from users where userid = ?", Integer.class, userid);
+        String token = jwtService.issue(userid, email, role, tokenVersion == null ? 0 : tokenVersion);
         return new LoginResponse(token, userid, email, nickname, role, 12 * 3600L);
     }
 
@@ -127,6 +129,11 @@ public class AuthService {
         if (isBcrypt(stored)) return passwordEncoder.matches(raw, stored);
         String legacy = md5(raw + (salt == null ? "" : salt));
         return legacy.equalsIgnoreCase(stored);
+    }
+
+    /** 登出：递增 token 版本，使该用户所有已签发令牌失效。 */
+    public void logout(long userid) {
+        jdbcTemplate.update("update users set token_version = token_version + 1 where userid = ?", userid);
     }
 
     private boolean isBcrypt(String stored) {

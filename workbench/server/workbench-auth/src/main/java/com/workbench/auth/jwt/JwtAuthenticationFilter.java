@@ -22,9 +22,27 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService,
+                                   org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.jwtService = jwtService;
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    private boolean tokenVersionMatches(Claims claims) {
+        try {
+            Integer version = claims.get("ver", Integer.class);
+            if (version == null) {
+                version = 0;
+            }
+            Integer current = jdbcTemplate.queryForObject(
+                    "select token_version from users where userid = ? and deleted_at is null",
+                    Integer.class, Long.parseLong(claims.getSubject()));
+            return current != null && current.equals(version);
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 
     @Override
@@ -33,7 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             Claims claims = jwtService.parse(header.substring(7).trim());
-            if (claims != null) {
+            if (claims != null && tokenVersionMatches(claims)) {
                 String role = claims.get("role", String.class);
                 List<SimpleGrantedAuthority> authorities = role == null || role.isBlank()
                         ? List.of()

@@ -120,6 +120,7 @@ async function readAll(): Promise<void> {
 }
 
 async function logout(): Promise<void> {
+  await client.logout().catch(() => undefined);
   auth.logout();
   await router.replace({ name: "login" });
 }

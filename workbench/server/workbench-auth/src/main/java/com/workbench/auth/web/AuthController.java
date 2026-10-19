@@ -21,6 +21,14 @@ public class AuthController {
         this.authService = authService;
     }
 
+    @PostMapping("/logout")
+    public com.workbench.common.api.ApiResponse<Void> logout(java.security.Principal principal) {
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            authService.logout(Long.parseLong(principal.getName()));
+        }
+        return com.workbench.common.api.ApiResponse.ok(null);
+    }
+
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.ok(authService.login(request));
