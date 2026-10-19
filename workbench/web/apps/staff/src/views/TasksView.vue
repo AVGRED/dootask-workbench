@@ -2,7 +2,7 @@
   <el-container class="page">
     <el-header class="page-header">
       <span>
-        <el-button link type="primary" @click="goBack">← 返回项目</el-button>
+        <el-button link type="primary" @click="goBack">← 返回首页</el-button>
         任务 · 项目 {{ projectId }}
       </span>
       <el-button type="primary" @click="openCreate">新建任务</el-button>
@@ -624,7 +624,7 @@ async function remove(row: TaskView): Promise<void> {
 }
 
 async function goBack(): Promise<void> {
-  await router.push({ name: "projects" });
+  await router.push({ name: "dashboard" });
 }
 
 onMounted(() => {

@@ -1,7 +1,10 @@
 <template>
   <el-container class="page">
     <el-header class="page-header">
-      <span>我的项目</span>
+      <span>
+        <el-button link type="primary" @click="goHome">← 返回首页</el-button>
+        我的项目
+      </span>
       <span>
         <el-button type="primary" @click="openCreate">新建项目</el-button>
         <el-button @click="openReports">我的日报</el-button>
@@ -17,29 +20,37 @@
         <el-button @click="runSearch">搜索</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="rows" border>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="项目名称" min-width="200" />
-        <el-table-column prop="desc" label="描述" min-width="220" />
-        <el-table-column prop="memberCount" label="成员数" width="100" />
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.archived ? 'info' : 'success'">{{ row.archived ? "已归档" : "进行中" }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="260">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openTasks(row as ProjectView)">任务</el-button>
-            <el-button link type="primary" @click="openBoard(row as ProjectView)">看板</el-button>
-            <el-button link type="primary" @click="openGantt(row as ProjectView)">甘特</el-button>
-            <el-button link type="primary" @click="openPlanning(row as ProjectView)">规划</el-button>
-            <el-button link type="primary" @click="openActivities(row as ProjectView)">动态</el-button>
-            <el-button link type="primary" @click="openMembers(row as ProjectView)">成员</el-button>
-            <el-button v-if="!row.archived" link @click="archive(row as ProjectView)">归档</el-button>
-            <el-button link type="danger" @click="remove(row as ProjectView)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-loading="loading" class="project-grid">
+        <div v-for="row in rows" :key="row.id" class="project-card">
+          <div class="card-top">
+            <span class="card-name">{{ row.name }}</span>
+            <el-tag size="small" :type="row.archived ? 'info' : 'success'">
+              {{ row.archived ? "已归档" : "进行中" }}
+            </el-tag>
+          </div>
+          <div class="card-desc">{{ row.desc || "暂无描述" }}</div>
+          <div class="card-meta">#{{ row.id }} · {{ row.memberCount }} 名成员</div>
+          <div class="card-actions">
+            <el-button size="small" type="primary" @click="openTasks(row as ProjectView)">任务</el-button>
+            <el-button size="small" @click="openBoard(row as ProjectView)">看板</el-button>
+            <el-button size="small" @click="openGantt(row as ProjectView)">甘特</el-button>
+            <el-dropdown trigger="click">
+              <el-button size="small" text>更多 ▾</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="openPlanning(row as ProjectView)">规划</el-dropdown-item>
+                  <el-dropdown-item @click="openActivities(row as ProjectView)">动态</el-dropdown-item>
+                  <el-dropdown-item @click="openMembers(row as ProjectView)">成员</el-dropdown-item>
+                  <el-dropdown-item v-if="!row.archived" @click="archive(row as ProjectView)">归档</el-dropdown-item>
+                  <el-dropdown-item divided @click="remove(row as ProjectView)">删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </div>
+        <div v-if="rows.length === 0 && !loading" class="empty">还没有项目，点右上角新建</div>
+      </div>
+
 
       <el-pagination
         class="pager"
@@ -338,6 +349,10 @@ async function openMembers(row: ProjectView): Promise<void> {
   await loadMembers(row.id);
 }
 
+async function goHome(): Promise<void> {
+  await router.push({ name: "dashboard" });
+}
+
 async function openTasks(row: ProjectView): Promise<void> {
   await router.push({ name: "tasks", params: { projectId: row.id } });
 }
@@ -413,6 +428,64 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
+}
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.project-card {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.project-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card-name {
+  font-size: 16px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-desc {
+  margin-top: 8px;
+  color: #606266;
+  font-size: 13px;
+  min-height: 36px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-meta {
+  margin-top: 6px;
+  color: #909399;
+  font-size: 12px;
+}
+.card-actions {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.empty {
+  grid-column: 1 / -1;
+  padding: 40px;
+  text-align: center;
+  color: #909399;
 }
 .pager {
   margin-top: 12px;

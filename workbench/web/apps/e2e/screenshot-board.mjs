@@ -78,7 +78,9 @@ await page.goto(`${STAFF}/projects/${project.id}/gantt`, { waitUntil: "networkid
 await page.waitForSelector(".bar", { timeout: 20000 });
 await page.screenshot({ path: path.join(OUT_DIR, "gantt.png") });
 
-await page.goto(`${STAFF}/`, { waitUntil: "networkidle" });
+await page.goto(`${STAFF}/projects`, { waitUntil: "networkidle" });
+await page.waitForSelector(".project-card", { timeout: 20000 });
+await page.waitForTimeout(600);
 await page.screenshot({ path: path.join(OUT_DIR, "projects.png") });
 
 await browser.close();
