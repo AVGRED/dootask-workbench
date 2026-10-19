@@ -145,3 +145,36 @@ export interface SchedulePreviewResponse {
   changes: ScheduleChangeView[];
   changeCount: number;
 }
+
+export interface WorklogView {
+  id: number;
+  taskId: number;
+  userid: number;
+  minutes: number;
+  workDate: string;
+  note: string;
+}
+
+export interface CreateWorklogRequest {
+  requestId: string;
+  minutes: number;
+  workDate: string;
+  note?: string;
+}
+
+export interface CapacityMember {
+  userid: number;
+  loggedMinutes: number;
+  availableMinutes: number;
+  utilizationPercent: number;
+  overrunMinutes: number;
+  taskCount: number;
+}
+
+export interface CapacitySummary {
+  from: string;
+  to: string;
+  workdays: number;
+  dailyMinutes: number;
+  members: CapacityMember[];
+}

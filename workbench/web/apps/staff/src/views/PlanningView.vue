@@ -41,6 +41,21 @@
         <el-table-column prop="predecessorTaskId" label="前置任务" />
         <el-table-column prop="successorTaskId" label="后置任务" />
       </el-table>
+
+      <div class="section-title">
+        本月容量
+        <span v-if="capacity" class="capacity-hint">
+          工作日 {{ capacity.workdays }} 天 · 每日 {{ capacity.dailyMinutes }} 分钟
+        </span>
+      </div>
+      <el-table :data="capacity?.members ?? []" border size="small">
+        <el-table-column prop="userid" label="成员" width="100" />
+        <el-table-column prop="loggedMinutes" label="已登记(分钟)" />
+        <el-table-column prop="availableMinutes" label="可用(分钟)" />
+        <el-table-column prop="utilizationPercent" label="利用率%" />
+        <el-table-column prop="overrunMinutes" label="超出(分钟)" />
+        <el-table-column prop="taskCount" label="任务数" />
+      </el-table>
     </el-main>
 
     <el-dialog v-model="createVisible" title="新建里程碑" width="460px">
@@ -67,7 +82,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { DependencyView, MilestoneView, RiskSummaryView } from "@workbench/api";
+import type { CapacitySummary, DependencyView, MilestoneView, RiskSummaryView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const route = useRoute();
@@ -77,6 +92,7 @@ const projectId = computed(() => Number(route.params.projectId ?? 0));
 const milestones = ref<MilestoneView[]>([]);
 const dependencies = ref<DependencyView[]>([]);
 const risk = ref<RiskSummaryView>({ edgeCount: 0, blockedCount: 0, unownedCount: 0, overdueCount: 0 });
+const capacity = ref<CapacitySummary | null>(null);
 const loading = ref(false);
 const saving = ref(false);
 const createVisible = ref(false);
@@ -93,6 +109,15 @@ async function reload(): Promise<void> {
     milestones.value = await client.listMilestones(projectId.value);
     dependencies.value = await client.listDependencies(projectId.value);
     risk.value = await client.dependencyRisk(projectId.value);
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), 1);
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const iso = (date: Date): string => {
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${date.getFullYear()}-${month}-${day}`;
+    };
+    capacity.value = await client.projectCapacity(projectId.value, iso(from), iso(to));
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "加载失败");
   } finally {

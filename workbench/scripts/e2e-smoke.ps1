@@ -186,6 +186,34 @@ Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/milestones/$milesto
 $milestonesAfter = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/milestones").data
 Assert-True "删除里程碑后为空" ($milestonesAfter.Count -eq 0) "count=$($milestonesAfter.Count)"
 
+# 6.6 工时与容量
+$today = (Get-Date).ToString("yyyy-MM-dd")
+$worklogBody = @{ requestId = "e2e-work-1"; minutes = 120; workDate = $today; note = "E2E 工时" }
+$worklog = Invoke-Api -Method Post -Path "/api/v1/tasks/$taskId/worklogs" -Body $worklogBody
+Assert-True "登记工时 code=0" ($worklog.code -eq 0) "code=$($worklog.code)"
+$worklogId = $worklog.data.id
+
+$duplicate = Invoke-Api -Method Post -Path "/api/v1/tasks/$taskId/worklogs" -Body $worklogBody
+Assert-True "重复 requestId 幂等（同一条）" ($duplicate.data.id -eq $worklogId) "id=$($duplicate.data.id) vs $worklogId"
+
+$worklogList = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/worklogs").data
+Assert-True "任务工时列表只有一条" ($worklogList.Count -eq 1) "count=$($worklogList.Count)"
+Assert-True "工时分钟数=120" ($worklogList[0].minutes -eq 120) "minutes=$($worklogList[0].minutes)"
+
+$from = (Get-Date).AddDays(-3).ToString("yyyy-MM-dd")
+$to = (Get-Date).AddDays(3).ToString("yyyy-MM-dd")
+$capacity = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/capacity?from=$from&to=$to").data
+Assert-True "容量汇总 workdays>0" ($capacity.workdays -gt 0) "workdays=$($capacity.workdays)"
+Assert-True "容量汇总已登记>=120" ($capacity.members[0].loggedMinutes -ge 120) "logged=$($capacity.members[0].loggedMinutes)"
+
+$longFrom = (Get-Date).AddDays(-100).ToString("yyyy-MM-dd")
+$tooLong = Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/capacity?from=$longFrom&to=$today"
+Assert-True "超 93 天区间被拒绝" ($tooLong.code -eq 400) "code=$($tooLong.code)"
+
+Invoke-Api -Method Delete -Path "/api/v1/worklogs/$worklogId" | Out-Null
+$worklogAfter = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/worklogs").data
+Assert-True "删除工时后为空" ($worklogAfter.Count -eq 0) "count=$($worklogAfter.Count)"
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total

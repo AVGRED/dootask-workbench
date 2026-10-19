@@ -27,6 +27,7 @@
         </el-table-column>
         <el-table-column label="操作" width="220">
           <template #default="{ row }">
+            <el-button link type="primary" @click="openWorklogs(row as TaskView)">工时</el-button>
             <el-button link type="primary" @click="complete(row as TaskView)">完成</el-button>
             <el-button link type="danger" @click="remove(row as TaskView)">删除</el-button>
           </template>
@@ -63,6 +64,34 @@
         <el-button type="primary" :loading="saving" @click="submitCreate">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="worklogVisible" title="工时" width="560px">
+      <el-form :inline="true" :model="worklogForm">
+        <el-form-item label="分钟">
+          <el-input-number v-model="worklogForm.minutes" :min="1" :max="1440" />
+        </el-form-item>
+        <el-form-item label="日期">
+          <el-date-picker v-model="worklogForm.workDate" type="date" value-format="YYYY-MM-DD" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="worklogForm.note" placeholder="可留空" style="width: 160px" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="worklogSaving" @click="submitWorklog">登记</el-button>
+        </el-form-item>
+      </el-form>
+      <el-table :data="worklogs" size="small" border>
+        <el-table-column prop="workDate" label="日期" width="120" />
+        <el-table-column prop="minutes" label="分钟" width="90" />
+        <el-table-column prop="userid" label="用户" width="90" />
+        <el-table-column prop="note" label="备注" min-width="160" />
+        <el-table-column label="操作" width="90">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeWorklog(row as WorklogView)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </el-container>
 </template>
 
@@ -70,7 +99,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { TaskView } from "@workbench/api";
+import type { TaskView, WorklogView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const route = useRoute();
@@ -87,6 +116,60 @@ const saving = ref(false);
 const createVisible = ref(false);
 const ownerInput = ref("");
 const form = reactive<{ name: string; desc: string; pLevel: number }>({ name: "", desc: "", pLevel: 0 });
+
+const worklogVisible = ref(false);
+const worklogTaskId = ref(0);
+const worklogSaving = ref(false);
+const worklogs = ref<WorklogView[]>([]);
+const worklogForm = reactive<{ minutes: number; workDate: string; note: string }>({
+  minutes: 60,
+  workDate: new Date().toISOString().slice(0, 10),
+  note: ""
+});
+
+async function openWorklogs(row: TaskView): Promise<void> {
+  worklogTaskId.value = row.id;
+  worklogVisible.value = true;
+  await loadWorklogs();
+}
+
+async function loadWorklogs(): Promise<void> {
+  if (!worklogTaskId.value) return;
+  try {
+    worklogs.value = await client.listWorklogs(worklogTaskId.value);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "加载工时失败");
+  }
+}
+
+async function submitWorklog(): Promise<void> {
+  if (!worklogTaskId.value) return;
+  worklogSaving.value = true;
+  try {
+    await client.createWorklog(worklogTaskId.value, {
+      requestId: `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      minutes: worklogForm.minutes,
+      workDate: worklogForm.workDate,
+      note: worklogForm.note
+    });
+    ElMessage.success("已登记");
+    await loadWorklogs();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "登记失败");
+  } finally {
+    worklogSaving.value = false;
+  }
+}
+
+async function removeWorklog(row: WorklogView): Promise<void> {
+  try {
+    await client.deleteWorklog(row.id);
+    ElMessage.success("已删除");
+    await loadWorklogs();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
+  }
+}
 
 async function reload(): Promise<void> {
   if (!projectId.value) return;

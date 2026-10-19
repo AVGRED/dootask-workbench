@@ -1,6 +1,8 @@
 import type {
   ApiResponse,
+  CapacitySummary,
   CreateUserRequest,
+  CreateWorklogRequest,
   DepartmentView,
   DependencyView,
   LoginRequest,
@@ -17,6 +19,7 @@ import type {
   SchedulePreviewResponse,
   TaskView,
   UserView,
+  WorklogView,
 } from "./types";
 
 export * from "./types";
@@ -153,6 +156,23 @@ export class ApiClient {
 
   async previewSchedule(projectId: number, payload: SchedulePreviewRequest): Promise<SchedulePreviewResponse> {
     return this.request<SchedulePreviewResponse>("POST", `/api/v1/projects/${projectId}/schedule/preview`, payload);
+  }
+
+  async listWorklogs(taskId: number): Promise<WorklogView[]> {
+    return this.request<WorklogView[]>("GET", `/api/v1/tasks/${taskId}/worklogs`);
+  }
+
+  async createWorklog(taskId: number, payload: CreateWorklogRequest): Promise<WorklogView> {
+    return this.request<WorklogView>("POST", `/api/v1/tasks/${taskId}/worklogs`, payload);
+  }
+
+  async deleteWorklog(id: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/worklogs/${id}`);
+  }
+
+  async projectCapacity(projectId: number, from: string, to: string): Promise<CapacitySummary> {
+    const query = new URLSearchParams({ from, to });
+    return this.request<CapacitySummary>("GET", `/api/v1/projects/${projectId}/capacity?${query.toString()}`);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
