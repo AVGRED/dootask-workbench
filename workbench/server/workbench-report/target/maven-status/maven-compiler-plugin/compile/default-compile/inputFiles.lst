@@ -1,7 +1,7 @@
 D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\entity\DailyReport.java
 D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\schedule\WeeklySummaryScheduler.java
+D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\service\ProjectReportService.java
 D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\web\DailyReportController.java
-D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\mapper\DailyReportMapper.java
 D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\web\ReportDtos.java
 D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\entity\WeeklySummary.java
 D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\service\DailyReportService.java
@@ -9,3 +9,5 @@ D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\w
 D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\web\WeeklySummaryController.java
 D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\mapper\WeeklySummaryMapper.java
 D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\status\ReportStatus.java
+D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\mapper\DailyReportMapper.java
+D:\repos\workbench\dootask\workbench\server\workbench-report\src\main\java\com\workbench\report\web\ProjectReportController.java

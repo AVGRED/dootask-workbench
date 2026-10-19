@@ -488,6 +488,18 @@ $worklogsCsvRaw = & curl.exe -s -H "Authorization: Bearer $script:token" "http:/
 $worklogsCsvText = ($worklogsCsvRaw -join "`n")
 Assert-True "工时导出含表头" ($worklogsCsvText -like "*id,task_id,userid,work_date,minutes*") ""
 
+# 6.20 项目报表
+$reportTask = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks" -Body @{ name = "报表任务"; pLevel = 2 }
+Invoke-Api -Method Post -Path "/api/v1/tasks/$($reportTask.data.id)/worklogs" -Body @{ requestId = "report-wl-1"; minutes = 45; workDate = $today } | Out-Null
+$report = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/report").data
+Assert-True "报表返回任务总数" ($report.taskTotal -ge 1) "total=$($report.taskTotal)"
+Assert-True "报表统计工时" ($report.worklogMinutes -ge 45) "minutes=$($report.worklogMinutes)"
+Assert-True "报表按成员汇总" ([bool]($report.members | Where-Object { $_.minutes -ge 45 })) "members=$($report.members.Count)"
+Assert-True "报表返回每日序列" ($report.days.Count -ge 1) "days=$($report.days.Count)"
+$reportRange = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/report?from=2026-10-01&to=2026-10-31").data
+Assert-True "自定义区间生效" ($reportRange.from -eq "2026-10-01") "from=$($reportRange.from)"
+Invoke-Api -Method Delete -Path "/api/v1/tasks/$($reportTask.data.id)" | Out-Null
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total

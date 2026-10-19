@@ -22,6 +22,7 @@ import type {
   MilestoneView,
   NotificationView,
   PageResult,
+  ProjectReport,
   ProjectView,
   PublicSettingsView,
   RiskSummaryView,
@@ -416,6 +417,14 @@ export class ApiClient {
 
   async search(keyword: string): Promise<SearchResult> {
     return this.request<SearchResult>("GET", `/api/v1/search?keyword=${encodeURIComponent(keyword)}`);
+  }
+
+  async projectReport(projectId: number, from?: string, to?: string): Promise<ProjectReport> {
+    const query = new URLSearchParams();
+    if (from) query.set("from", from);
+    if (to) query.set("to", to);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return this.request<ProjectReport>("GET", `/api/v1/projects/${projectId}/report${suffix}`);
   }
 
   async listTags(projectId: number): Promise<TagView[]> {
