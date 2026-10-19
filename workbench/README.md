@@ -75,6 +75,25 @@ pnpm dev --filter @workbench/staff   # 端口 5180，/api 代理到 127.0.0.1:90
 
 已知限制：登录按旧库规则校验（`md5(明文 + encrypt 盐)`），成功后自动升级为 BCrypt；旧 `users` 表没有 `deleted_at`，查询已做容错。
 
+## 端到端冒烟
+
+```powershell
+# 1. 准备库（WSL MySQL/MariaDB，建库 + workbench 用户 + 0.0.0.0 监听）
+bash workbench/scripts/e2e-db-setup.sh
+
+# 2. 启动应用（连本地库，Flyway 自动建表）
+cd workbench\server
+$env:SPRING_APPLICATION_JSON='{"spring":{"datasource":{"url":"jdbc:mysql://127.0.0.1:3306/workbench?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC","username":"wb","password":"wb"}}}'
+mvn -pl workbench-app -am spring-boot:run
+
+# 3. 跑冒烟（22 项断言：登录、项目、任务、成员、分页、中文）
+powershell -NoProfile -File workbench/scripts/e2e-smoke.ps1 -BaseUrl http://127.0.0.1:9000
+```
+
+已完成过的端到端验证覆盖：登录（旧 md5 密码自动升级）、项目 CRUD + 归档/恢复、任务创建/更新/完成/取消完成/删除、成员添加/移除（重复添加被拒）、分页 `total`、中文 UTF-8 往返。
+
+注意：`e2e-smoke.ps1` 需要 **UTF-8 BOM** 保存，否则 PowerShell 5.1 会按 ANSI 解析导致中文乱码；响应体由脚本自己按 UTF-8 解码（Spring 的 `application/json` 不带 charset）。
+
 ## 设计文档
 
 - `docs/design-v2.md`、`docs/feature-inventory.md`、`docs/feature-daily-report.md`
