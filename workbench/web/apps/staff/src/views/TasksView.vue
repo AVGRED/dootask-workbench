@@ -25,8 +25,12 @@
             <el-tag :type="row.pLevel > 0 ? 'warning' : 'info'">{{ row.pLevel }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220">
+        <el-table-column label="里程碑" width="110">
+          <template #default="{ row }">{{ row.milestoneId || "-" }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="280">
           <template #default="{ row }">
+            <el-button link type="primary" @click="openEdit(row as TaskView)">编辑</el-button>
             <el-button link type="primary" @click="openWorklogs(row as TaskView)">工时</el-button>
             <el-button link type="primary" @click="openComments(row as TaskView)">评论</el-button>
             <el-button link type="primary" @click="openFiles(row as TaskView)">附件</el-button>
@@ -59,6 +63,11 @@
         </el-form-item>
         <el-form-item label="优先级">
           <el-input-number v-model="form.pLevel" :min="0" :max="9" />
+        </el-form-item>
+        <el-form-item label="里程碑">
+          <el-select v-model="form.milestoneId" clearable placeholder="可留空" style="width: 100%">
+            <el-option v-for="item in milestones" :key="item.id" :label="item.name" :value="item.id" />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -138,7 +147,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { AttachmentView, CommentView, TaskView, WorklogView } from "@workbench/api";
+import type { AttachmentView, CommentView, MilestoneView, TaskView, WorklogView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const route = useRoute();
@@ -272,7 +281,14 @@ const loading = ref(false);
 const saving = ref(false);
 const createVisible = ref(false);
 const ownerInput = ref("");
-const form = reactive<{ name: string; desc: string; pLevel: number }>({ name: "", desc: "", pLevel: 0 });
+const form = reactive<{ name: string; desc: string; pLevel: number; milestoneId: number | null }>({
+  name: "",
+  desc: "",
+  pLevel: 0,
+  milestoneId: null
+});
+const milestones = ref<MilestoneView[]>([]);
+const editingId = ref(0);
 
 const worklogVisible = ref(false);
 const worklogTaskId = ref(0);
@@ -328,6 +344,25 @@ async function removeWorklog(row: WorklogView): Promise<void> {
   }
 }
 
+async function loadMilestones(): Promise<void> {
+  if (!projectId.value) return;
+  try {
+    milestones.value = await client.listMilestones(projectId.value);
+  } catch {
+    milestones.value = [];
+  }
+}
+
+async function openEdit(row: TaskView): Promise<void> {
+  editingId.value = row.id;
+  form.name = row.name;
+  form.desc = row.desc ?? "";
+  form.pLevel = row.pLevel;
+  form.milestoneId = row.milestoneId ?? null;
+  ownerInput.value = row.ownerUserid ? String(row.ownerUserid) : "";
+  createVisible.value = true;
+}
+
 async function reload(): Promise<void> {
   if (!projectId.value) return;
   loading.value = true;
@@ -352,9 +387,11 @@ function onPageChange(next: number): void {
 }
 
 function openCreate(): void {
+  editingId.value = 0;
   form.name = "";
   form.desc = "";
   form.pLevel = 0;
+  form.milestoneId = null;
   ownerInput.value = "";
   createVisible.value = true;
 }
@@ -363,13 +400,20 @@ async function submitCreate(): Promise<void> {
   saving.value = true;
   try {
     const ownerUserid = ownerInput.value ? Number(ownerInput.value) : null;
-    await client.createTask(projectId.value, {
+    const payload = {
       name: form.name,
       desc: form.desc,
       pLevel: form.pLevel,
-      ownerUserid
-    });
-    ElMessage.success("已创建");
+      ownerUserid,
+      milestoneId: form.milestoneId
+    };
+    if (editingId.value) {
+      await client.updateTask(editingId.value, payload);
+      ElMessage.success("已保存");
+    } else {
+      await client.createTask(projectId.value, payload);
+      ElMessage.success("已创建");
+    }
     createVisible.value = false;
     await reload();
   } catch (exception) {
@@ -410,6 +454,7 @@ async function goBack(): Promise<void> {
 
 onMounted(() => {
   void reload();
+  void loadMilestones();
 });
 </script>
 

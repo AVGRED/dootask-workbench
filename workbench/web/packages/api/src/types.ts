@@ -80,6 +80,7 @@ export interface TaskView {
   completeAt: string | null;
   pLevel: number;
   completed: boolean;
+  milestoneId?: number | null;
 }
 
 export interface SaveTaskRequest {
@@ -89,6 +90,7 @@ export interface SaveTaskRequest {
   startAt?: string | null;
   endAt?: string | null;
   pLevel?: number | null;
+  milestoneId?: number | null;
 }
 
 export interface MilestoneView {

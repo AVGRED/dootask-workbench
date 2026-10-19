@@ -111,18 +111,23 @@ export class ApiClient {
 
   async listTasks(
     projectId: number,
-    params: { page?: number; size?: number; keyword?: string; ownerUserid?: number } = {}
+    params: { page?: number; size?: number; keyword?: string; ownerUserid?: number; milestoneId?: number } = {}
   ): Promise<PageResult<TaskView>> {
     const query = new URLSearchParams();
     query.set("page", String(params.page ?? 1));
     query.set("size", String(params.size ?? 20));
     if (params.keyword) query.set("keyword", params.keyword);
     if (params.ownerUserid) query.set("ownerUserid", String(params.ownerUserid));
+    if (params.milestoneId) query.set("milestoneId", String(params.milestoneId));
     return this.request<PageResult<TaskView>>("GET", `/api/v1/projects/${projectId}/tasks?${query.toString()}`);
   }
 
   async createTask(projectId: number, payload: SaveTaskRequest): Promise<TaskView> {
     return this.request<TaskView>("POST", `/api/v1/projects/${projectId}/tasks`, payload);
+  }
+
+  async updateTask(taskId: number, payload: SaveTaskRequest): Promise<TaskView> {
+    return this.request<TaskView>("PUT", `/api/v1/tasks/${taskId}`, payload);
   }
 
   async completeTask(taskId: number): Promise<void> {

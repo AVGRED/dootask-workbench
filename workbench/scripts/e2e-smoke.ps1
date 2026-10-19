@@ -356,6 +356,30 @@ Assert-True "重复撤销被拒绝" ($undoAgain.code -eq 400) "code=$($undoAgain
 $batches = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/schedule/batches").data
 Assert-True "批次列表包含该批次" ([bool]($batches | Where-Object { $_.id -eq $batchId })) ""
 
+# 6.12 任务编辑与里程碑关联
+$m2 = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/milestones" -Body @{ name = "E2E 里程碑任务组"; targetAt = "2026-11-30" }
+Assert-True "创建里程碑用于关联 code=0" ($m2.code -eq 0) "code=$($m2.code)"
+$m2Id = $m2.data.id
+
+$linked = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks" -Body @{ name = "E2E 里程碑任务"; milestoneId = $m2Id }
+Assert-True "创建带里程碑的任务" ($linked.data.milestoneId -eq $m2Id) "milestoneId=$($linked.data.milestoneId)"
+$linkedId = $linked.data.id
+
+$filtered = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks?milestoneId=$m2Id").data
+Assert-True "按里程碑过滤只返回该任务" (($filtered.total -eq 1) -and ($filtered.list[0].id -eq $linkedId)) "total=$($filtered.total)"
+
+$cleared = Invoke-Api -Method Put -Path "/api/v1/tasks/$linkedId" -Body @{ name = "E2E 里程碑任务"; milestoneId = 0 }
+Assert-True "清除里程碑后返回空" ([string]::IsNullOrEmpty([string]$cleared.data.milestoneId)) "milestoneId=$($cleared.data.milestoneId)"
+
+$filteredAfter = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks?milestoneId=$m2Id").data
+Assert-True "清除后过滤结果为空" ($filteredAfter.total -eq 0) "total=$($filteredAfter.total)"
+
+$badMilestone = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks" -Body @{ name = "E2E 非法里程碑"; milestoneId = 999999 }
+Assert-True "非法里程碑被拒绝" ($badMilestone.code -eq 400) "code=$($badMilestone.code)"
+
+Invoke-Api -Method Delete -Path "/api/v1/tasks/$linkedId" | Out-Null
+Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/milestones/$m2Id" | Out-Null
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total
