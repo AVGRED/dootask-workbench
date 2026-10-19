@@ -64,6 +64,22 @@ class ProjectTaskWorkService
         return ['items' => $logs, 'total' => $total, 'page' => $page, 'per_page' => $perPage];
     }
 
+    /**
+     * Whether the caller may change the estimate or record/delete time on this task.
+     * Used by the task detail view to hide write controls without relying on a failed request.
+     */
+    public static function canEditWork(int $projectId, int $taskId): bool
+    {
+        $project = Project::userProject($projectId);
+        $task = ProjectTask::query()->where('project_id', $projectId)->whereKey($taskId)->firstOrFail();
+        try {
+            ProjectPermission::userTaskPermission($project, ProjectPermission::TASK_UPDATE, $task);
+            return true;
+        } catch (ApiException) {
+            return false;
+        }
+    }
+
     public static function projectToday(int $projectId): string
     {
         Project::userProject($projectId);

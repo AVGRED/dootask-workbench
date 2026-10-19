@@ -24,6 +24,7 @@ class ProjectTaskWorkController extends AbstractController
      * @apiParam {Number} [page=1] 工时历史页码
      * @apiParam {Number} [per_page=50] 每页记录数，最大100
      * @apiSuccess {String} data.work_date_today 项目排期时区的当前日期
+     * @apiSuccess {Boolean} data.can_edit 当前用户是否可以修改估时或登记工时
      */
     public function task()
     {
@@ -42,6 +43,7 @@ class ProjectTaskWorkController extends AbstractController
             'logs_per_page' => $logPage['per_page'],
             'summary' => ProjectTaskWorkService::taskSummary($projectId, $taskId),
             'work_date_today' => ProjectTaskWorkService::projectToday($projectId),
+            'can_edit' => ProjectTaskWorkService::canEditWork($projectId, $taskId),
         ]);
     }
 

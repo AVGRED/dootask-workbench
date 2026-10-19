@@ -361,12 +361,12 @@
                             <div v-if="!workLogsLoaded && workLogsLoading" class="task-work-load-state">{{$L('加载中')}}</div>
                             <template v-if="workLogsLoaded">
                             <div class="task-work-summary">
-                                <span>{{$L('预估')}} <InputNumber v-model="workEstimateInput" :min="0" :max="1000000" :step="30" :disabled="isDepartmentReadonly || workSaving" size="small"/></span>
-                                <Button size="small" type="text" :disabled="isDepartmentReadonly || workSaving" :loading="workSaving" @click="saveWorkEstimate">{{$L('保存预估')}}</Button>
+                                <span>{{$L('预估')}} <InputNumber v-model="workEstimateInput" :min="0" :max="1000000" :step="30" :disabled="isDepartmentReadonly || workSaving || !workCanEdit" size="small"/></span>
+                                <Button size="small" type="text" :disabled="isDepartmentReadonly || workSaving || !workCanEdit" :loading="workSaving" @click="saveWorkEstimate">{{$L('保存预估')}}</Button>
                                 <span>{{$L('已登记')}} {{workSummary.logged_minutes || 0}} {{$L('分钟')}}</span>
                                 <span>{{$L('剩余')}} {{workSummary.remaining_minutes || 0}} {{$L('分钟')}}</span>
                             </div>
-                            <div v-if="!isDepartmentReadonly" class="task-work-add">
+                            <div v-if="!isDepartmentReadonly && workCanEdit" class="task-work-add">
                                 <InputNumber v-model="workMinutesInput" :min="1" :max="1440" :step="15" size="small" :placeholder="$L('分钟')" :disabled="workSaving || !!workLogRequestId"/>
                                 <DatePicker v-model="workDateInput" type="date" format="yyyy-MM-dd" size="small" :disabled="workSaving || !!workLogRequestId"/>
                                 <Input v-model="workNoteInput" :maxlength="500" size="small" :placeholder="$L('工时备注')" :disabled="workSaving || !!workLogRequestId"/>
@@ -375,7 +375,7 @@
                             <div v-for="log in workLogs" :key="log.id" class="task-work-log">
                                 <span>{{log.work_date}} · {{log.user && log.user.name}} · {{log.minutes}} {{$L('分钟')}}</span>
                                 <span v-if="log.note">{{log.note}}</span>
-                                <Button v-if="!isDepartmentReadonly && (Number(log.userid) === Number(userId) || projectOwner)" size="small" type="text" :loading="deletingWorkLogIds.includes(log.id)" @click="deleteWorkLog(log.id)">{{$L('删除')}}</Button>
+                                <Button v-if="!isDepartmentReadonly && workCanEdit && (Number(log.userid) === Number(userId) || projectOwner)" size="small" type="text" :loading="deletingWorkLogIds.includes(log.id)" @click="deleteWorkLog(log.id)">{{$L('删除')}}</Button>
                             </div>
                             <Button v-if="workLogs.length < workLogsTotal" size="small" type="text" :loading="workLogsLoadingMore" :disabled="workLogsLoading" @click="loadMoreWorkLogs">{{$L('更多')}}</Button>
                             </template>
@@ -896,6 +896,7 @@ export default {
             workLogsLoading: false,
             workLogsLoaded: false,
             workLogsLoadFailed: false,
+            workCanEdit: false,
             workLogsLoadingMore: false,
             workSummary: {estimated_minutes: 0, logged_minutes: 0, remaining_minutes: 0, overrun_minutes: 0},
             workEstimateInput: 0,
@@ -1303,6 +1304,7 @@ export default {
                 this.workLogsLoading = false;
                 this.workLogsLoaded = false;
                 this.workLogsLoadFailed = false;
+                this.workCanEdit = false;
                 this.workLogsLoadingMore = false;
                 this.workSummary = {estimated_minutes: 0, logged_minutes: 0, remaining_minutes: 0, overrun_minutes: 0};
                 this.workEstimateInput = Number(this.taskDetail.estimated_minutes) || 0;
@@ -1435,6 +1437,7 @@ export default {
                 this.workLogsTotal = Number(data.logs_total) || 0;
                 this.workLogsPage = Number(data.logs_page) || page;
                 this.workSummary = data.summary || this.workSummary;
+                this.workCanEdit = !!data.can_edit;
                 this.workEstimateInput = Number(this.workSummary.estimated_minutes) || 0;
                 if (data.work_date_today) this.workDateInput = $A.dayjs(data.work_date_today).format('YYYY-MM-DD');
                 this.workLogsLoaded = true;

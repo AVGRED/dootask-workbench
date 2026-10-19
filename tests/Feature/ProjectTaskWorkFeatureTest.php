@@ -209,6 +209,17 @@ class ProjectTaskWorkFeatureTest extends TestCase
         ProjectTaskWorkService::logs($this->project->id, $this->task->id);
     }
 
+    public function test_can_edit_work_flag_matches_task_permission(): void
+    {
+        $this->assertTrue(ProjectTaskWorkService::canEditWork($this->project->id, $this->task->id));
+
+        $this->planningLogin($this->member);
+        $this->assertFalse(ProjectTaskWorkService::canEditWork($this->project->id, $this->task->id));
+
+        $this->planningTaskOwner($this->task, $this->member);
+        $this->assertTrue(ProjectTaskWorkService::canEditWork($this->project->id, $this->task->id));
+    }
+
     public function test_capacity_rejects_ranges_longer_than_93_days(): void
     {
         $this->expectException(ApiException::class);
