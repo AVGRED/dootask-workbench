@@ -769,28 +769,10 @@
             </div>
         </Modal>
 
-        <Modal v-model="reminderAttemptsShow" :title="$L('提醒记录')" :mask-closable="false" width="600">
-            <div class="project-milestone-reminder-attempts">
-                <p v-if="reminderAttemptsMilestoneName" class="form-tip">{{reminderAttemptsMilestoneName}}</p>
-                <div v-if="reminderAttemptsLoading && reminderAttempts.length === 0" class="form-tip">{{$L('加载中...')}}</div>
-                <div v-else-if="reminderAttemptsLoadFailed" class="project-capacity-load-state">
-                    <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
-                    <Button size="small" type="text" :disabled="reminderAttemptsLoading" @click="loadReminderAttempts(false)">{{$L('重试')}}</Button>
-                </div>
-                <div v-else-if="reminderAttempts.length === 0" class="form-tip">{{$L('没有提醒记录')}}</div>
-                <ul v-else>
-                    <li v-for="attempt in reminderAttempts" :key="attempt.id">
-                        <span>{{attempt.attempted_at}}</span>
-                        <strong>{{reminderAttemptStatus(attempt.status)}}</strong>
-                        <span v-if="attempt.result_code">{{attempt.result_code}}</span>
-                    </li>
-                </ul>
-                <Button v-if="!reminderAttemptsLoadFailed && reminderAttempts.length < reminderAttemptsTotal" size="small" long :loading="reminderAttemptsLoading" @click="loadReminderAttempts(true)">{{$L('加载更多')}}</Button>
-            </div>
-            <div slot="footer" class="adaption">
-                <Button type="default" @click="reminderAttemptsShow=false">{{$L('关闭')}}</Button>
-            </div>
-        </Modal>
+        <MilestoneReminderAttempts
+            :visible.sync="reminderAttemptsShow"
+            :project-id="projectId"
+            :milestone="reminderAttemptsMilestone" />
 
         <!--项目权限-->
         <DrawerOverlay
@@ -974,6 +956,7 @@ import TaskMenu from "./TaskMenu";
 import TaskDeleted from "./TaskDeleted";
 import TaskTag from "./ProjectTaskTag/tags.vue";
 import ProjectGantt from "./ProjectGantt";
+import MilestoneReminderAttempts from "./MilestoneReminderAttempts.vue";
 import ProjectTableGroupDropdown from "./ProjectTableGroupDropdown.vue";
 import ProjectFlowFilterDropdown from "./ProjectFlowFilterDropdown.vue";
 import UserSelect from "../../../components/UserSelect.vue";
@@ -1005,6 +988,7 @@ export default {
         TaskDeleted,
         TaskTag,
         ProjectGantt,
+        MilestoneReminderAttempts,
         ProjectTableGroupDropdown,
         ProjectFlowFilterDropdown,
     },
@@ -1057,14 +1041,7 @@ export default {
             milestoneLoading: false,
             milestoneLoadFailed: false,
             reminderAttemptsShow: false,
-            reminderAttemptsLoading: false,
-            reminderAttemptsLoadFailed: false,
-            reminderAttemptsRequestKey: 0,
-            reminderAttemptsMilestoneId: 0,
-            reminderAttemptsMilestoneName: '',
-            reminderAttempts: [],
-            reminderAttemptsTotal: 0,
-            reminderAttemptsPage: 0,
+            reminderAttemptsMilestone: null,
             milestoneSaving: false,
             milestoneSortSaving: false,
             milestoneCanManage: false,
@@ -1700,15 +1677,8 @@ export default {
                 this._milestoneSortRequestKey = (this._milestoneSortRequestKey || 0) + 1;
                 this.milestoneSortSaving = false;
                 this.milestoneShow = false;
-                this.reminderAttemptsRequestKey++;
                 this.reminderAttemptsShow = false;
-                this.reminderAttemptsLoading = false;
-                this.reminderAttemptsMilestoneId = 0;
-                this.reminderAttemptsMilestoneName = '';
-                this.reminderAttempts = [];
-                this.reminderAttemptsTotal = 0;
-                this.reminderAttemptsPage = 0;
-                this.reminderAttemptsLoadFailed = false;
+                this.reminderAttemptsMilestone = null;
                 this.resetMilestoneForm();
                 if (id > 0) {
                     this.getFlowData();
@@ -2160,56 +2130,8 @@ export default {
 
         openReminderAttempts(item) {
             if (!this.milestoneCanManage || !item || !item.id) return;
-            this.reminderAttemptsRequestKey++;
+            this.reminderAttemptsMilestone = {id: Number(item.id), name: item.name || ''};
             this.reminderAttemptsShow = true;
-            this.reminderAttemptsMilestoneId = Number(item.id);
-            this.reminderAttemptsMilestoneName = item.name || '';
-            this.reminderAttempts = [];
-            this.reminderAttemptsTotal = 0;
-            this.reminderAttemptsPage = 0;
-            this.reminderAttemptsLoadFailed = false;
-            this.loadReminderAttempts(false);
-        },
-
-        async loadReminderAttempts(append = false) {
-            if (this.reminderAttemptsLoading && append) return;
-            const projectId = Number(this.projectId);
-            const milestoneId = Number(this.reminderAttemptsMilestoneId);
-            if (!projectId || !milestoneId) return;
-            const requestKey = ++this.reminderAttemptsRequestKey;
-            const page = append ? this.reminderAttemptsPage + 1 : 1;
-            this.reminderAttemptsLoading = true;
-            this.reminderAttemptsLoadFailed = false;
-            try {
-                const {data} = await this.$store.dispatch('call', {
-                    url: 'projectmilestone/reminderattempts',
-                    method: 'post',
-                    data: {project_id: projectId, milestone_id: milestoneId, page, per_page: 20},
-                });
-                if (requestKey !== this.reminderAttemptsRequestKey
-                    || projectId !== Number(this.projectId)
-                    || milestoneId !== Number(this.reminderAttemptsMilestoneId)) return;
-                this.reminderAttempts = append
-                    ? [...this.reminderAttempts, ...(data.items || [])]
-                    : (data.items || []);
-                this.reminderAttemptsTotal = Number(data.total) || 0;
-                this.reminderAttemptsPage = Number(data.page) || page;
-            } catch (e) {
-                if (requestKey === this.reminderAttemptsRequestKey
-                    && projectId === Number(this.projectId)
-                    && milestoneId === Number(this.reminderAttemptsMilestoneId)) {
-                    this.reminderAttemptsLoadFailed = true;
-                }
-            } finally {
-                if (requestKey === this.reminderAttemptsRequestKey) this.reminderAttemptsLoading = false;
-            }
-        },
-
-        reminderAttemptStatus(status) {
-            if (status === 'sent') return this.$L('已发送');
-            if (status === 'bot_unavailable') return this.$L('提醒机器人不可用');
-            if (status === 'chat_unavailable') return this.$L('项目群聊不可用');
-            return this.$L('提醒消息投递失败');
         },
 
         onProjectMilestonesUpdate(projectId) {
