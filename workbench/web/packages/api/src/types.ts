@@ -206,3 +206,30 @@ export interface WeeklySummaryView {
   totalMinutes: number;
   content: string;
 }
+
+export interface CommentView {
+  id: number;
+  taskId: number;
+  userid: number;
+  content: string;
+  mentionUserids: number[];
+  createdAt: string;
+}
+
+export interface CreateCommentRequest {
+  content: string;
+  mentionUserids?: number[];
+}
+
+export interface NotificationView {
+  id: number;
+  type: string;
+  title: string;
+  payload: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface UnreadCountView {
+  unread: number;
+}

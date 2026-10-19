@@ -28,6 +28,7 @@
         <el-table-column label="操作" width="220">
           <template #default="{ row }">
             <el-button link type="primary" @click="openWorklogs(row as TaskView)">工时</el-button>
+            <el-button link type="primary" @click="openComments(row as TaskView)">评论</el-button>
             <el-button link type="primary" @click="complete(row as TaskView)">完成</el-button>
             <el-button link type="danger" @click="remove(row as TaskView)">删除</el-button>
           </template>
@@ -92,6 +93,24 @@
         </el-table-column>
       </el-table>
     </el-dialog>
+
+    <el-drawer v-model="commentVisible" title="任务评论" size="420px">
+      <div class="comment-form">
+        <el-input v-model="commentText" type="textarea" :rows="3" placeholder="写点什么…" />
+        <div class="comment-actions">
+          <el-input v-model="mentionInput" placeholder="提醒用户ID，逗号分隔" style="width: 190px" />
+          <el-button type="primary" :loading="commentSaving" @click="submitComment">发表</el-button>
+        </div>
+      </div>
+      <el-empty v-if="comments.length === 0" description="还没有评论" />
+      <div v-for="item in comments" :key="item.id" class="comment-item">
+        <div class="comment-meta">
+          用户 {{ item.userid }} · {{ item.createdAt }}
+        </div>
+        <div class="comment-content">{{ item.content }}</div>
+        <el-button link type="danger" @click="removeComment(item as CommentView)">删除</el-button>
+      </div>
+    </el-drawer>
   </el-container>
 </template>
 
@@ -99,12 +118,69 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { TaskView, WorklogView } from "@workbench/api";
+import type { CommentView, TaskView, WorklogView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => Number(route.params.projectId ?? 0));
+
+const commentVisible = ref(false);
+const commentTaskId = ref(0);
+const commentSaving = ref(false);
+const commentText = ref("");
+const mentionInput = ref("");
+const comments = ref<CommentView[]>([]);
+
+async function openComments(row: TaskView): Promise<void> {
+  commentTaskId.value = row.id;
+  commentText.value = "";
+  mentionInput.value = "";
+  commentVisible.value = true;
+  await loadComments();
+}
+
+async function loadComments(): Promise<void> {
+  if (!commentTaskId.value) return;
+  try {
+    comments.value = await client.listComments(commentTaskId.value);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "加载评论失败");
+  }
+}
+
+async function submitComment(): Promise<void> {
+  if (!commentText.value.trim()) {
+    ElMessage.warning("请填写评论内容");
+    return;
+  }
+  const mentionUserids = mentionInput.value
+    .split(",")
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  commentSaving.value = true;
+  try {
+    await client.createComment(commentTaskId.value, { content: commentText.value, mentionUserids });
+    commentText.value = "";
+    mentionInput.value = "";
+    ElMessage.success("已发表");
+    await loadComments();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "发表失败");
+  } finally {
+    commentSaving.value = false;
+  }
+}
+
+async function removeComment(item: CommentView): Promise<void> {
+  try {
+    await client.deleteComment(item.id);
+    ElMessage.success("已删除");
+    await loadComments();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
+  }
+}
 
 const rows = ref<TaskView[]>([]);
 const total = ref(0);
@@ -270,5 +346,25 @@ onMounted(() => {
 }
 .pager {
   margin-top: 12px;
+}
+.comment-form {
+  margin-bottom: 12px;
+}
+.comment-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.comment-item {
+  padding: 10px 0;
+  border-top: 1px solid #ebeef5;
+}
+.comment-meta {
+  color: #909399;
+  font-size: 12px;
+}
+.comment-content {
+  margin: 4px 0 6px;
+  white-space: pre-wrap;
 }
 </style>

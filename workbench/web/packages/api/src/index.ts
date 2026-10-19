@@ -1,6 +1,8 @@
 import type {
   ApiResponse,
   CapacitySummary,
+  CommentView,
+  CreateCommentRequest,
   CreateUserRequest,
   CreateWorklogRequest,
   DailyReportView,
@@ -10,6 +12,7 @@ import type {
   LoginResponse,
   MemberView,
   MilestoneView,
+  NotificationView,
   PageResult,
   ProjectView,
   RiskSummaryView,
@@ -20,6 +23,7 @@ import type {
   SchedulePreviewRequest,
   SchedulePreviewResponse,
   TaskView,
+  UnreadCountView,
   UserView,
   WeeklySummaryView,
   WorklogView,
@@ -204,6 +208,36 @@ export class ApiClient {
 
   async regenerateWeeklySummary(weekStart?: string): Promise<WeeklySummaryView> {
     return this.request<WeeklySummaryView>("POST", "/api/v1/weekly-summaries/regenerate", { weekStart });
+  }
+
+  async listComments(taskId: number): Promise<CommentView[]> {
+    return this.request<CommentView[]>("GET", `/api/v1/tasks/${taskId}/comments`);
+  }
+
+  async createComment(taskId: number, payload: CreateCommentRequest): Promise<CommentView> {
+    return this.request<CommentView>("POST", `/api/v1/tasks/${taskId}/comments`, payload);
+  }
+
+  async deleteComment(id: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/comments/${id}`);
+  }
+
+  async listNotifications(unreadOnly = false): Promise<NotificationView[]> {
+    return this.request<NotificationView[]>("GET", `/api/v1/notifications?unreadOnly=${unreadOnly}`);
+  }
+
+  async unreadCount(): Promise<number> {
+    const result = await this.request<UnreadCountView>("GET", "/api/v1/notifications/unread-count");
+    return result.unread;
+  }
+
+  async markNotificationRead(id: number): Promise<void> {
+    await this.request<null>("POST", `/api/v1/notifications/${id}/read`);
+  }
+
+  async markAllNotificationsRead(): Promise<number> {
+    const result = await this.request<UnreadCountView>("POST", "/api/v1/notifications/read-all");
+    return result.unread;
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

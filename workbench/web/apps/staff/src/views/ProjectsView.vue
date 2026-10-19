@@ -5,6 +5,7 @@
       <span>
         <el-button type="primary" @click="openCreate">新建项目</el-button>
         <el-button @click="openReports">我的日报</el-button>
+        <el-button @click="openNotifications">消息<span v-if="unread > 0" class="notify-badge">{{ unread }}</span></el-button>
         <el-button link type="primary" @click="logout">退出</el-button>
       </span>
     </el-header>
@@ -81,6 +82,22 @@
         </el-table>
       </div>
     </el-drawer>
+
+    <el-drawer v-model="notifyVisible" title="消息" size="420px">
+      <div class="notify-actions">
+        <el-button size="small" @click="readAll">全部已读</el-button>
+        <span class="notify-unread">未读 {{ unread }}</span>
+      </div>
+      <el-empty v-if="notifications.length === 0" description="没有新消息" />
+      <div v-for="item in notifications" :key="item.id" class="notify-item">
+        <div class="notify-title">
+          {{ item.title }}
+          <el-tag v-if="!item.read" size="small" type="warning">未读</el-tag>
+        </div>
+        <div class="notify-meta">{{ item.createdAt }}</div>
+        <el-button v-if="!item.read" link type="primary" @click="readOne(item as NotificationView)">标为已读</el-button>
+      </div>
+    </el-drawer>
   </el-container>
 </template>
 
@@ -88,7 +105,7 @@
 import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { MemberView, ProjectView } from "@workbench/api";
+import type { MemberView, NotificationView, ProjectView } from "@workbench/api";
 import { client, useAuthStore } from "../stores/auth";
 
 const auth = useAuthStore();
@@ -108,6 +125,49 @@ const membersVisible = ref(false);
 const current = ref<ProjectView | null>(null);
 const members = ref<MemberView[]>([]);
 const newUserid = ref("");
+const notifyVisible = ref(false);
+const notifications = ref<NotificationView[]>([]);
+const unread = ref(0);
+
+async function refreshUnread(): Promise<void> {
+  try {
+    unread.value = await client.unreadCount();
+  } catch {
+    unread.value = 0;
+  }
+}
+
+async function openNotifications(): Promise<void> {
+  notifyVisible.value = true;
+  await loadNotifications();
+}
+
+async function loadNotifications(): Promise<void> {
+  try {
+    notifications.value = await client.listNotifications();
+    unread.value = await client.unreadCount();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "加载消息失败");
+  }
+}
+
+async function readOne(item: NotificationView): Promise<void> {
+  try {
+    await client.markNotificationRead(item.id);
+    await loadNotifications();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "操作失败");
+  }
+}
+
+async function readAll(): Promise<void> {
+  try {
+    await client.markAllNotificationsRead();
+    await loadNotifications();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "操作失败");
+  }
+}
 
 async function reload(): Promise<void> {
   loading.value = true;
@@ -235,6 +295,7 @@ async function logout(): Promise<void> {
 
 onMounted(() => {
   void reload();
+  void refreshUnread();
 });
 </script>
 
@@ -257,5 +318,37 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
+}
+.notify-badge {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #f56c6c;
+  color: #fff;
+  font-size: 11px;
+}
+.notify-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.notify-unread {
+  color: #909399;
+  font-size: 12px;
+}
+.notify-item {
+  padding: 10px 0;
+  border-top: 1px solid #ebeef5;
+}
+.notify-title {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.notify-meta {
+  color: #909399;
+  font-size: 12px;
+  margin: 4px 0;
 }
 </style>
