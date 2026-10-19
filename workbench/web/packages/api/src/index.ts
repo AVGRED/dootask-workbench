@@ -24,6 +24,7 @@ import type {
   RiskSummaryView,
   SaveDailyReportRequest,
   SaveDictRequest,
+  SearchResult,
   SaveMilestoneRequest,
   SaveProjectRequest,
   SaveTaskRequest,
@@ -376,6 +377,10 @@ export class ApiClient {
 
   async changeRole(userid: number, role: string): Promise<UserView> {
     return this.request<UserView>("PUT", `/api/v1/users/${userid}/role`, { role });
+  }
+
+  async search(keyword: string): Promise<SearchResult> {
+    return this.request<SearchResult>("GET", `/api/v1/search?keyword=${encodeURIComponent(keyword)}`);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

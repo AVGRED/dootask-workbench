@@ -328,3 +328,16 @@ export interface SaveDictRequest {
   sort?: number;
   enabled?: boolean;
 }
+
+export interface SearchItem {
+  id: number;
+  title: string;
+  subtitle: string;
+  type: string;
+}
+
+export interface SearchResult {
+  projects: SearchItem[];
+  tasks: SearchItem[];
+  users: SearchItem[];
+}

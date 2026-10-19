@@ -13,6 +13,8 @@
       <div class="toolbar">
         <el-input v-model="keyword" placeholder="搜索项目名称" clearable style="width: 240px" @keyup.enter="reload" />
         <el-button @click="reload">查询</el-button>
+        <el-input v-model="searchKeyword" placeholder="全局搜索项目/任务/人" clearable style="width: 220px" @keyup.enter="runSearch" />
+        <el-button @click="runSearch">搜索</el-button>
       </div>
 
       <el-table v-loading="loading" :data="rows" border>
@@ -84,6 +86,23 @@
       </div>
     </el-drawer>
 
+    <el-drawer v-model="searchVisible" title="搜索结果" size="460px">
+      <div v-if="searchResult" class="search-group">
+        <div class="search-title">项目（{{ searchResult.projects.length }}）</div>
+        <div v-for="item in searchResult.projects" :key="'p' + item.id" class="search-item" @click="openProject(item)">
+          {{ item.title }}
+        </div>
+        <div class="search-title">任务（{{ searchResult.tasks.length }}）</div>
+        <div v-for="item in searchResult.tasks" :key="'t' + item.id" class="search-item" @click="openTask(item)">
+          {{ item.title }} <span class="search-sub">{{ item.subtitle }}</span>
+        </div>
+        <div class="search-title">成员（{{ searchResult.users.length }}）</div>
+        <div v-for="item in searchResult.users" :key="'u' + item.id" class="search-item">
+          {{ item.title }} <span class="search-sub">{{ item.subtitle }}</span>
+        </div>
+      </div>
+    </el-drawer>
+
     <el-drawer v-model="activityVisible" :title="`动态 · ${activityProject?.name ?? ''}`" size="480px">
       <el-table :data="activities" size="small" border>
         <el-table-column prop="createdAt" label="时间" width="160" />
@@ -123,7 +142,7 @@
 import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { ActivityView, MemberView, NotificationView, ProjectView } from "@workbench/api";
+import type { ActivityView, MemberView, NotificationView, ProjectView, SearchItem, SearchResult } from "@workbench/api";
 import { client, useAuthStore } from "../stores/auth";
 
 const auth = useAuthStore();
@@ -143,6 +162,9 @@ const membersVisible = ref(false);
 const current = ref<ProjectView | null>(null);
 const members = ref<MemberView[]>([]);
 const newUserid = ref("");
+const searchVisible = ref(false);
+const searchKeyword = ref("");
+const searchResult = ref<SearchResult | null>(null);
 const activityVisible = ref(false);
 const activityProject = ref<ProjectView | null>(null);
 const activities = ref<ActivityView[]>([]);
@@ -158,6 +180,28 @@ async function refreshUnread(): Promise<void> {
   } catch {
     unread.value = 0;
   }
+}
+
+async function runSearch(): Promise<void> {
+  if (!searchKeyword.value.trim()) return;
+  try {
+    searchResult.value = await client.search(searchKeyword.value.trim());
+    searchVisible.value = true;
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "搜索失败");
+  }
+}
+
+async function openProject(item: SearchItem): Promise<void> {
+  searchVisible.value = false;
+  await router.push({ name: "tasks", params: { projectId: item.id } });
+}
+
+async function openTask(item: SearchItem): Promise<void> {
+  const match = /#(\d+)/.exec(item.subtitle);
+  if (!match) return;
+  searchVisible.value = false;
+  await router.push({ name: "tasks", params: { projectId: Number(match[1]) } });
 }
 
 async function openActivities(row: ProjectView): Promise<void> {
@@ -399,5 +443,30 @@ onMounted(() => {
   color: #909399;
   font-size: 12px;
   margin: 4px 0;
+}
+.search-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.search-title {
+  margin: 12px 0 4px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #606266;
+}
+.search-item {
+  padding: 8px 10px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.search-item:hover {
+  background: #f5f7fa;
+}
+.search-sub {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 6px;
 }
 </style>
