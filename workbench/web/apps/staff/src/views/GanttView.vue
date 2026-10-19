@@ -2,7 +2,7 @@
   <el-container class="page">
     <el-header class="page-header">
       <span>
-        <el-button link type="primary" @click="goBack">← 返回项目</el-button>
+        <el-button link type="primary" @click="goBack">← 返回首页</el-button>
         甘特图 · 项目 {{ projectId }}
       </span>
       <span v-if="gantt" class="range">{{ gantt.rangeStart }} ~ {{ gantt.rangeEnd }}</span>
@@ -170,7 +170,7 @@ async function openTask(taskId: number): Promise<void> {
 }
 
 async function goBack(): Promise<void> {
-  await router.push({ name: "projects" });
+  await router.push({ name: "dashboard" });
 }
 
 onMounted(load);

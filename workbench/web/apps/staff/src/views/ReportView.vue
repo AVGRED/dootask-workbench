@@ -2,7 +2,7 @@
   <el-container class="page">
     <el-header class="page-header">
       <span>
-        <el-button link type="primary" @click="goBack">← 返回项目</el-button>
+        <el-button link type="primary" @click="goBack">← 返回首页</el-button>
         项目报表 · {{ projectId }}
       </span>
       <span v-if="report" class="range">{{ report.from }} ~ {{ report.to }}</span>
@@ -72,7 +72,7 @@ async function load(): Promise<void> {
 }
 
 async function goBack(): Promise<void> {
-  await router.push({ name: "projects" });
+  await router.push({ name: "dashboard" });
 }
 
 onMounted(load);

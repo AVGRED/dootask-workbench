@@ -165,7 +165,7 @@ async function regenerate(): Promise<void> {
 }
 
 async function goBack(): Promise<void> {
-  await router.push({ name: "projects" });
+  await router.push({ name: "dashboard" });
 }
 
 onMounted(async () => {
