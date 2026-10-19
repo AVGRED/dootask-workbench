@@ -94,16 +94,26 @@
 | 任务 AI 分析建议 | `AiTaskSuggestion`、`AssistantController` | `ai` |
 | AI 助手会话 | `AI` | `ai` |
 
-## 11. 需要你确认「是否保留」的功能
+## 11. 全部保留（不做裁剪）
 
-以下功能在旧系统中存在，但与「项目/任务/工时」主线关系较弱，重写时可选择不做：
+以下功能**全部纳入重写范围**，不做裁剪；重写时按模块排期，允许后置但不能缺失：
 
-- [ ] 远程协助 / 外部协作（`Extranet`）
-- [ ] 投诉 / 反馈（`ComplaintController`）
-- [ ] 计时器（`Timer`）、签到徽章（`Badge`）
-- [ ] 账单导入导出（`BillImport` / `BillExport`）
-- [ ] WebDAV 与在线授权更新（`FileDavController`、`OnlineLicense`、`SystemUpdate`）
-- [ ] 应用中心 / 插件（`AppsController`）
+| 功能 | 端点/模块 | 目标 |
+|---|---|---|
+| 远程协助 / 外部协作 | `Extranet` | `extranet` |
+| 投诉 / 反馈 | `ComplaintController` | `feedback` |
+| 计时器、签到徽章 | `Timer`、`Badge` | `ops` |
+| 账单导入导出 | `BillImport` / `BillExport` | `report` |
+| WebDAV、在线授权更新 | `FileDavController`、`OnlineLicense`、`SystemUpdate` | `file` / `admin/system` |
+| 应用中心 / 插件 | `AppsController`、`Apps` | `admin/apps` |
+
+### 为持续加功能预留的设计约束
+
+1. **模块可插拔**：后端每个业务域一个 Maven module，新增功能以新 module 接入，不改公共模块；
+2. **菜单与权限数据化**：菜单、按钮、API 权限存表，新增功能只需配置，不用改前端路由表；
+3. **API 版本化**：`/api/v1/**`，破坏性变更走 `/api/v2`，旧端不被迫同步升级；
+4. **前端按域拆包**：`packages/ui` 按业务域分目录，新功能独立目录 + 独立路由，避免回到巨型组件；
+5. **功能开关**：新功能默认关闭，按项目/角色灰度，便于并行开发与回滚。
 
 ## 12. 当前进度
 
