@@ -292,6 +292,7 @@ const DEFAULT_TARGETS = [
     'resources/assets/js/pages/manage/components/TaskTemplateBrowser.vue',
     'resources/assets/js/pages/manage/components/ProjectTaskTemplate/index.vue',
     'resources/assets/js/pages/manage/components/MilestoneManager.vue',
+    'resources/assets/js/pages/manage/components/ProjectCapacityOverview.vue',
     'resources/assets/js/pages/manage/components/MilestoneReminderAttempts.vue',
     'resources/assets/js/components/GanttView.vue',
     'resources/assets/js/pages/single/task.vue',

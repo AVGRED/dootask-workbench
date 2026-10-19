@@ -623,30 +623,11 @@
             </div>
         </DrawerOverlay>
 
-        <!--项目里程碑-->
-        <Modal v-model="capacityShow" :title="$L('成员工时汇总')" :mask-closable="false" :width="capacityModalWidth">
-            <div class="project-capacity-overview">
-                <div class="project-capacity-filter">
-                    <DatePicker v-model="capacityRange" type="daterange" format="yyyy-MM-dd" :editable="false" @on-change="invalidateCapacitySummary"/>
-                    <Button type="primary" :loading="capacityLoading" @click="loadCapacityOverview">{{$L('查询')}}</Button>
-                    <Button v-if="capacitySummary.members && capacitySummary.members.length" :disabled="capacityLoading || !capacitySummaryMatchesSelection()" @click="exportCapacityCsv">{{$L('导出')}}</Button>
-                </div>
-                <p class="form-tip">{{$L('计划工时按任务负责人分摊；实际工时按登记日期汇总。结果仅统计所选期间及有完整计划时间的主任务。')}}</p>
-                <p v-if="capacitySummaryMatchesSelection() && capacitySummary.capacity_baseline" class="form-tip">{{$L('工作日')}} · 8 {{$L('小时')}} · {{capacitySummary.capacity_baseline.timezone}}</p>
-                <div v-if="capacityLoadFailed" class="project-capacity-load-state">
-                    <span><Icon type="md-warning"/> {{$L('数据加载失败')}}</span>
-                    <Button size="small" type="text" :disabled="capacityLoading" @click="loadCapacityOverview">{{$L('重试')}}</Button>
-                </div>
-                <div v-else-if="capacityLoading && !capacitySummary.members" class="form-tip">{{$L('加载中...')}}</div>
-                <div v-if="capacitySummaryMatchesSelection() && capacitySummary.totals" class="project-capacity-totals">
-                    <span>{{$L('预估')}} {{formatWorkMinutes(capacitySummary.totals.estimated_minutes)}}</span>
-                    <span>{{$L('已登记')}} {{formatWorkMinutes(capacitySummary.totals.logged_minutes)}}</span>
-                    <span>{{$L('剩余')}} {{formatWorkMinutes(capacitySummary.totals.remaining_minutes)}}</span>
-                    <span v-if="capacitySummary.totals.overrun_minutes > 0">{{$L('超出')}} {{formatWorkMinutes(capacitySummary.totals.overrun_minutes)}}</span>
-                </div>
-                <Table v-if="!capacityLoadFailed && capacitySummaryMatchesSelection() && capacitySummary.members" :columns="capacityColumns" :data="capacitySummary.members" :loading="capacityLoading"/>
-            </div>
-        </Modal>
+        <!--成员工时汇总-->
+        <ProjectCapacityOverview
+            :visible.sync="capacityShow"
+            :project-id="Number(projectId)"
+            :timezone="projectScheduleTimezone" />
 
         <MilestoneManager
             :visible.sync="milestoneShow"
@@ -841,6 +822,7 @@ import TaskDeleted from "./TaskDeleted";
 import TaskTag from "./ProjectTaskTag/tags.vue";
 import ProjectGantt from "./ProjectGantt";
 import MilestoneManager from "./MilestoneManager.vue";
+import ProjectCapacityOverview from "./ProjectCapacityOverview.vue";
 import ProjectTableGroupDropdown from "./ProjectTableGroupDropdown.vue";
 import ProjectFlowFilterDropdown from "./ProjectFlowFilterDropdown.vue";
 import UserSelect from "../../../components/UserSelect.vue";
@@ -851,7 +833,6 @@ import transformEmojiToHtml from "../../../utils/emoji";
 import {projectTableGroups, normalizeProjectTableGroups, projectWeekRanges, taskMatchesProjectGroup} from "../../../utils/projectTableGroups";
 import {scrollToStableTarget} from "../../../utils/scrollToStableTarget";
 import {emptyProjectFlowFilter, projectFlowFilterCount, taskMatchesProjectFlowFilter} from "../../../utils/projectFlowFilter";
-import {buildCapacityCsv} from "../../../utils/capacityCsv";
 
 export default {
     name: "ProjectPanel",
@@ -874,6 +855,7 @@ export default {
         TaskTag,
         ProjectGantt,
         MilestoneManager,
+        ProjectCapacityOverview,
         ProjectTableGroupDropdown,
         ProjectFlowFilterDropdown,
     },
@@ -907,22 +889,6 @@ export default {
 
             milestoneShow: false,
             capacityShow: false,
-            capacityLoading: false,
-            capacityLoadFailed: false,
-            capacityRequestKey: 0,
-            capacityRange: [$A.dayjs().startOf('month').toDate(), $A.dayjs().endOf('month').toDate()],
-            capacityRangeProjectId: 0,
-            capacitySummary: {},
-            capacitySummaryRangeKey: '',
-            capacityColumns: [
-                {title: this.$L('成员'), key: 'user', render: (h, {row}) => h('span', row.user && row.user.name || `#${row.userid}`)},
-                {title: this.$L('任务数'), key: 'task_count', width: 80},
-                {title: this.$L('预估工时'), key: 'estimated_minutes', render: (h, {row}) => h('span', {
-                    attrs: {title: `${this.$L('工作日')} · 8 ${this.$L('小时')}`},
-                }, `${this.formatWorkMinutes(row.estimated_minutes)} / ${row.capacity_member ? this.formatWorkMinutes(row.available_minutes) : '—'} (${row.capacity_utilization_percent === null ? '—' : `${row.capacity_utilization_percent}%`})`)},
-                {title: this.$L('已登记'), key: 'logged_minutes', render: (h, {row}) => h('span', this.formatWorkMinutes(row.logged_minutes))},
-                {title: this.$L('剩余'), key: 'remaining_minutes', render: (h, {row}) => h('span', this.formatWorkMinutes(row.remaining_minutes))},
-            ],
             milestoneLoading: false,
             milestoneLoadFailed: false,
             milestoneCanManage: false,
@@ -1005,10 +971,6 @@ export default {
 
         projectScheduleTimezone() {
             return this.projectData.task_schedule_timezone || $A.timezoneName || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-        },
-
-        capacityModalWidth() {
-            return this.windowWidth < 800 ? '96%' : 720;
         },
 
         tabTypeActive() {
@@ -1512,11 +1474,6 @@ export default {
         },
         projectId: {
             handler(id) {
-                this.capacityRequestKey++;
-                this.capacityLoading = false;
-                this.capacitySummary = {};
-                this.capacitySummaryRangeKey = '';
-                this.capacityLoadFailed = false;
                 this.capacityShow = false;
                 this.cancelTableGroupScroll();
                 this.tableGroupsOpen = false;
@@ -1534,8 +1491,6 @@ export default {
                 this.milestoneCanManage = false;
                 this.milestoneLoadFailed = false;
                 this.milestoneShow = false;
-                this.capacitySummary = {};
-                this.capacityLoadFailed = false;
                 if (id > 0) {
                     this.getFlowData();
                     this.loadMilestones().then(() => {
@@ -1989,121 +1944,7 @@ export default {
         },
 
         openCapacityOverview() {
-            const projectId = Number(this.projectId);
-            if (projectId !== this.capacityRangeProjectId) {
-                const timezone = this.projectData.task_schedule_timezone || $A.timezoneName || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-                const today = $A.dayjs().tz(timezone);
-                const asLocalDate = date => new Date(date.year(), date.month(), date.date());
-                if (today.isValid()) {
-                    this.capacityRange = [asLocalDate(today.startOf('month')), asLocalDate(today.endOf('month'))];
-                }
-                this.capacityRangeProjectId = projectId;
-            }
             this.capacityShow = true;
-            this.loadCapacityOverview();
-        },
-
-        formatWorkMinutes(minutes) {
-            const value = Number(minutes) || 0;
-            const hours = Math.floor(value / 60);
-            const remainder = value % 60;
-            return `${hours}${this.$L('小时')} ${remainder}${this.$L('分钟')}`;
-        },
-
-        capacitySummaryMatchesSelection() {
-            if (!this.capacitySummaryRangeKey) return false;
-            const [fromValue, toValue] = this.capacityRange || [];
-            if (!fromValue || !toValue) return false;
-            const from = $A.dayjs(fromValue);
-            const to = $A.dayjs(toValue);
-            if (!from.isValid() || !to.isValid()) return false;
-            const key = `${Number(this.projectId)}|${from.format('YYYY-MM-DD')}|${to.format('YYYY-MM-DD')}`;
-            return key === this.capacitySummaryRangeKey;
-        },
-
-        invalidateCapacitySummary() {
-            this.capacityRequestKey++;
-            this.capacityLoading = false;
-            this.capacityLoadFailed = false;
-            this.capacitySummary = {};
-            this.capacitySummaryRangeKey = '';
-        },
-
-        async loadCapacityOverview() {
-            const requestKey = ++this.capacityRequestKey;
-            this.capacityLoading = false;
-            this.capacitySummary = {};
-            this.capacitySummaryRangeKey = '';
-            this.capacityLoadFailed = false;
-            const [fromValue, toValue] = this.capacityRange || [];
-            if (!fromValue || !toValue) return;
-            const fromDate = $A.dayjs(fromValue).startOf('day');
-            const toDate = $A.dayjs(toValue).startOf('day');
-            const utcDay = date => Date.UTC(date.year(), date.month(), date.date());
-            if (!fromDate.isValid() || !toDate.isValid()) {
-                $A.modalError(this.$L('日期范围无效'));
-                return;
-            }
-            const dayDifference = (utcDay(toDate) - utcDay(fromDate)) / 86400000;
-            if (dayDifference > 92) {
-                this.capacityLoadFailed = false;
-                $A.modalError(this.$L('日期范围最多 93 天'));
-                return;
-            }
-            this.capacityLoading = true;
-            this.capacityLoadFailed = false;
-            const projectId = Number(this.projectId);
-            try {
-                const {data} = await this.$store.dispatch('call', {
-                    url: 'projecttaskwork/capacity',
-                    data: {project_id: projectId, from: $A.dayjs(fromValue).format('YYYY-MM-DD'), to: $A.dayjs(toValue).format('YYYY-MM-DD')},
-                });
-                if (requestKey === this.capacityRequestKey && projectId === Number(this.projectId)) {
-                    this.capacitySummary = data;
-                    this.capacitySummaryRangeKey = `${projectId}|${fromDate.format('YYYY-MM-DD')}|${toDate.format('YYYY-MM-DD')}`;
-                }
-            } catch (e) {
-                if (requestKey === this.capacityRequestKey && projectId === Number(this.projectId)) {
-                    this.capacitySummary = {};
-                    this.capacitySummaryRangeKey = '';
-                    this.capacityLoadFailed = true;
-                }
-            } finally {
-                if (requestKey === this.capacityRequestKey) this.capacityLoading = false;
-            }
-        },
-
-        exportCapacityCsv() {
-            if (!this.capacitySummaryMatchesSelection() || this.capacityLoading) return;
-            const members = this.capacitySummary.members;
-            if (!Array.isArray(members) || members.length === 0) return;
-            const [fromValue, toValue] = this.capacityRange || [];
-            if (!fromValue || !toValue) return;
-            const columns = [
-                this.$L('成员'),
-                this.$L('任务数'),
-                `${this.$L('预估工时')} / ${this.$L('工作日')} (8 ${this.$L('小时')})`,
-                this.$L('已登记'),
-                this.$L('剩余'),
-                this.$L('超出'),
-            ];
-            const rows = members.map(row => [
-                row.user && row.user.name || `#${row.userid}`,
-                row.task_count,
-                `${this.formatWorkMinutes(row.estimated_minutes)} / ${row.capacity_member ? this.formatWorkMinutes(row.available_minutes) : '—'} (${row.capacity_utilization_percent == null ? '—' : `${row.capacity_utilization_percent}%`})`,
-                this.formatWorkMinutes(row.logged_minutes),
-                this.formatWorkMinutes(row.remaining_minutes),
-                this.formatWorkMinutes(row.overrun_minutes),
-            ]);
-            const csv = buildCapacityCsv([columns, ...rows]);
-            const blobUrl = window.URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = `project-capacity-${$A.dayjs(fromValue).format('YYYY-MM-DD')}-${$A.dayjs(toValue).format('YYYY-MM-DD')}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 0);
         },
 
         openMilestoneTask(task) {

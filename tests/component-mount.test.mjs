@@ -5,6 +5,11 @@ import {createRequire} from 'node:module';
 import test from 'node:test';
 import compiler from 'vue-template-compiler';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const require = createRequire(import.meta.url);
 const {parse} = require('@babel/parser');
@@ -278,6 +283,71 @@ test('MilestoneManager saves, deletes and reorders through the expected endpoint
     await panel.saveSort();
     const sortCall = calls.find(call => call.url === 'projectmilestone/sort');
     assert.deepEqual(sortCall.data, {project_id: 3, milestones: [2, 1]});
+
+    vm.$destroy();
+});
+
+test('ProjectCapacityOverview loads the selected month, renders totals and enforces the 93 day cap', async () => {
+    const calls = [];
+    const store = {
+        state: {},
+        dispatch: (action, payload) => {
+            calls.push(payload);
+            return Promise.resolve({
+                data: {
+                    members: [{userid: 7, user: {name: '张三'}, task_count: 2, estimated_minutes: 480, logged_minutes: 120, remaining_minutes: 360, overrun_minutes: 0, capacity_member: true, available_minutes: 960, capacity_utilization_percent: 50}],
+                    totals: {estimated_minutes: 480, logged_minutes: 120, remaining_minutes: 360, overrun_minutes: 0},
+                    capacity_baseline: {timezone: 'Asia/Shanghai'},
+                },
+            });
+        },
+    };
+    const options = loadComponent('resources/assets/js/pages/manage/components/ProjectCapacityOverview.vue', {
+        buildCapacityCsv: () => '',
+    });
+
+    const previousStore = Vue.prototype.$store;
+    Vue.prototype.$store = store;
+    const vm = new Vue({
+        components: {Panel: options},
+        data: {visible: false},
+        render(h) {
+            return h('Panel', {
+                ref: 'panel',
+                props: {visible: this.visible, projectId: 3, timezone: 'Asia/Shanghai'},
+                on: {'update:visible': () => {}},
+            });
+        },
+    }).$mount();
+    Vue.prototype.$store = previousStore;
+
+    // The instance gets its store before the dialog opens so the visible watcher can load.
+    const panel = vm.$refs.panel;
+    panel.$store = store;
+
+    vm.visible = true;
+    await flush();
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'projecttaskwork/capacity');
+    assert.equal(calls[0].data.project_id, 3);
+    const monthStart = dayjs().tz('Asia/Shanghai').startOf('month').format('YYYY-MM-DD');
+    const monthEnd = dayjs().tz('Asia/Shanghai').endOf('month').format('YYYY-MM-DD');
+    assert.equal(calls[0].data.from, monthStart);
+    assert.equal(calls[0].data.to, monthEnd);
+
+    const text = vm.$el.textContent;
+    assert.match(text, /8小时 0分钟/);
+    assert.match(text, /2小时 0分钟/);
+    assert.match(text, /Asia\/Shanghai/);
+
+    // Ranges over 93 days are rejected locally, without a request.
+    modalErrors.length = 0;
+    const before = calls.length;
+    panel.range = [dayjs().tz('Asia/Shanghai').toDate(), dayjs().tz('Asia/Shanghai').add(120, 'day').toDate()];
+    await panel.load();
+    assert.equal(calls.length, before);
+    assert.deepEqual(modalErrors, ['日期范围最多 93 天']);
 
     vm.$destroy();
 });
