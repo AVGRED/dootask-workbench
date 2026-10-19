@@ -524,104 +524,10 @@
         </div>
 
         <!--项目设置-->
-        <DrawerOverlay
-            v-model="settingShow"
-            placement="right"
-            :size="720"
-            class-name="project-setting-drawer"
-            :mask-closable="false">
-            <template #title>{{$L('项目设置')}}</template>
-            <Form class="project-setting-content" :model="settingData" v-bind="formOptions" @submit.native.prevent>
-                <FormItem prop="name" :label="$L('项目名称')">
-                    <Input type="text" v-model="settingData.name" :maxlength="32" :placeholder="$L('必填')"></Input>
-                </FormItem>
-                <FormItem prop="desc" :label="$L('项目介绍')">
-                    <Input ref="projectDesc" type="textarea" :autosize="{ minRows: 3, maxRows: 5 }" v-model="settingData.desc" :maxlength="255" :placeholder="`${$L('选填')} (${$L('支持 Markdown 格式')})`"></Input>
-                </FormItem>
-                <FormItem :label="$L('自动归档')" prop="archive_method">
-                    <RadioGroup :value="settingData.archive_method" @on-change="formArchived">
-                        <Radio label="system">{{$L('系统默认')}}</Radio>
-                        <Radio label="custom">{{$L('自定义')}}</Radio>
-                    </RadioGroup>
-                    <div v-if="settingData.archive_method==='system'" class="form-tip">{{$L('根据系统设置的自动归档规则执行')}}</div>
-                    <template v-else-if="settingData.archive_method=='custom'">
-                        <div class="form-tip">{{$L('任务完成(*)天后自动归档。', settingData.archive_days || 'n')}}</div>
-                        <div class="setting-auto-day">
-                            <Input v-model="settingData.archive_days" type="number">
-                                <span slot="append">{{$L('[day_unit].天')}}</span>
-                            </Input>
-                        </div>
-                    </template>
-                </FormItem>
-                <FormItem v-if="aiVisible" :label="$L('AI任务分析')" prop="ai_auto_analyze">
-                    <RadioGroup v-model="settingData.ai_auto_analyze">
-                        <Radio label="open" :disabled="systemConfig.task_ai_auto_analyze === 'close'">{{$L('开启')}}</Radio>
-                        <Radio label="close">{{$L('关闭')}}</Radio>
-                    </RadioGroup>
-                    <div v-if="systemConfig.ai_auto_analyze === 'close'" class="form-tip">{{$L('系统已关闭AI任务分析功能。')}}</div>
-                    <div v-else-if="settingData.ai_auto_analyze === 'open'" class="form-tip">{{$L('新建任务后AI自动分析并给出建议。')}}</div>
-                    <div v-else class="form-tip">{{$L('关闭后本项目将不再自动分析任务。')}}</div>
-                </FormItem>
-                <FormItem :label="$L('共享模板')" prop="task_template_share">
-                    <RadioGroup v-model="settingData.task_template_share">
-                        <Radio label="open">{{$L('开启')}}</Radio>
-                        <Radio label="close">{{$L('关闭')}}</Radio>
-                    </RadioGroup>
-                    <div v-if="settingData.task_template_share === 'open'" class="form-tip">{{$L('开启后，添加任务时可使用其他项目共享的任务模板。')}}</div>
-                    <div v-else class="form-tip">{{$L('关闭后，添加任务时仅加载本项目模板，不显示其他项目共享模板。')}}</div>
-                </FormItem>
-                <FormItem :label="$L('任务依赖')" prop="task_dependency">
-                    <RadioGroup v-model="settingData.task_dependency">
-                        <Radio label="open">{{$L('开启')}}</Radio>
-                        <Radio label="close">{{$L('关闭')}}</Radio>
-                    </RadioGroup>
-                    <div v-if="settingData.task_dependency === 'open'" class="form-tip">{{$L('开启后可设置任务前置/后置关系，并在甘特图中查看依赖。')}}</div>
-                    <div v-else class="form-tip">{{$L('关闭后本项目不再展示或修改任务依赖。')}}</div>
-                </FormItem>
-                <FormItem :label="$L('自动排期')" prop="task_schedule_mode">
-                    <RadioGroup v-model="settingData.task_schedule_mode">
-                        <Radio label="manual">{{$L('手动排期')}}</Radio>
-                        <Radio label="automatic">{{$L('依赖预演')}}</Radio>
-                    </RadioGroup>
-                    <div class="form-tip">{{$L('依赖预演会在调整甘特图任务后计算后续任务时间；确认前不会修改任务。')}}</div>
-                </FormItem>
-                <FormItem :label="$L('节假日例外')" prop="task_schedule_holidays">
-                    <Input v-model="settingData.task_schedule_holidays" type="textarea" :autosize="{minRows: 2, maxRows: 5}" :placeholder="$L('每行填写一个日期，例如 2026-10-01')"/>
-                    <div class="form-tip">{{$L('这些日期即使落在工作日中也按休息日计算，最多366个日期。')}}</div>
-                </FormItem>
-                <template v-if="settingData.task_schedule_mode === 'automatic'">
-                    <FormItem :label="$L('工作日')" prop="task_schedule_workdays">
-                        <CheckboxGroup v-model="settingData.task_schedule_workdays">
-                            <Checkbox :label="1">{{$L('星期一')}}</Checkbox>
-                            <Checkbox :label="2">{{$L('星期二')}}</Checkbox>
-                            <Checkbox :label="3">{{$L('星期三')}}</Checkbox>
-                            <Checkbox :label="4">{{$L('星期四')}}</Checkbox>
-                            <Checkbox :label="5">{{$L('星期五')}}</Checkbox>
-                            <Checkbox :label="6">{{$L('星期六')}}</Checkbox>
-                            <Checkbox :label="7">{{$L('星期日')}}</Checkbox>
-                        </CheckboxGroup>
-                    </FormItem>
-                    <FormItem :label="$L('排期时区')" prop="task_schedule_timezone">
-                        <Input v-model="settingData.task_schedule_timezone" :placeholder="$L('例如 Asia/Shanghai')"/>
-                    </FormItem>
-                    <FormItem :label="$L('依赖缓冲工作日')" prop="task_schedule_buffer_days">
-                        <Input v-model="settingData.task_schedule_buffer_days" type="number" :min="0" :max="30"/>
-                    </FormItem>
-                </template>
-                <FormItem v-if="systemConfig.department_owner_project_view === 'open'" :label="$L('负责人视角')" prop="department_owner_view">
-                    <RadioGroup v-model="settingData.department_owner_view">
-                        <Radio label="open">{{$L('开启')}}</Radio>
-                        <Radio label="close">{{$L('关闭')}}</Radio>
-                    </RadioGroup>
-                    <div v-if="settingData.department_owner_view === 'open'" class="form-tip">{{$L('开启后，部门负责人可只读查看本项目及其全员可见任务。')}}</div>
-                    <div v-else class="form-tip">{{$L('关闭后，本项目及其群聊对部门负责人视角隐藏。')}}</div>
-                </FormItem>
-            </Form>
-            <div class="project-setting-footer">
-                <Button type="default" @click="settingShow=false">{{$L('取消')}}</Button>
-                <Button type="primary" :loading="settingLoad > 0" @click="onSetting">{{$L('保存')}}</Button>
-            </div>
-        </DrawerOverlay>
+        <ProjectSettingDrawer
+            :visible.sync="settingShow"
+            :project-id="projectId"
+            :project="projectData" />
 
         <!--成员工时汇总-->
         <ProjectCapacityOverview
@@ -823,6 +729,7 @@ import TaskTag from "./ProjectTaskTag/tags.vue";
 import ProjectGantt from "./ProjectGantt";
 import MilestoneManager from "./MilestoneManager.vue";
 import ProjectCapacityOverview from "./ProjectCapacityOverview.vue";
+import ProjectSettingDrawer from "./ProjectSettingDrawer.vue";
 import ProjectTableGroupDropdown from "./ProjectTableGroupDropdown.vue";
 import ProjectFlowFilterDropdown from "./ProjectFlowFilterDropdown.vue";
 import UserSelect from "../../../components/UserSelect.vue";
@@ -856,6 +763,7 @@ export default {
         ProjectGantt,
         MilestoneManager,
         ProjectCapacityOverview,
+        ProjectSettingDrawer,
         ProjectTableGroupDropdown,
         ProjectFlowFilterDropdown,
     },
@@ -884,8 +792,6 @@ export default {
             sortDisabled: false,
 
             settingShow: false,
-            settingData: {},
-            settingLoad: 0,
 
             milestoneShow: false,
             capacityShow: false,
@@ -1863,49 +1769,6 @@ export default {
             this.handleColumnDebounce();
         },
 
-        onSetting() {
-            this.settingLoad++;
-            const settingData = {...this.settingData};
-            settingData.task_schedule_holidays = this.parseScheduleHolidays(settingData.task_schedule_holidays);
-            this.$store.dispatch("call", {
-                url: 'project/update',
-                data: Object.assign(settingData, {
-                    project_id: this.projectId
-                }),
-            }).then(({data, msg}) => {
-                $A.messageSuccess(msg);
-                this.settingShow = false;
-                this.$store.dispatch("saveProject", data)
-            }).catch(({msg}) => {
-                $A.modalError(msg);
-            }).finally(_ => {
-                this.settingLoad--;
-            });
-        },
-
-        parseScheduleWorkdays(value) {
-            let days = value;
-            if (typeof days === 'string') {
-                try { days = JSON.parse(days); } catch (e) { days = null; }
-            }
-            return Array.isArray(days) && days.length
-                ? [...new Set(days.map(Number).filter(day => Number.isInteger(day) && day >= 1 && day <= 7))]
-                : [1, 2, 3, 4, 5];
-        },
-
-        parseScheduleHolidays(value) {
-            let dates = value;
-            if (typeof dates === 'string') {
-                try {
-                    const parsed = JSON.parse(dates);
-                    dates = Array.isArray(parsed) ? parsed : dates;
-                } catch (e) {}
-                if (typeof dates === 'string') dates = dates.split(/[\s,;]+/);
-            }
-            if (!Array.isArray(dates)) return [];
-            return [...new Set(dates.map(date => String(date).trim()).filter(Boolean))].sort();
-        },
-
         async loadMilestones() {
             const requestKey = this._milestoneRequestKey = (this._milestoneRequestKey || 0) + 1;
             const projectId = this.projectId;
@@ -2069,25 +1932,7 @@ export default {
                     break;
 
                 case "setting":
-                    Object.assign(this.settingData, {
-                        name: this.projectData.name,
-                        desc: this.projectData.desc,
-                        archive_method: this.projectData.archive_method,
-                        archive_days: this.projectData.archive_days,
-                        ai_auto_analyze: this.projectData.ai_auto_analyze || 'open',
-                        task_template_share: this.projectData.task_template_share || 'open',
-                        task_dependency: this.projectData.task_dependency || 'open',
-                        task_schedule_mode: this.projectData.task_schedule_mode || 'manual',
-                        task_schedule_workdays: this.parseScheduleWorkdays(this.projectData.task_schedule_workdays),
-                        task_schedule_holidays: this.parseScheduleHolidays(this.projectData.task_schedule_holidays).join('\n'),
-                        task_schedule_timezone: this.projectData.task_schedule_timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-                        task_schedule_buffer_days: Number(this.projectData.task_schedule_buffer_days) || 0,
-                        department_owner_view: this.projectData.department_owner_view || 'open'
-                    });
                     this.settingShow = true;
-                    this.$nextTick(() => {
-                        setTimeout(this.$refs.projectDesc.resizeTextarea, 0)
-                    });
                     break;
 
                 case "permissions":
@@ -2666,9 +2511,6 @@ export default {
             }
         },
 
-        formArchived(value) {
-            this.settingData = { ...this.settingData, archive_method: value };
-        },
 
         taskItemVisible({id, column_id}) {
             return this.columnVisibilitys[column_id] && this.taskVisibilitys[id]?.visible

@@ -7,6 +7,7 @@ import compiler from 'vue-template-compiler';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
+import {parseScheduleHolidays, parseScheduleWorkdays} from '../resources/assets/js/utils/projectSchedule.js';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -27,7 +28,7 @@ const componentStub = name => ({
         return h('div', {class: `stub-${name}`}, this.$slots.default);
     },
 });
-for (const name of ['Modal', 'Form', 'FormItem', 'Button', 'InputNumber', 'DatePicker', 'Input', 'Icon', 'Tag', 'Poptip', 'Select', 'Option', 'UserAvatar', 'UserSelect', 'Draggable']) {
+for (const name of ['Modal', 'Form', 'FormItem', 'Button', 'InputNumber', 'DatePicker', 'Input', 'Icon', 'Tag', 'Poptip', 'Select', 'Option', 'UserAvatar', 'UserSelect', 'Draggable', 'RadioGroup', 'Radio', 'CheckboxGroup', 'Checkbox', 'DrawerOverlay']) {
     Vue.component(name, componentStub(name));
 }
 
@@ -348,6 +349,80 @@ test('ProjectCapacityOverview loads the selected month, renders totals and enfor
     await panel.load();
     assert.equal(calls.length, before);
     assert.deepEqual(modalErrors, ['日期范围最多 93 天']);
+
+    vm.$destroy();
+});
+
+test('ProjectSettingDrawer fills from the project and saves normalized schedule fields', async () => {
+    const calls = [];
+    const store = {
+        state: {},
+        dispatch: (action, payload) => {
+            calls.push(typeof action === 'string' ? {action, payload} : action);
+            return Promise.resolve({data: {id: 3}, msg: '已保存'});
+        },
+    };
+    const project = {
+        id: 3,
+        name: '工作台',
+        desc: '说明',
+        archive_method: 'custom',
+        archive_days: 30,
+        ai_auto_analyze: 'close',
+        task_template_share: 'open',
+        task_dependency: 'open',
+        task_schedule_mode: 'automatic',
+        task_schedule_workdays: '["1","2","3","4","5"]',
+        task_schedule_holidays: ['2026-10-02', '2026-10-01'],
+        task_schedule_timezone: 'Asia/Shanghai',
+        task_schedule_buffer_days: '2',
+        department_owner_view: 'open',
+    };
+    const options = loadComponent('resources/assets/js/pages/manage/components/ProjectSettingDrawer.vue', {
+        DrawerOverlay: {props: ['value'], render(h) { return h('div', this.$slots.default); }},
+        mapState: () => ({
+            formOptions: () => ({}),
+            systemConfig: () => ({department_owner_project_view: 'open', task_ai_auto_analyze: 'open'}),
+        }),
+        mapGetters: () => ({aiVisible: () => true}),
+        parseScheduleHolidays,
+        parseScheduleWorkdays,
+    });
+
+    const emitted = [];
+    const vm = new Vue({
+        components: {Panel: options},
+        data: {visible: false},
+        render(h) {
+            return h('Panel', {
+                ref: 'panel',
+                props: {visible: this.visible, projectId: 3, project},
+                on: {'update:visible': value => emitted.push(value)},
+            });
+        },
+    }).$mount();
+    const panel = vm.$refs.panel;
+    panel.$store = store;
+
+    vm.visible = true;
+    await flush();
+
+    assert.equal(panel.settingData.name, '工作台');
+    assert.equal(panel.settingData.ai_auto_analyze, 'close');
+    assert.deepEqual(panel.settingData.task_schedule_workdays, [1, 2, 3, 4, 5]);
+    assert.equal(panel.settingData.task_schedule_holidays, '2026-10-01\n2026-10-02');
+    assert.equal(panel.settingData.task_schedule_buffer_days, 2);
+
+    await panel.onSetting();
+    await flush();
+
+    const update = calls.find(call => call.payload && call.payload.url === 'project/update');
+    assert.ok(update, 'project/update should be dispatched');
+    assert.equal(update.payload.data.project_id, 3);
+    assert.equal(update.payload.data.name, '工作台');
+    assert.deepEqual(update.payload.data.task_schedule_holidays, ['2026-10-01', '2026-10-02']);
+    assert.deepEqual(emitted, [false]);
+    assert.ok(calls.some(call => call.action === 'saveProject'), 'saved project should refresh the store');
 
     vm.$destroy();
 });
