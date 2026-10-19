@@ -10,6 +10,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,9 +35,7 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "select userid, email, nickname, password, encrypt from users where email = ? and deleted_at is null limit 1",
-                request.username());
+        List<Map<String, Object>> rows = findByEmail(request.username());
         if (rows.isEmpty()) {
             throw new BusinessException("账号或密码错误");
         }
@@ -56,6 +55,19 @@ public class AuthService {
         String nickname = (String) user.get("nickname");
         String token = jwtService.issue(userid, email, "staff");
         return new LoginResponse(token, userid, email, nickname, "staff", 12 * 3600L);
+    }
+
+    /**
+     * 旧库 {@code users} 表没有 {@code deleted_at} 列（软删是后来新增的语义），
+     * 因此先按带软删过滤的语句查询，遇到未知列时退回不带过滤的语句。
+     */
+    private List<Map<String, Object>> findByEmail(String email) {
+        String base = "select userid, email, nickname, password, encrypt from users where email = ?";
+        try {
+            return jdbcTemplate.queryForList(base + " and deleted_at is null limit 1", email);
+        } catch (DataAccessException exception) {
+            return jdbcTemplate.queryForList(base + " limit 1", email);
+        }
     }
 
     private boolean matches(String raw, String stored, String salt) {
