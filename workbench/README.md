@@ -49,7 +49,33 @@ workbench/
 - 测试：后端 MockMvc + 集成测试；前端 Vitest + 挂载冒烟；
 - 提交：一个板块一组提交，commit message 前缀 `feat(<模块>):`。
 
-## 当前状态
+## 当前状态（板块 1 完成）
 
-- 设计文档：`docs/design-v2.md`、`docs/feature-inventory.md`、`docs/feature-daily-report.md`
-- 工程：目录规划已定，构建文件（Maven / pnpm）待创建
+后端 `mvn verify` 通过（AuthControllerTest 3 条），前端 `pnpm typecheck` 通过，CI 已接入。
+
+| 层 | 内容 |
+|---|---|
+| server | 9 个模块；`common`（返回体/异常/分页/全局处理）；`auth`（JWT、过滤器、安全配置、登录接口与测试）；`app`（启动类、`application.yml`、`V1__baseline.sql`） |
+| web | `packages/api`（登录类型 + ApiClient）；`apps/staff`（Vite + Element Plus + Pinia，登录页、路由守卫、首页占位） |
+| CI | `.github/workflows/workbench-ci.yml`：`mvn -B verify` + `pnpm typecheck` |
+
+## 本地运行
+
+```powershell
+# 后端（JDK 21 + Maven 3.9）
+cd workbench\server
+mvn -q -DskipTests package
+mvn spring-boot:run        # 端口 9000，需要本地 MySQL 与已执行的 Flyway 迁移
+
+# 前端
+cd workbench\web
+pnpm install
+pnpm dev --filter @workbench/staff   # 端口 5180，/api 代理到 127.0.0.1:9000
+```
+
+已知限制：登录按旧库规则校验（`md5(明文 + encrypt 盐)`），成功后自动升级为 BCrypt；旧 `users` 表没有 `deleted_at`，查询已做容错。
+
+## 设计文档
+
+- `docs/design-v2.md`、`docs/feature-inventory.md`、`docs/feature-daily-report.md`
+- `docs/toolchain.md`（JDK/Maven/pnpm 准备）、`docs/legacy-assets.md`（旧系统可复用资产）
