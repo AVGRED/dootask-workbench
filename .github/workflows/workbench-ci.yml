@@ -25,7 +25,7 @@ jobs:
         run: mvn -B verify
 
   web:
-    name: Web typecheck
+    name: Web typecheck & build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,3 +43,87 @@ jobs:
       - name: Build web apps
         working-directory: workbench/web
         run: pnpm build
+
+  browser:
+    name: Browser acceptance (Playwright)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: workbench
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Build server jar
+        working-directory: workbench/server
+        run: mvn -B -DskipTests package -pl workbench-app -am
+      - name: Start server
+        working-directory: workbench/server
+        env:
+          DB_URL: jdbc:mysql://127.0.0.1:3306/workbench?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          JWT_SECRET: ci-secret-please-change-32-bytes-min
+        run: |
+          nohup java -jar workbench-app/target/workbench-app-0.1.0-SNAPSHOT.jar > /tmp/server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:9000/actuator/health | grep -q '"status":"UP"'; then
+              echo "server up"; break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:9000/actuator/health
+      - name: Seed demo user
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq mysql-client
+          mysql -h 127.0.0.1 -uroot -proot workbench < workbench/scripts/seed-demo-user.sql
+      - name: Install web dependencies
+        working-directory: workbench/web
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        working-directory: workbench/web
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Start web dev servers
+        working-directory: workbench/web
+        env:
+          WORKBENCH_API: http://127.0.0.1:9000
+        run: |
+          nohup pnpm dev:staff > /tmp/staff.log 2>&1 &
+          nohup pnpm dev:admin > /tmp/admin.log 2>&1 &
+          nohup pnpm dev:mobile > /tmp/mobile.log 2>&1 &
+          for port in 5180 5181 5182; do
+            for i in $(seq 1 30); do
+              if curl -fsS "http://127.0.0.1:$port/" >/dev/null; then echo "port $port up"; break; fi
+              sleep 1
+            done
+          done
+      - name: Run Playwright
+        working-directory: workbench/web
+        env:
+          PW_CHANNEL: chromium
+        run: pnpm test:e2e
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: workbench/web/apps/e2e/test-results
+          retention-days: 7

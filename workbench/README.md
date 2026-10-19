@@ -187,7 +187,7 @@ pnpm test:e2e
 
 覆盖：员工端「登录 → 建项目 → 建任务 → 完成任务」、管理端「登录 → 用户列表 → 系统设置页」、移动端「登录 → 项目卡片 → 任务页」。失败时在 `workbench/web/apps/e2e/test-results/` 留下截图与 trace（`pnpm exec playwright show-trace <trace.zip>`）。
 
-说明：`playwright.config.ts` 使用 `channel: "chrome"`，复用本机已安装的 Chrome；CI 中若要跑需先 `pnpm exec playwright install --with-deps chromium` 并去掉 channel。
+说明：`playwright.config.ts` 使用 `channel: "chrome"`，复用本机已安装的 Chrome；CI 中通过 `PW_CHANNEL=chromium` 改用 Playwright 自带浏览器（`pnpm exec playwright install --with-deps chromium`）。`.github/workflows/workbench-ci.yml` 的 `browser` job 会起 MySQL 服务容器、打包并启动后端、灌入演示账号（`scripts/seed-demo-user.sql`）、启动三端 dev server 后跑这套用例，失败时上传 `test-results` 产物。
 
 ## 设计文档
 
