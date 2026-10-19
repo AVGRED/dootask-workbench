@@ -1,4 +1,5 @@
 com\workbench\common\api\ApiResponse.class
+com\workbench\common\web\TraceIdFilter.class
 com\workbench\common\api\BusinessException.class
 com\workbench\common\api\GlobalExceptionHandler.class
 com\workbench\common\api\PageResult.class

@@ -68,6 +68,9 @@ Write-Host "== Workbench E2E: $BaseUrl ==" -ForegroundColor Cyan
 $healthResponse = Invoke-WebRequest -Uri "$BaseUrl/actuator/health"
 $healthBody = [System.Text.Encoding]::UTF8.GetString($healthResponse.RawContentStream.ToArray())
 Assert-True "健康检查 status=UP" ($healthBody -like '*"status":"UP"*') "body=$healthBody"
+Assert-True "响应头带 traceId" ([bool]$healthResponse.Headers['X-Trace-Id']) "header=$($healthResponse.Headers['X-Trace-Id'])"
+$traceEcho = Invoke-WebRequest -Uri "$BaseUrl/actuator/health" -Headers @{ 'X-Trace-Id' = 'e2e-trace-1' }
+Assert-True "透传上游 traceId" ($traceEcho.Headers['X-Trace-Id'] -eq 'e2e-trace-1') "header=$($traceEcho.Headers['X-Trace-Id'])"
 
 # 1. 登录
 $login = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $Username; password = $Password }
