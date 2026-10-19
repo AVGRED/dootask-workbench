@@ -2,13 +2,19 @@ import type {
   ApiResponse,
   CreateUserRequest,
   DepartmentView,
+  DependencyView,
   LoginRequest,
   LoginResponse,
   MemberView,
+  MilestoneView,
   PageResult,
   ProjectView,
+  RiskSummaryView,
+  SaveMilestoneRequest,
   SaveProjectRequest,
   SaveTaskRequest,
+  SchedulePreviewRequest,
+  SchedulePreviewResponse,
   TaskView,
   UserView,
 } from "./types";
@@ -112,6 +118,41 @@ export class ApiClient {
 
   async deleteTask(taskId: number): Promise<void> {
     await this.request<null>("DELETE", `/api/v1/tasks/${taskId}`);
+  }
+
+  async listMilestones(projectId: number): Promise<MilestoneView[]> {
+    return this.request<MilestoneView[]>("GET", `/api/v1/projects/${projectId}/milestones`);
+  }
+
+  async createMilestone(projectId: number, payload: SaveMilestoneRequest): Promise<MilestoneView> {
+    return this.request<MilestoneView>("POST", `/api/v1/projects/${projectId}/milestones`, payload);
+  }
+
+  async deleteMilestone(projectId: number, milestoneId: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/projects/${projectId}/milestones/${milestoneId}`);
+  }
+
+  async listDependencies(projectId: number): Promise<DependencyView[]> {
+    return this.request<DependencyView[]>("GET", `/api/v1/projects/${projectId}/dependencies`);
+  }
+
+  async addDependency(
+    projectId: number,
+    predecessorTaskId: number,
+    successorTaskId: number
+  ): Promise<DependencyView> {
+    return this.request<DependencyView>("POST", `/api/v1/projects/${projectId}/dependencies`, {
+      predecessorTaskId,
+      successorTaskId
+    });
+  }
+
+  async dependencyRisk(projectId: number): Promise<RiskSummaryView> {
+    return this.request<RiskSummaryView>("GET", `/api/v1/projects/${projectId}/dependencies/risk-summary`);
+  }
+
+  async previewSchedule(projectId: number, payload: SchedulePreviewRequest): Promise<SchedulePreviewResponse> {
+    return this.request<SchedulePreviewResponse>("POST", `/api/v1/projects/${projectId}/schedule/preview`, payload);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

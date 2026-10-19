@@ -138,6 +138,54 @@ Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/members/$memberId" 
 $membersAfter = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/members").data
 Assert-True "移除成员生效" (-not ($membersAfter | Where-Object { $_.userid -eq $memberId })) ""
 
+# 6.5 规划：里程碑 / 依赖 / 排期预演
+$milestone = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/milestones" -Body @{ name = "E2E 里程碑"; targetAt = "2026-12-31"; reminderDays = 3 }
+Assert-True "创建里程碑 code=0" ($milestone.code -eq 0) "code=$($milestone.code)"
+$milestoneId = $milestone.data.id
+$milestones = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/milestones").data
+$mine = $milestones | Where-Object { $_.id -eq $milestoneId }
+Assert-True "里程碑列表包含新建项" ([bool]$mine) ""
+Assert-True "里程碑提醒天数=3" ($mine.reminderDays -eq 3) "actual=$($mine.reminderDays)"
+
+$task2 = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/tasks" -Body @{ name = "E2E 后继任务"; startAt = "2026-10-06T09:00:00"; endAt = "2026-10-06T18:00:00" }
+$task2Id = $task2.data.id
+Assert-True "创建后继任务" ([bool]$task2Id) ""
+
+$dep = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/dependencies" -Body @{ predecessorTaskId = $taskId; successorTaskId = $task2Id }
+Assert-True "添加依赖 code=0" ($dep.code -eq 0) "code=$($dep.code)"
+
+$dupDep = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/dependencies" -Body @{ predecessorTaskId = $taskId; successorTaskId = $task2Id }
+Assert-True "重复依赖被拒绝" ($dupDep.code -eq 400) "code=$($dupDep.code)"
+
+$cycleDep = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/dependencies" -Body @{ predecessorTaskId = $task2Id; successorTaskId = $taskId }
+Assert-True "成环依赖被拒绝" ($cycleDep.code -eq 400) "code=$($cycleDep.code)"
+
+$selfDep = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/dependencies" -Body @{ predecessorTaskId = $taskId; successorTaskId = $taskId }
+Assert-True "自依赖被拒绝" ($selfDep.code -eq 400) "code=$($selfDep.code)"
+
+$edges = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/dependencies").data
+Assert-True "依赖列表只有一条边" ($edges.Count -eq 1) "count=$($edges.Count)"
+
+$risk = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/dependencies/risk-summary").data
+Assert-True "风险汇总 edgeCount=1" ($risk.edgeCount -eq 1) "edgeCount=$($risk.edgeCount)"
+
+$preview = Invoke-Api -Method Post -Path "/api/v1/projects/$projectId/schedule/preview" -Body @{ anchorTaskId = $taskId; anchorStart = "2026-10-05T09:00:00"; anchorEnd = "2026-10-07T18:00:00" }
+Assert-True "排期预演返回变更" ($preview.data.changeCount -ge 1) "changeCount=$($preview.data.changeCount)"
+$shifted = $preview.data.changes | Where-Object { $_.taskId -eq $task2Id }
+Assert-True "后置任务被顺延" ([bool]$shifted) ""
+if ($shifted) {
+    Assert-True "顺延后为工作日 09:00" ($shifted.newStart -like "*-10-08T09:00:00") "actual=$($shifted.newStart)"
+}
+
+Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/dependencies/$($dep.data.id)" | Out-Null
+$edgesAfter = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/dependencies").data
+Assert-True "删除依赖后为空" ($edgesAfter.Count -eq 0) "count=$($edgesAfter.Count)"
+
+Invoke-Api -Method Delete -Path "/api/v1/tasks/$task2Id" | Out-Null
+Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId/milestones/$milestoneId" | Out-Null
+$milestonesAfter = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/milestones").data
+Assert-True "删除里程碑后为空" ($milestonesAfter.Count -eq 0) "count=$($milestonesAfter.Count)"
+
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null
 $tasksAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects/$projectId/tasks").data.total
