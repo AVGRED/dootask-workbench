@@ -64,6 +64,11 @@ function New-Suffix { return (Get-Date -Format "HHmmss") }
 $port = ([uri]$BaseUrl).Port
 Write-Host "== Workbench E2E: $BaseUrl ==" -ForegroundColor Cyan
 
+# 0. 健康检查（actuator）
+$healthResponse = Invoke-WebRequest -Uri "$BaseUrl/actuator/health"
+$healthBody = [System.Text.Encoding]::UTF8.GetString($healthResponse.RawContentStream.ToArray())
+Assert-True "健康检查 status=UP" ($healthBody -like '*"status":"UP"*') "body=$healthBody"
+
 # 1. 登录
 $login = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $Username; password = $Password }
 Assert-True "登录返回 code=0" ($login.code -eq 0) "code=$($login.code) msg=$($login.message)"

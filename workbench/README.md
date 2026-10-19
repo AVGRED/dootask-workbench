@@ -134,6 +134,37 @@ powershell -File workbench\scripts\migrate-legacy.ps1 `
 
 注意：`e2e-smoke.ps1` 需要 **UTF-8 BOM** 保存，否则 PowerShell 5.1 会按 ANSI 解析导致中文乱码；响应体由脚本自己按 UTF-8 解码（Spring 的 `application/json` 不带 charset）。
 
+## 部署（Docker Compose）
+
+```bash
+cd workbench
+cp .env.example .env        # 按需改密码/端口/JWT_SECRET
+docker compose up -d --build
+```
+
+启动后：
+
+| 服务 | 地址 | 说明 |
+|---|---|---|
+| 员工端 | http://localhost:8080 | nginx 托管 staff，`/api` 反代到 server |
+| 管理端 | http://localhost:8081 | nginx 托管 admin |
+| 移动端 | http://localhost:8082 | nginx 托管 mobile（含 manifest / sw.js） |
+| 后端 | http://localhost:9000 | Spring Boot，Flyway 启动时自动建表 |
+| MySQL | localhost:3306 | 数据卷 `workbench_mysql-data` |
+
+部署细节：
+
+- `server` 健康检查走 `/actuator/health`（只暴露 health 端点），`web` 等它 healthy 才启动；
+- 附件落在数据卷 `workbench_uploads`（容器内 `/app/data/uploads`），重建容器不丢；
+- 后端配置全部走环境变量：`DB_URL`/`DB_USERNAME`/`DB_PASSWORD`/`JWT_SECRET`/`STORAGE_ROOT`/`SERVER_PORT`；
+- 旧数据迁移在容器内执行：
+  ```bash
+  docker compose run --rm -e WORKBENCH_MIGRATE=1 server \
+    java -jar app.jar --spring.main.web-application-type=none \
+    --workbench.migrate.enabled=true --workbench.migrate.source-url=... --workbench.migrate.exit=true
+  ```
+- 静态检查（无 Docker 环境也能跑）：`node workbench/scripts/check-deploy.mjs`（16 项：compose 结构、变量、nginx 三端、Dockerfile 多阶段/非 root/健康检查）。
+
 ## 设计文档
 
 - `docs/design-v2.md`、`docs/feature-inventory.md`、`docs/feature-daily-report.md`
