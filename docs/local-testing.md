@@ -90,3 +90,15 @@ git -C D:\backups\dootask.git log --oneline -1 workbench-planning
 ```
 
 恢复：`git clone --branch workbench-planning D:\backups\dootask.git <目录>`。裸仓库在同一台机器/同一块磁盘上，只防误删与分支损坏，不防磁盘故障；异地副本仍需上面的 bundle 或可写远端。
+
+### 用云端仓库分支保存 bundle
+
+无法推送完整历史时（没有写权限，或大仓库推送被连接重置），可以把 bundle 当成单个文件提交到一个可写仓库的分支，成本只有几百 KB：
+
+```bash
+# 在任意目录建一个临时仓库，放入 bundle 与 README
+git init && git add dootask-workbench.bundle README.md && git commit -m "backup: workbench bundle"
+git push git@github.com:<owner>/<repo>.git HEAD:refs/heads/backup-bundle
+```
+
+恢复时先克隆上游并检出 bundle 的基准提交（`git bundle verify` 会打印这个哈希），再 `git fetch <bundle> 'refs/heads/*:refs/remotes/bundle/*'`。这条路径依赖上游公开仓库仍然存在，只适合过渡期；能推送完整历史时仍应推普通分支。
