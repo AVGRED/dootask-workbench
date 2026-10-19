@@ -2,6 +2,7 @@ package com.workbench.project.web;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /** 项目接口的请求/响应模型。 */
@@ -27,13 +28,15 @@ public final class ProjectDtos {
     }
 
     public record AddMemberRequest(
-            @NotNull(message = "请选择成员") Long userid
+            @NotNull(message = "请选择成员") Long userid,
+            @Pattern(regexp = "owner|admin|member|viewer", message = "角色只能是 owner/admin/member/viewer") String role
     ) {
     }
 
     public record MemberView(
             long userid,
-            boolean owner
+            boolean owner,
+            String role
     ) {
     }
 }

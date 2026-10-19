@@ -75,6 +75,13 @@ Assert-True "登录返回 code=0" ($login.code -eq 0) "code=$($login.code) msg=$
 Assert-True "登录返回 token" ([bool]($login.data.token)) ""
 $script:token = $login.data.token
 
+# bootstrap-admin-token：首个用户自举为管理员，后续用户管理用管理员态
+$bootstrapResp = Invoke-Api -Method Put -Path "/api/v1/users/$($login.data.userid)/role" -Body @{ role = "admin" }
+Assert-True "首个用户自举为管理员" ($bootstrapResp.data.role -eq "admin") "role=$($bootstrapResp.data.role)"
+$adminLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $Username; password = $Password }
+$script:token = $adminLogin.data.token
+Assert-True "管理员登录角色为 admin" ($adminLogin.data.role -eq "admin") "role=$($adminLogin.data.role)"
+
 # 2. 项目创建（中文）
 $suffix = New-Suffix
 $projectName = "E2E 项目 $suffix"
@@ -412,16 +419,27 @@ Invoke-Api -Method Delete -Path "/api/v1/projects/$projectId" | Out-Null
 $projectsAfterDelete = (Invoke-Api -Method Get -Path "/api/v1/projects?page=1&size=50").data.list
 Assert-True "删除项目后不可见" (-not ($projectsAfterDelete | Where-Object { $_.id -eq $projectId })) ""
 
-# 6.14 系统管理：设置、字典、角色
-$nonAdminChange = Invoke-Api -Method Put -Path "/api/v1/users/$memberId/role" -Body @{ role = "admin" }
-Assert-True "非管理员改他人角色被拒" ($nonAdminChange.code -eq 403) "code=$($nonAdminChange.code)"
+# 6.13.5 项目角色：viewer 只读
+$proj2 = Invoke-Api -Method Post -Path "/api/v1/projects" -Body @{ name = "E2E 权限项目" }
+$proj2Id = $proj2.data.id
+$memberUser = Invoke-Api -Method Post -Path "/api/v1/users" -Body @{ email = "viewer-$((New-Suffix))@workbench.local"; nickname = "只读成员"; password = "viewer123" }
+$viewerId = $memberUser.data.userid
+$added = Invoke-Api -Method Post -Path "/api/v1/projects/$proj2Id/members" -Body @{ userid = $viewerId; role = "viewer" }
+Assert-True "添加 viewer 成员成功" ($added.data.role -eq "viewer") "role=$($added.data.role)"
 
-$bootstrap = Invoke-Api -Method Put -Path "/api/v1/users/$me/role" -Body @{ role = "admin" }
-Assert-True "首个管理员可自举" ($bootstrap.data.role -eq "admin") "role=$($bootstrap.data.role)"
-
-$adminLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $Username; password = $Password }
-Assert-True "管理员登录角色为 admin" ($adminLogin.data.role -eq "admin") "role=$($adminLogin.data.role)"
+$viewerLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $memberUser.data.email; password = "viewer123" }
+$viewerToken = $viewerLogin.data.token
+$script:token = $viewerToken
+$viewerWrite = Invoke-Api -Method Post -Path "/api/v1/projects/$proj2Id/tasks" -Body @{ name = "viewer 不该能建" }
+Assert-True "viewer 建任务被拒（403）" ($viewerWrite.code -eq 403) "code=$($viewerWrite.code)"
+$viewerRead = Invoke-Api -Method Get -Path "/api/v1/projects/$proj2Id/tasks"
+Assert-True "viewer 仍可读任务列表" ($viewerRead.code -eq 0) "code=$($viewerRead.code)"
 $script:token = $adminLogin.data.token
+Invoke-Api -Method Delete -Path "/api/v1/projects/$proj2Id" | Out-Null
+$staffCreate = Invoke-Api -Method Post -Path "/api/v1/users" -Body @{ email = "x$((New-Suffix))@workbench.local"; nickname = "x"; password = "secret123" }
+Assert-True "管理员可创建用户" ($staffCreate.code -eq 0) "code=$($staffCreate.code)"
+
+# 6.14 系统管理：设置、字典、角色
 
 $settingsList = (Invoke-Api -Method Get -Path "/api/v1/admin/settings").data
 Assert-True "管理员可读设置" ([bool]($settingsList | Where-Object { $_.key -eq "app.name" })) ""

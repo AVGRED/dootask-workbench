@@ -84,6 +84,7 @@ public class ProjectService {
         member.setProjectId(project.getId());
         member.setUserid(currentUserid);
         member.setOwner(1);
+        member.setRole("owner");
         member.setCreatedAt(LocalDateTime.now());
         member.setUpdatedAt(LocalDateTime.now());
         memberMapper.insert(member);
@@ -94,7 +95,7 @@ public class ProjectService {
     }
 
     public ProjectView update(long currentUserid, long projectId, SaveProjectRequest request) {
-        Project project = requireOwner(currentUserid, projectId);
+        Project project = requireProjectAdmin(currentUserid, projectId);
         project.setName(request.name());
         if (request.desc() != null) project.setDesc(request.desc());
         project.setUpdatedAt(LocalDateTime.now());
@@ -103,7 +104,7 @@ public class ProjectService {
     }
 
     public void archive(long currentUserid, long projectId, boolean archived) {
-        Project project = requireOwner(currentUserid, projectId);
+        Project project = requireProjectAdmin(currentUserid, projectId);
         LocalDateTime now = LocalDateTime.now();
         if (archived) {
             project.setArchivedAt(now);
@@ -133,36 +134,66 @@ public class ProjectService {
         return memberMapper
                 .selectList(new LambdaQueryWrapper<ProjectMember>().eq(ProjectMember::getProjectId, projectId))
                 .stream()
-                .map(member -> new MemberView(member.getUserid(), Objects.equals(member.getOwner(), 1)))
+                .map(member -> new MemberView(member.getUserid(), Objects.equals(member.getOwner(), 1),
+                        roleOf(member)))
                 .toList();
     }
 
     public MemberView addMember(long currentUserid, long projectId, AddMemberRequest request) {
-        requireOwner(currentUserid, projectId);
+        requireProjectAdmin(currentUserid, projectId);
         Long exists = memberMapper.selectCount(new LambdaQueryWrapper<ProjectMember>()
                 .eq(ProjectMember::getProjectId, projectId)
                 .eq(ProjectMember::getUserid, request.userid()));
         if (exists != null && exists > 0) {
             throw new BusinessException("该成员已在项目中");
         }
+        String role = request.role() == null ? "member" : request.role();
         ProjectMember member = new ProjectMember();
         member.setProjectId(projectId);
         member.setUserid(request.userid());
         member.setOwner(0);
+        member.setRole(role);
         member.setCreatedAt(LocalDateTime.now());
         member.setUpdatedAt(LocalDateTime.now());
         memberMapper.insert(member);
-        return new MemberView(member.getUserid(), false);
+        return new MemberView(member.getUserid(), false, role);
     }
 
     public void removeMember(long currentUserid, long projectId, long userid) {
-        Project project = requireOwner(currentUserid, projectId);
+        Project project = requireProjectAdmin(currentUserid, projectId);
         if (Objects.equals(project.getUserid(), userid)) {
             throw new BusinessException("不能移除项目负责人");
         }
         memberMapper.delete(new LambdaQueryWrapper<ProjectMember>()
                 .eq(ProjectMember::getProjectId, projectId)
                 .eq(ProjectMember::getUserid, userid));
+    }
+
+    private static String roleOf(ProjectMember member) {
+        if (Objects.equals(member.getOwner(), 1)) {
+            return "owner";
+        }
+        return member.getRole() == null || member.getRole().isBlank() ? "member" : member.getRole();
+    }
+
+    /** 项目管理员：负责人，或成员角色为 owner/admin。 */
+    private Project requireProjectAdmin(long currentUserid, long projectId) {
+        Project project = projectMapper.selectById(projectId);
+        if (project == null) {
+            throw new BusinessException("项目不存在");
+        }
+        if (Objects.equals(project.getUserid(), currentUserid)) {
+            return project;
+        }
+        ProjectMember member = memberMapper.selectOne(new LambdaQueryWrapper<ProjectMember>()
+                .eq(ProjectMember::getProjectId, projectId)
+                .eq(ProjectMember::getUserid, currentUserid)
+                .last("limit 1"));
+        String role = member == null ? "" : roleOf(member);
+        if ("owner".equals(role) || "admin".equals(role)) {
+            return project;
+        }
+        throw new BusinessException(403, "需要项目管理员权限");
     }
 
     private Project requireOwner(long currentUserid, long projectId) {

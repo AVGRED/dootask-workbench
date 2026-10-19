@@ -99,17 +99,19 @@ class ProjectControllerTest {
 
     @Test
     void membersAreListed() throws Exception {
-        given(projectService.members(3L)).willReturn(List.of(new MemberView(7L, true), new MemberView(9L, false)));
+        given(projectService.members(3L)).willReturn(List.of(new MemberView(7L, true, "owner"),
+                new MemberView(9L, false, "viewer")));
 
         mockMvc.perform(get("/api/v1/projects/3/members").principal(principal))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].owner").value(true))
-                .andExpect(jsonPath("$.data[1].userid").value(9));
+                .andExpect(jsonPath("$.data[1].userid").value(9))
+                .andExpect(jsonPath("$.data[1].role").value("viewer"));
     }
 
     @Test
     void addMemberPassesRequest() throws Exception {
-        given(projectService.addMember(eq(7L), eq(3L), any())).willReturn(new MemberView(11L, false));
+        given(projectService.addMember(eq(7L), eq(3L), any())).willReturn(new MemberView(11L, false, "member"));
 
         mockMvc.perform(post("/api/v1/projects/3/members").principal(principal)
                         .contentType(MediaType.APPLICATION_JSON)

@@ -15,6 +15,7 @@ public class ProjectMember {
     private Long projectId;
     private Long userid;
     private Integer owner;
+    private String role;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -48,6 +49,14 @@ public class ProjectMember {
 
     public void setOwner(Integer owner) {
         this.owner = owner;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 
     public LocalDateTime getCreatedAt() {

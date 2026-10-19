@@ -3,6 +3,7 @@ package com.workbench.user.web;
 import com.workbench.common.api.ApiResponse;
 import com.workbench.common.api.BusinessException;
 import com.workbench.common.api.PageResult;
+import com.workbench.user.service.SystemAdmin;
 import com.workbench.user.service.UserService;
 import com.workbench.user.web.SystemDtos.ChangeRoleRequest;
 import com.workbench.user.web.UserDtos.CreateUserRequest;
@@ -25,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserService userService;
+    private final SystemAdmin systemAdmin;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, SystemAdmin systemAdmin) {
         this.userService = userService;
+        this.systemAdmin = systemAdmin;
     }
 
     @GetMapping
@@ -39,17 +42,27 @@ public class UserController {
     }
 
     @PostMapping
-    public ApiResponse<UserView> create(@Valid @RequestBody CreateUserRequest request) {
+    public ApiResponse<UserView> create(Principal principal, @Valid @RequestBody CreateUserRequest request) {
+        systemAdmin.requireAdmin(currentUserid(principal));
         return ApiResponse.ok(userService.create(request));
     }
 
     @PutMapping("/{userid}")
-    public ApiResponse<UserView> update(@PathVariable long userid, @Valid @RequestBody UpdateUserRequest request) {
+    public ApiResponse<UserView> update(
+            Principal principal,
+            @PathVariable long userid,
+            @Valid @RequestBody UpdateUserRequest request) {
+        systemAdmin.requireAdmin(currentUserid(principal));
         return ApiResponse.ok(userService.update(userid, request));
     }
 
     @DeleteMapping("/{userid}")
-    public ApiResponse<Void> delete(@PathVariable long userid) {
+    public ApiResponse<Void> delete(Principal principal, @PathVariable long userid) {
+        long caller = currentUserid(principal);
+        systemAdmin.requireAdmin(caller);
+        if (caller == userid) {
+            throw new BusinessException("不能删除自己");
+        }
         userService.delete(userid);
         return ApiResponse.ok(null);
     }

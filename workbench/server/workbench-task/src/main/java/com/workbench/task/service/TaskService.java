@@ -62,7 +62,7 @@ public class TaskService {
     }
 
     public TaskView create(long currentUserid, long projectId, SaveTaskRequest request) {
-        requireAccess(currentUserid, projectId);
+        requireWrite(currentUserid, projectId);
         Long milestoneId = resolveMilestone(projectId, request.milestoneId());
         Task task = new Task();
         task.setProjectId(projectId);
@@ -90,7 +90,7 @@ public class TaskService {
 
     public TaskView update(long currentUserid, long taskId, SaveTaskRequest request) {
         Task task = requireTask(taskId);
-        requireAccess(currentUserid, Objects.requireNonNull(task.getProjectId()));
+        requireWrite(currentUserid, Objects.requireNonNull(task.getProjectId()));
         task.setName(request.name());
         if (request.desc() != null) task.setDesc(request.desc());
         if (request.ownerUserid() != null) task.setOwnerUserid(request.ownerUserid());
@@ -131,7 +131,7 @@ public class TaskService {
 
     public void complete(long currentUserid, long taskId, boolean completed) {
         Task task = requireTask(taskId);
-        requireAccess(currentUserid, Objects.requireNonNull(task.getProjectId()));
+        requireWrite(currentUserid, Objects.requireNonNull(task.getProjectId()));
         LocalDateTime now = LocalDateTime.now();
         if (completed) {
             task.setCompleteAt(now);
@@ -151,7 +151,7 @@ public class TaskService {
 
     public void delete(long currentUserid, long taskId) {
         Task task = requireTask(taskId);
-        requireAccess(currentUserid, Objects.requireNonNull(task.getProjectId()));
+        requireWrite(currentUserid, Objects.requireNonNull(task.getProjectId()));
         taskMapper.deleteById(taskId);
         activityService.record(Objects.requireNonNull(task.getProjectId()), taskId, currentUserid, "task.delete",
                 "task", taskId, "删除任务：" + task.getName());
@@ -167,19 +167,42 @@ public class TaskService {
 
     /** 负责人或成员可访问；非成员一律拒绝。 */
     private void requireAccess(long currentUserid, long projectId) {
+        if (roleIn(projectId, currentUserid) == null) {
+            throw new BusinessException("无权访问该项目");
+        }
+    }
+
+    /** 写操作：viewer 只读，其余成员可写。 */
+    private void requireWrite(long currentUserid, long projectId) {
+        String role = roleIn(projectId, currentUserid);
+        if (role == null) {
+            throw new BusinessException("无权访问该项目");
+        }
+        if ("viewer".equals(role)) {
+            throw new BusinessException(403, "只读成员不能修改任务");
+        }
+    }
+
+    /** 返回当前用户在项目中的角色：owner / admin / member / viewer；非成员返回 null。 */
+    private String roleIn(long projectId, long currentUserid) {
         Project project = projectMapper.selectById(projectId);
         if (project == null) {
             throw new BusinessException("项目不存在");
         }
         if (Objects.equals(project.getUserid(), currentUserid)) {
-            return;
+            return "owner";
         }
-        Long member = memberMapper.selectCount(new LambdaQueryWrapper<ProjectMember>()
+        ProjectMember member = memberMapper.selectOne(new LambdaQueryWrapper<ProjectMember>()
                 .eq(ProjectMember::getProjectId, projectId)
-                .eq(ProjectMember::getUserid, currentUserid));
-        if (member == null || member == 0) {
-            throw new BusinessException("无权访问该项目");
+                .eq(ProjectMember::getUserid, currentUserid)
+                .last("limit 1"));
+        if (member == null) {
+            return null;
         }
+        if (Objects.equals(member.getOwner(), 1)) {
+            return "owner";
+        }
+        return member.getRole() == null || member.getRole().isBlank() ? "member" : member.getRole();
     }
 
     private static TaskView toView(Task task) {
