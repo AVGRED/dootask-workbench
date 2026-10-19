@@ -243,6 +243,37 @@ Invoke-Api -Method Delete -Path "/api/v1/daily-reports/$reportId" | Out-Null
 $reportsAfter = (Invoke-Api -Method Get -Path "/api/v1/daily-reports").data
 Assert-True "删除日报后列表为空" ($reportsAfter.Count -eq 0) "count=$($reportsAfter.Count)"
 
+# 6.8 评论与通知
+$me = $login.data.userid
+$comment = Invoke-Api -Method Post -Path "/api/v1/tasks/$taskId/comments" -Body @{ content = "E2E 评论"; mentionUserids = @($me) }
+Assert-True "发表评论 code=0" ($comment.code -eq 0) "code=$($comment.code)"
+$commentId = $comment.data.id
+Assert-True "评论带 @ 列表" ($comment.data.mentionUserids.Count -eq 1) "count=$($comment.data.mentionUserids.Count)"
+
+$commentList = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/comments").data
+Assert-True "评论列表只有一条" ($commentList.Count -eq 1) "count=$($commentList.Count)"
+
+$unreadBefore = (Invoke-Api -Method Get -Path "/api/v1/notifications/unread-count").data.unread
+Assert-True "@ 自己产生未读通知" ($unreadBefore -ge 1) "unread=$unreadBefore"
+
+$unreadList = (Invoke-Api -Method Get -Path "/api/v1/notifications?unreadOnly=true").data
+Assert-True "未读通知类型为 mention" ([bool]($unreadList | Where-Object { $_.type -eq "mention" })) ""
+$notifyId = ($unreadList | Where-Object { $_.type -eq "mention" } | Select-Object -First 1).id
+
+Invoke-Api -Method Post -Path "/api/v1/notifications/$notifyId/read" | Out-Null
+$unreadAfterOne = (Invoke-Api -Method Get -Path "/api/v1/notifications/unread-count").data.unread
+Assert-True "标记单条已读后未读减少" ($unreadAfterOne -lt $unreadBefore) "before=$unreadBefore after=$unreadAfterOne"
+
+$readAll = Invoke-Api -Method Post -Path "/api/v1/notifications/read-all"
+Assert-True "全部已读接口 code=0" ($readAll.code -eq 0) "code=$($readAll.code)"
+$unreadFinal = (Invoke-Api -Method Get -Path "/api/v1/notifications/unread-count").data.unread
+Assert-True "全部已读后未读为 0" ($unreadFinal -eq 0) "unread=$unreadFinal"
+
+Invoke-Api -Method Delete -Path "/api/v1/comments/$commentId" | Out-Null
+$commentsAfter = (Invoke-Api -Method Get -Path "/api/v1/tasks/$taskId/comments").data
+Assert-True "删除评论后列表为空" ($commentsAfter.Count -eq 0) "count=$($commentsAfter.Count)"
+
+
 
 # 7. 清理：删任务、删项目
 Invoke-Api -Method Delete -Path "/api/v1/tasks/$taskId" | Out-Null

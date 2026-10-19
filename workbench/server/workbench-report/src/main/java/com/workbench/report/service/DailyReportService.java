@@ -11,18 +11,25 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /**
  * 日报：按「用户 + 日期」唯一提交（重复提交即覆盖），7 天内可补交。
+ *
+ * <p>覆盖时用 {@link JdbcTemplate} 直接 update，原因有二：一是软删的行也要能被重新提交
+ * （唯一键包含已删除行，直接 insert 会冲突）；二是需要把 {@code deleted_at} 显式置空，
+ * 而 MyBatis-Plus 的 updateById 会忽略 null 字段。</p>
  */
 @Service
 public class DailyReportService {
 
     private final DailyReportMapper dailyReportMapper;
+    private final JdbcTemplate jdbcTemplate;
 
-    public DailyReportService(DailyReportMapper dailyReportMapper) {
+    public DailyReportService(DailyReportMapper dailyReportMapper, JdbcTemplate jdbcTemplate) {
         this.dailyReportMapper = dailyReportMapper;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public DailyReportView save(long currentUserid, LocalDate reportDate, SaveDailyReportRequest request) {
@@ -37,29 +44,30 @@ public class DailyReportService {
             throw new BusinessException("超过 " + ReportStatus.BACKFILL_DAYS + " 天补交窗口");
         }
         int status = ReportStatus.evaluate(reportDate, now);
+        String blocker = request.contentBlocker() == null ? "" : request.contentBlocker();
+        String plan = request.contentPlan() == null ? "" : request.contentPlan();
 
-        DailyReport existing = dailyReportMapper.selectOne(new LambdaQueryWrapper<DailyReport>()
-                .eq(DailyReport::getUserid, currentUserid)
-                .eq(DailyReport::getReportDate, reportDate)
-                .last("limit 1"));
-        if (existing != null) {
-            existing.setContentDone(request.contentDone());
-            existing.setContentBlocker(request.contentBlocker() == null ? "" : request.contentBlocker());
-            existing.setContentPlan(request.contentPlan() == null ? "" : request.contentPlan());
-            existing.setMinutes(request.minutes());
-            existing.setStatus(status);
-            existing.setSubmittedAt(now);
-            existing.setUpdatedAt(now);
-            dailyReportMapper.updateById(existing);
-            return toView(existing);
+        Long existingId = jdbcTemplate.query(
+                "select id from daily_reports where userid = ? and report_date = ?",
+                resultSet -> resultSet.next() ? resultSet.getLong("id") : null,
+                currentUserid, reportDate);
+        if (existingId != null) {
+            // 覆盖（包括之前被软删的同一日期，唯一键包含已删除行，必须复活而不是新插入）。
+            jdbcTemplate.update(
+                    "update daily_reports set content_done = ?, content_blocker = ?, content_plan = ?, minutes = ?, "
+                            + "status = ?, submitted_at = ?, updated_at = ?, deleted_at = null where id = ?",
+                    request.contentDone(), blocker, plan, request.minutes(), status, now, now, existingId);
+            DailyReport saved = dailyReportMapper.selectById(existingId);
+            return saved == null ? new DailyReportView(existingId, reportDate, request.contentDone(), blocker, plan,
+                    request.minutes(), status, ReportStatus.text(status)) : toView(saved);
         }
 
         DailyReport report = new DailyReport();
         report.setUserid(currentUserid);
         report.setReportDate(reportDate);
         report.setContentDone(request.contentDone());
-        report.setContentBlocker(request.contentBlocker() == null ? "" : request.contentBlocker());
-        report.setContentPlan(request.contentPlan() == null ? "" : request.contentPlan());
+        report.setContentBlocker(blocker);
+        report.setContentPlan(plan);
         report.setMinutes(request.minutes());
         report.setStatus(status);
         report.setSubmittedAt(now);
