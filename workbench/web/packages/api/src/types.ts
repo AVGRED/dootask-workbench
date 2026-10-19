@@ -49,3 +49,22 @@ export interface DepartmentView {
   ownerUserid: number;
   childrenCount: number;
 }
+
+export interface ProjectView {
+  id: number;
+  name: string;
+  desc: string;
+  ownerUserid: number;
+  archived: boolean;
+  memberCount: number;
+}
+
+export interface SaveProjectRequest {
+  name: string;
+  desc?: string;
+}
+
+export interface MemberView {
+  userid: number;
+  owner: boolean;
+}

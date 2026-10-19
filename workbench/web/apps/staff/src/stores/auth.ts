@@ -9,6 +9,8 @@ const client = new ApiClient({
   getToken: () => localStorage.getItem(TOKEN_KEY)
 });
 
+export { client };
+
 export const useAuthStore = defineStore("auth", {
   state: () => ({
     token: localStorage.getItem(TOKEN_KEY) ?? "",

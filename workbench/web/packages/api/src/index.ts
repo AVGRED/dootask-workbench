@@ -4,7 +4,10 @@ import type {
   DepartmentView,
   LoginRequest,
   LoginResponse,
+  MemberView,
   PageResult,
+  ProjectView,
+  SaveProjectRequest,
   UserView,
 } from "./types";
 
@@ -47,6 +50,38 @@ export class ApiClient {
 
   async listDepartments(): Promise<DepartmentView[]> {
     return this.request<DepartmentView[]>("GET", "/api/v1/departments");
+  }
+
+  async listProjects(params: { page?: number; size?: number; keyword?: string } = {}): Promise<PageResult<ProjectView>> {
+    const query = new URLSearchParams();
+    query.set("page", String(params.page ?? 1));
+    query.set("size", String(params.size ?? 20));
+    if (params.keyword) query.set("keyword", params.keyword);
+    return this.request<PageResult<ProjectView>>("GET", `/api/v1/projects?${query.toString()}`);
+  }
+
+  async createProject(payload: SaveProjectRequest): Promise<ProjectView> {
+    return this.request<ProjectView>("POST", "/api/v1/projects", payload);
+  }
+
+  async archiveProject(projectId: number): Promise<void> {
+    await this.request<null>("POST", `/api/v1/projects/${projectId}/archive`);
+  }
+
+  async deleteProject(projectId: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/projects/${projectId}`);
+  }
+
+  async listMembers(projectId: number): Promise<MemberView[]> {
+    return this.request<MemberView[]>("GET", `/api/v1/projects/${projectId}/members`);
+  }
+
+  async addMember(projectId: number, userid: number): Promise<MemberView> {
+    return this.request<MemberView>("POST", `/api/v1/projects/${projectId}/members`, { userid });
+  }
+
+  async removeMember(projectId: number, userid: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/projects/${projectId}/members/${userid}`);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
