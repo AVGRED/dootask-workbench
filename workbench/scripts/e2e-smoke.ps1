@@ -447,6 +447,14 @@ $viewerCommentsRead = Invoke-Api -Method Get -Path "/api/v1/tasks/$taskIn2/comme
 Assert-True "viewer 仍可读评论" ($viewerCommentsRead.code -eq 0) "code=$($viewerCommentsRead.code)"
 $viewerWorklogsRead = Invoke-Api -Method Get -Path "/api/v1/tasks/$taskIn2/worklogs"
 Assert-True "viewer 仍可读工时" ($viewerWorklogsRead.code -eq 0) "code=$($viewerWorklogsRead.code)"
+
+# viewer 上传附件应 403（multipart 用 curl），读附件列表应 200
+$viewerUploadRaw = & curl.exe -s -X POST "http://127.0.0.1:$port/api/v1/tasks/$taskIn2/attachments" -H "Authorization: Bearer $viewerToken" -F "file=@$uploadFile;type=text/plain"
+$viewerUpload = $viewerUploadRaw | ConvertFrom-Json
+Assert-True "viewer 上传附件被拒（403）" ($viewerUpload.code -eq 403) "code=$($viewerUpload.code)"
+$viewerAttachments = Invoke-Api -Method Get -Path "/api/v1/tasks/$taskIn2/attachments"
+Assert-True "viewer 仍可读附件列表" ($viewerAttachments.code -eq 0) "code=$($viewerAttachments.code)"
+
 $script:token = $adminLogin.data.token
 Invoke-Api -Method Delete -Path "/api/v1/projects/$proj2Id" | Out-Null
 $staffCreate = Invoke-Api -Method Post -Path "/api/v1/users" -Body @{ email = "x$((New-Suffix))@workbench.local"; nickname = "x"; password = "secret123" }
