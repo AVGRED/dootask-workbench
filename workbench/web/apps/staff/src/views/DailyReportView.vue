@@ -1,14 +1,12 @@
 <template>
   <el-container class="page">
-    <el-header class="page-header">
-      <span>
-        <el-button link type="primary" @click="goBack">← 返回</el-button>
-        我的日报
-      </span>
-      <span>
+    <AppHeader />
+    <el-header class="page-bar">
+      <span class="page-title">我的日报</span>
+      <span class="page-actions"><span>
         <el-date-picker v-model="selectedDate" type="date" value-format="YYYY-MM-DD" @change="loadByDate" />
         <el-button type="primary" @click="save">提交日报</el-button>
-      </span>
+      </span></span>
     </el-header>
     <el-main>
       <el-alert
@@ -64,12 +62,11 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { DailyReportView, WeeklySummaryView } from "@workbench/api";
+import AppHeader from "../components/layout/AppHeader.vue";
 import { client } from "../stores/auth";
 
-const router = useRouter();
 const today = new Date().toISOString().slice(0, 10);
 const selectedDate = ref(today);
 const existingStatus = ref("");
@@ -162,10 +159,6 @@ async function regenerate(): Promise<void> {
   } finally {
     saving.value = false;
   }
-}
-
-async function goBack(): Promise<void> {
-  await router.push({ name: "dashboard" });
 }
 
 onMounted(async () => {

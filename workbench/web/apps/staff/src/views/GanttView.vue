@@ -1,11 +1,9 @@
 <template>
   <el-container class="page">
-    <el-header class="page-header">
-      <span>
-        <el-button link type="primary" @click="goBack">← 返回首页</el-button>
-        甘特图 · 项目 {{ projectId }}
-      </span>
-      <span v-if="gantt" class="range">{{ gantt.rangeStart }} ~ {{ gantt.rangeEnd }}</span>
+    <AppHeader />
+    <el-header class="page-bar">
+      <span class="page-title">甘特图 · 项目 {{ projectId }}</span>
+      <span class="page-actions"><span v-if="gantt" class="range">{{ gantt.rangeStart }} ~ {{ gantt.rangeEnd }}</span></span>
     </el-header>
     <el-main>
       <div v-if="loading" class="empty">加载中…</div>
@@ -68,6 +66,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { GanttTask, GanttView } from "@workbench/api";
+import AppHeader from "../components/layout/AppHeader.vue";
 import { client } from "../stores/auth";
 
 const route = useRoute();
@@ -167,10 +166,6 @@ async function load(): Promise<void> {
 
 async function openTask(taskId: number): Promise<void> {
   await router.push({ name: "tasks", params: { projectId: projectId.value }, query: { taskId } });
-}
-
-async function goBack(): Promise<void> {
-  await router.push({ name: "dashboard" });
 }
 
 onMounted(load);

@@ -1,11 +1,9 @@
 <template>
   <el-container class="page">
-    <el-header class="page-header">
-      <span>
-        <el-button link type="primary" @click="goBack">← 返回首页</el-button>
-        规划 · 项目 {{ projectId }}
-      </span>
-      <el-button type="primary" @click="openCreate">新建里程碑</el-button>
+    <AppHeader />
+    <el-header class="page-bar">
+      <span class="page-title">规划 · 项目 {{ projectId }}</span>
+      <span class="page-actions"><el-button type="primary" @click="openCreate">新建里程碑</el-button></span>
     </el-header>
     <el-main>
       <el-row :gutter="12" class="summary">
@@ -142,13 +140,13 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { CapacitySummary, DependencyView, MilestoneView, RiskSummaryView, ScheduleBatchView, TemplateView } from "@workbench/api";
+import AppHeader from "../components/layout/AppHeader.vue";
 import { client } from "../stores/auth";
 
 const route = useRoute();
-const router = useRouter();
 const projectId = computed(() => Number(route.params.projectId ?? 0));
 
 const milestones = ref<MilestoneView[]>([]);
@@ -311,10 +309,6 @@ async function remove(row: MilestoneView): Promise<void> {
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
   }
-}
-
-async function goBack(): Promise<void> {
-  await router.push({ name: "dashboard" });
 }
 
 onMounted(() => {

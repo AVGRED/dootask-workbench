@@ -1,11 +1,9 @@
 <template>
   <el-container class="page">
-    <el-header class="page-header">
-      <span>
-        <el-button link type="primary" @click="goBack">← 返回首页</el-button>
-        项目报表 · {{ projectId }}
-      </span>
-      <span v-if="report" class="range">{{ report.from }} ~ {{ report.to }}</span>
+    <AppHeader />
+    <el-header class="page-bar">
+      <span class="page-title">项目报表 · {{ projectId }}</span>
+      <span class="page-actions"><span v-if="report" class="range">{{ report.from }} ~ {{ report.to }}</span></span>
     </el-header>
     <el-main>
       <div v-if="loading" class="empty">加载中…</div>
@@ -42,13 +40,13 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { ProjectReport } from "@workbench/api";
+import AppHeader from "../components/layout/AppHeader.vue";
 import { client } from "../stores/auth";
 
 const route = useRoute();
-const router = useRouter();
 const projectId = computed(() => Number(route.params.projectId ?? 0));
 const report = ref<ProjectReport | null>(null);
 const loading = ref(false);
@@ -69,10 +67,6 @@ async function load(): Promise<void> {
   } finally {
     loading.value = false;
   }
-}
-
-async function goBack(): Promise<void> {
-  await router.push({ name: "dashboard" });
 }
 
 onMounted(load);

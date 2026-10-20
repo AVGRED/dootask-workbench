@@ -1,14 +1,12 @@
 <template>
   <el-container class="page">
-    <el-header class="page-header">
-      <span>
-        <el-button link type="primary" @click="goBack">← 返回首页</el-button>
-        看板 · 项目 {{ projectId }}
-      </span>
-      <span>
+    <AppHeader />
+    <el-header class="page-bar">
+      <span class="page-title">看板 · 项目 {{ projectId }}</span>
+      <span class="page-actions"><span>
         <el-input v-model="newColumnName" placeholder="新列名" size="small" style="width: 130px" />
         <el-button size="small" @click="addColumn">加列</el-button>
-      </span>
+      </span></span>
     </el-header>
     <el-main>
       <div v-if="loading" class="empty">加载中…</div>
@@ -51,6 +49,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { BoardColumnWithCards } from "@workbench/api";
+import AppHeader from "../components/layout/AppHeader.vue";
 import { client } from "../stores/auth";
 
 const route = useRoute();
@@ -105,10 +104,6 @@ async function openTask(taskId: number): Promise<void> {
   await router.push({ name: "tasks", params: { projectId: projectId.value }, query: { taskId } });
 }
 
-async function goBack(): Promise<void> {
-  await router.push({ name: "dashboard" });
-}
-
 onMounted(load);
 </script>
 
@@ -128,9 +123,10 @@ onMounted(load);
 .column {
   width: 260px;
   flex: 0 0 260px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  padding: 10px;
+  background: var(--wb-surface-2);
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius);
+  padding: 12px;
   min-height: 200px;
 }
 .column-head {
@@ -150,8 +146,9 @@ onMounted(load);
   min-height: 60px;
 }
 .card {
-  background: #fff;
-  border-radius: 6px;
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  border-radius: 10px;
   padding: 10px;
   cursor: grab;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
