@@ -150,8 +150,8 @@ function onCancel(): void {
 }
 .tile {
   position: absolute;
-  border: 1.5px solid #dcdfe6;
-  border-radius: 12px;
+  border: 1.5px solid var(--wb-border, #dcdfe6);
+  border-radius: var(--wb-radius-lg, 14px);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
@@ -159,7 +159,8 @@ function onCancel(): void {
   transition: box-shadow 0.15s, transform 0.12s;
 }
 .tile:hover {
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--wb-shadow-2, 0 8px 24px rgba(20, 23, 40, 0.08));
+  transform: translateY(-2px);
 }
 .tile.dragging {
   box-shadow: 0 8px 24px rgba(64, 158, 255, 0.35);
@@ -176,17 +177,34 @@ function onCancel(): void {
   user-select: none;
 }
 .tile-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-weight: 600;
   font-size: 14px;
+  color: var(--wb-text, #1e2233);
+}
+.tile-title::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--wb-brand-500, #6366f1);
+  opacity: 0.9;
 }
 .tile-tools .remove {
-  color: #c0c4cc;
+  color: var(--wb-text-3, #c0c4cc);
   cursor: pointer;
   padding: 0 4px;
+  opacity: 0;
+  transition: opacity var(--wb-duration, 160ms) var(--wb-ease, ease);
+}
+.tile:hover .tile-tools .remove {
+  opacity: 1;
 }
 .tile-body {
   flex: 1;
-  padding: 10px 12px;
+  padding: 12px 14px;
   overflow: auto;
   font-size: 13px;
 }

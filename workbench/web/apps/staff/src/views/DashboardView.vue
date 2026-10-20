@@ -3,6 +3,17 @@
     <AppHeader />
 
     <main class="dashboard-main">
+      <div class="greeting">
+        <div class="greeting-title">{{ greeting }}，{{ nickname }}</div>
+        <div class="greeting-sub">
+          <template v-if="dash">
+            今天有 {{ openTaskCount }} 条待办 · {{ projectCount }} 个项目 ·
+            本周已记录 {{ capacityMinutes }} 分钟
+          </template>
+          <template v-else>正在加载你的工作台…</template>
+        </div>
+      </div>
+
       <div class="layout-bar">
         <span class="hint">拖拽标题移动板块，拖右下角缩放；布局按账号保存</span>
         <span class="layout-actions">
@@ -12,7 +23,9 @@
         </span>
       </div>
 
-      <div v-if="loading" class="empty">加载中…</div>
+      <div v-if="loading" class="skeleton-grid">
+        <div v-for="index in 8" :key="index" class="skeleton-tile" :class="{ wide: index % 5 === 1 }"></div>
+      </div>
       <DashboardGrid
         v-else-if="dash"
         :layout="layout"
@@ -56,6 +69,27 @@ const addVisible = ref(false);
 const dash = ref<DashboardView | null>(null);
 const layout = ref<LayoutItem[]>([]);
 const catalog = ref<WidgetDef[]>([]);
+const nickname = ref((JSON.parse(localStorage.getItem("workbench.user") ?? "{}") as { nickname?: string }).nickname ?? "");
+const greeting = computed(() => {
+  const hour = new Date().getHours();
+  if (hour < 6) return "夜深了";
+  if (hour < 12) return "早上好";
+  if (hour < 14) return "中午好";
+  if (hour < 18) return "下午好";
+  return "晚上好";
+});
+const openTaskCount = computed(() => {
+  const tasks = dash.value?.data["my-tasks"] as unknown[] | undefined;
+  return tasks?.length ?? 0;
+});
+const projectCount = computed(() => {
+  const projects = dash.value?.data["summary"] as { projects?: number } | undefined;
+  return projects?.projects ?? 0;
+});
+const capacityMinutes = computed(() => {
+  const capacity = dash.value?.data["capacity"] as { minutes?: number } | undefined;
+  return capacity?.minutes ?? 0;
+});
 
 const projectBlocks = computed<ProjectBlock[]>(() =>
   Object.entries(dash.value?.data ?? {})
@@ -175,6 +209,40 @@ onMounted(load);
 }
 .dashboard-main {
   padding: 18px 20px 32px;
+}
+.greeting {
+  margin-bottom: 14px;
+}
+.greeting-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--wb-text);
+  letter-spacing: 0.2px;
+}
+.greeting-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--wb-text-3);
+}
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.skeleton-tile {
+  height: 150px;
+  border-radius: var(--wb-radius-lg);
+  background: linear-gradient(90deg, var(--wb-surface) 25%, var(--wb-surface-2) 37%, var(--wb-surface) 63%);
+  background-size: 400% 100%;
+  animation: wb-shimmer 1.4s ease infinite;
+  border: 1px solid var(--wb-border);
+}
+.skeleton-tile.wide {
+  grid-column: span 2;
+}
+@keyframes wb-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 .layout-bar {
   display: flex;
