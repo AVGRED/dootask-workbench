@@ -8,6 +8,7 @@ import KanbanView from "../views/KanbanView.vue";
 import GanttView from "../views/GanttView.vue";
 import DailyReportView from "../views/DailyReportView.vue";
 import ReportView from "../views/ReportView.vue";
+import StarMapView from "../views/StarMapView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -16,6 +17,7 @@ export const router = createRouter({
     { path: "/", name: "dashboard", component: DashboardView },
     { path: "/projects", name: "projects", component: ProjectsView },
     { path: "/reports", name: "reports", component: DailyReportView },
+    { path: "/starmap", name: "starmap", component: StarMapView },
     { path: "/projects/:projectId/tasks", name: "tasks", component: TasksView },
     { path: "/projects/:projectId/planning", name: "planning", component: PlanningView },
     { path: "/projects/:projectId/board", name: "board", component: KanbanView },

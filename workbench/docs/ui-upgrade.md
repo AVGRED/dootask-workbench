@@ -51,7 +51,8 @@
 
 | 组件 | 路径 | 用途 |
 |---|---|---|
-| `AppHeader` | `apps/staff/src/components/layout/AppHeader.vue` | 员工端统一顶栏：品牌 + 首页/项目/日报（按路由高亮）+ 状态胶囊 + 主题 + 用户菜单 |
+| `AppHeader` | `apps/staff/src/components/layout/AppHeader.vue` | 员工端统一顶栏：品牌 + 首页/项目/日报/星图（按路由高亮）+ 状态胶囊 + 主题 + 用户菜单 |
+| `StarMapGraph` | `apps/{staff,admin}/src/components/starmap/StarMapGraph.vue` | 星图可视化：SVG 环形布局、按状态着色、hover 高亮关系、图例与悬浮卡 |
 | `EmptyState` | `apps/{staff,admin,mobile}/src/components/common/EmptyState.vue` | 空状态：图标 + 标题 + 描述 + 可选主操作 |
 | `Skeleton` | 同上 | 骨架屏：`variant="lines" \| "table" \| "grid"` |
 
@@ -78,6 +79,7 @@
 | 页面 | 改动 |
 |---|---|
 | 登录 | 深色品牌区分栏，与员工端登录一致 |
+| 星图 | 全公司员工关系图：每人一颗星，共同项目拉线；管理员可见全部员工（含没有项目的孤星） |
 | 状态墙 | 状态筛选胶囊（带人数）、在线状态点、在做/日报/近 7 天工时进度条、卡片 hover |
 | 项目总览 | 三张统计卡（总数 / 平均完成度 / 存在逾期）、卡片令牌化 + hover、进度条 |
 | 每日日报 | 已提交 / 未提交 / 提交率统计卡、日报卡（头像 + 工时徽标 + 分段内容）、空状态、未交名单 chips |

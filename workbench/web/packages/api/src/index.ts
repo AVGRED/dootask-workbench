@@ -42,6 +42,7 @@ import type {
   SettingView,
   TagView,
   TaskView,
+  StarMapView,
   TeamStatusRow,
   TemplateRevisionView,
   TemplateView,
@@ -483,6 +484,10 @@ export class ApiClient {
       "GET",
       `/api/v1/admin/reports/missing${suffix}`
     );
+  }
+
+  async starMap(): Promise<StarMapView> {
+    return this.request<StarMapView>("GET", "/api/v1/starmap");
   }
 
   async teamStatus(): Promise<TeamStatusRow[]> {

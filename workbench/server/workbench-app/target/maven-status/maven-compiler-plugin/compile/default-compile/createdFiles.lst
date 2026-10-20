@@ -1,4 +1,5 @@
 com\workbench\app\status\StatusService.class
+com\workbench\app\starmap\StarMapService.class
 com\workbench\app\WorkbenchApplication.class
 com\workbench\app\search\SearchResult.class
 com\workbench\app\search\SearchService.class
@@ -26,5 +27,6 @@ com\workbench\app\dashboard\DashboardDtos$LayoutItem.class
 com\workbench\app\profile\AvatarController.class
 com\workbench\app\dashboard\DashboardDtos$WidgetDef.class
 com\workbench\app\dashboard\DashboardDtos$SaveLayoutRequest.class
+com\workbench\app\starmap\StarMapController.class
 com\workbench\app\dashboard\DashboardDtos$LayoutView.class
 com\workbench\app\mail\MailController.class

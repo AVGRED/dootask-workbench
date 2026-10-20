@@ -64,3 +64,30 @@ export interface TeamStatusRow {
   report_today: number;
   week_minutes: number;
 }
+
+/** 星图节点：一个员工就是一颗星。 */
+export interface StarNode {
+  userid: number;
+  nickname: string;
+  email: string;
+  role: string;
+  avatar: string | null;
+  status: string;
+  note: string;
+  projectCount: number;
+  self: boolean;
+}
+
+/** 星图连线：共同参与过项目的人数权重。 */
+export interface StarEdge {
+  from: number;
+  to: number;
+  weight: number;
+}
+
+export interface StarMapView {
+  scope: "all" | "collaborators";
+  centerUserid: number;
+  nodes: StarNode[];
+  edges: StarEdge[];
+}

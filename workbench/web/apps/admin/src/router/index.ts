@@ -6,6 +6,7 @@ import SettingsView from "../views/SettingsView.vue";
 import TeamStatusView from "../views/TeamStatusView.vue";
 import ProjectsOverviewView from "../views/ProjectsOverviewView.vue";
 import DailyReportsView from "../views/DailyReportsView.vue";
+import StarMapView from "../views/StarMapView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -19,6 +20,7 @@ export const router = createRouter({
         { path: "team", name: "team", component: TeamStatusView },
         { path: "projects", name: "projects", component: ProjectsOverviewView },
         { path: "reports", name: "reports", component: DailyReportsView },
+        { path: "starmap", name: "starmap", component: StarMapView },
         { path: "users", name: "users", component: UsersView },
         { path: "settings", name: "settings", component: SettingsView }
       ]
