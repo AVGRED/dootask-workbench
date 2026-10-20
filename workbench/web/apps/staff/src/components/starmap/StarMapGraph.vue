@@ -8,15 +8,13 @@
       </defs>
 
       <g class="bg-stars">
-        <circle
-          v-for="star in bgStars"
-          :key="star.key"
-          :cx="star.x"
-          :cy="star.y"
-          :r="star.r"
-          :opacity="star.opacity"
-          class="bg-star"
-        />
+        <g v-for="star in bgStars" :key="star.key">
+          <circle :cx="star.x" :cy="star.y" :r="star.r" :opacity="star.opacity" class="bg-star" />
+          <g v-if="star.cross" class="bg-cross" :opacity="star.opacity * 0.75">
+            <line :x1="star.x - 4.5" :y1="star.y" :x2="star.x + 4.5" :y2="star.y" />
+            <line :x1="star.x" :y1="star.y - 4.5" :x2="star.x" :y2="star.y + 4.5" />
+          </g>
+        </g>
       </g>
 
       <g class="edges">
@@ -42,6 +40,10 @@
           @mouseleave="hovered = null"
         >
           <circle class="glow" :r="node.radius * 2.1" :style="{ fill: toneOf(node.status) }" filter="url(#soft-glow)" />
+          <g class="spark" :style="{ stroke: toneOf(node.status) }">
+            <line :x1="-(node.radius + 11)" y1="0" :x2="node.radius + 11" y2="0" />
+            <line x1="0" :y1="-(node.radius + 11)" x2="0" :y2="node.radius + 11" />
+          </g>
           <circle class="core" :r="node.radius" :style="{ stroke: toneOf(node.status) }" />
           <image
             v-if="node.avatar && node.radius >= 15"
@@ -130,14 +132,15 @@ function seeded(seed: number): () => number {
 
 const bgStars = computed(() => {
   const rand = seeded(4271);
-  const stars: { key: number; x: number; y: number; r: number; opacity: number }[] = [];
+  const stars: { key: number; x: number; y: number; r: number; opacity: number; cross: boolean }[] = [];
   for (let i = 0; i < 90; i++) {
     stars.push({
       key: i,
       x: rand() * WIDTH,
       y: rand() * HEIGHT,
       r: 0.8 + rand() * 1.1,
-      opacity: 0.22 + rand() * 0.4
+      opacity: 0.28 + rand() * 0.42,
+      cross: i % 9 === 4
     });
   }
   return stars;
@@ -298,9 +301,10 @@ const tooltipStyle = computed(() => {
   border-radius: var(--wb-radius-lg);
   border: 1px solid var(--wb-border);
   background:
-    radial-gradient(600px 320px at 18% 12%, color-mix(in srgb, var(--wb-brand-600) 7%, transparent), transparent 65%),
-    radial-gradient(520px 300px at 84% 82%, color-mix(in srgb, var(--wb-brand-400) 8%, transparent), transparent 65%),
-    var(--wb-surface);
+    radial-gradient(720px 380px at 15% 10%, color-mix(in srgb, var(--wb-brand-500) 14%, transparent), transparent 62%),
+    radial-gradient(640px 340px at 86% 84%, color-mix(in srgb, var(--wb-brand-400) 12%, transparent), transparent 62%),
+    radial-gradient(520px 280px at 50% 50%, color-mix(in srgb, var(--wb-brand-300) 10%, transparent), transparent 70%),
+    linear-gradient(170deg, color-mix(in srgb, var(--wb-brand-50) 70%, var(--wb-surface)), var(--wb-surface));
   overflow: hidden;
 }
 .canvas {
@@ -310,7 +314,11 @@ const tooltipStyle = computed(() => {
   z-index: 1;
 }
 .bg-star {
-  fill: var(--wb-border-strong);
+  fill: var(--wb-brand-300);
+}
+.bg-cross line {
+  stroke: var(--wb-brand-300);
+  stroke-width: 0.9;
 }
 .edge {
   fill: none;
@@ -328,12 +336,21 @@ const tooltipStyle = computed(() => {
   opacity: 0.3;
 }
 .node .glow {
-  opacity: 0.2;
+  opacity: 0.3;
   transition: opacity 180ms ease;
 }
 .node:hover .glow,
 .node.lit .glow {
-  opacity: 0.4;
+  opacity: 0.55;
+}
+.spark line {
+  stroke-width: 1.1;
+  opacity: 0.45;
+  stroke-linecap: round;
+}
+.node:hover .spark line,
+.node.lit .spark line {
+  opacity: 0.8;
 }
 .node .core {
   fill: var(--wb-surface);
