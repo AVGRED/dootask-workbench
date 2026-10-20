@@ -2,7 +2,6 @@ import type {
   ActivityView,
   AdminProjectRow,
   AdminReportRow,
-  ApiResponse,
   ApplyScheduleRequest,
   ApplyTemplateResult,
   AttachmentView,
@@ -54,17 +53,9 @@ import type {
 
 export * from "./types";
 
-export interface ClientOptions {
-  baseUrl: string;
-  getToken?: () => string | null;
-}
-
-export class ApiError extends Error {
-  constructor(public readonly code: number, message: string) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
+export { ApiError } from "./http";
+export type { ClientOptions } from "./http";
+import { ApiError, buildHeaders, parsePayload, requestJson, type ClientOptions } from "./http";
 
 export class ApiClient {
   constructor(private readonly options: ClientOptions) {}
@@ -175,10 +166,7 @@ export class ApiClient {
   }
 
   private async downloadBlob(path: string): Promise<Blob> {
-    const headers: Record<string, string> = {};
-    const token = this.options.getToken?.();
-    if (token) headers.Authorization = `Bearer ${token}`;
-    const response = await fetch(`${this.options.baseUrl}${path}`, { headers });
+    const response = await fetch(`${this.options.baseUrl}${path}`, { headers: buildHeaders(this.options, false) });
     if (!response.ok) throw new ApiError(response.status, `下载失败（${response.status}）`);
     return response.blob();
   }
@@ -453,12 +441,9 @@ export class ApiClient {
   async uploadAvatar(file: File): Promise<{ avatar: string }> {
     const form = new FormData();
     form.append("file", file);
-    const headers: Record<string, string> = {};
-    const token = this.options.getToken?.();
-    if (token) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(`${this.options.baseUrl}/api/v1/me/avatar`, {
       method: "POST",
-      headers,
+      headers: buildHeaders(this.options, false),
       body: form
     });
     const payload = (await response.json()) as { code: number; message?: string; data?: { avatar: string } };
@@ -552,46 +537,7 @@ export class ApiClient {
     return this.request<GanttView>("GET", `/api/v1/projects/${projectId}/gantt`);
   }
 
-  private handleUnauthorized(response: Response, code?: number): void {
-    if ((response.status !== 401 && code !== 401) || typeof window === "undefined") {
-      return;
-    }
-    window.localStorage.removeItem("workbench.token");
-    window.localStorage.removeItem("workbench.user");
-    window.localStorage.removeItem("workbench.admin.token");
-    window.localStorage.removeItem("workbench.admin.user");
-    window.dispatchEvent(new CustomEvent("workbench-token-expired"));
-  }
-
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    const token = this.options.getToken?.();
-    if (token) headers.Authorization = `Bearer ${token}`;
-    const response = await fetch(`${this.options.baseUrl}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body)
-    });
-    const payload = await parsePayload<T>(response);
-    this.handleUnauthorized(response, payload.code);
-    if (payload.code !== 0) throw new ApiError(payload.code, payload.message);
-    return payload.data;
-  }
-}
-
-/**
- * 解析响应体：dev server 代理不可达、或后端返回非 JSON 时，
- * 直接抛带状态码的可读错误，而不是让 `response.json()` 抛出
- * "Unexpected end of JSON input" 这类对用户无意义的异常。
- */
-async function parsePayload<T>(response: Response): Promise<ApiResponse<T>> {
-  const text = await response.text();
-  if (!text) {
-    throw new ApiError(response.status || 500, `服务无响应（HTTP ${response.status}），请确认后端已启动`);
-  }
-  try {
-    return JSON.parse(text) as ApiResponse<T>;
-  } catch {
-    throw new ApiError(response.status || 500, `响应不是合法 JSON（HTTP ${response.status}）：${text.slice(0, 120)}`);
+    return requestJson<T>(this.options, method, path, body);
   }
 }
