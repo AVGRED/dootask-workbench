@@ -552,6 +552,17 @@ export class ApiClient {
     return this.request<GanttView>("GET", `/api/v1/projects/${projectId}/gantt`);
   }
 
+  private handleUnauthorized(response: Response, code?: number): void {
+    if ((response.status !== 401 && code !== 401) || typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.removeItem("workbench.token");
+    window.localStorage.removeItem("workbench.user");
+    window.localStorage.removeItem("workbench.admin.token");
+    window.localStorage.removeItem("workbench.admin.user");
+    window.dispatchEvent(new CustomEvent("workbench-token-expired"));
+  }
+
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     const token = this.options.getToken?.();
@@ -562,6 +573,7 @@ export class ApiClient {
       body: body === undefined ? undefined : JSON.stringify(body)
     });
     const payload = await parsePayload<T>(response);
+    this.handleUnauthorized(response, payload.code);
     if (payload.code !== 0) throw new ApiError(payload.code, payload.message);
     return payload.data;
   }

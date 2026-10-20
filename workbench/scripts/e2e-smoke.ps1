@@ -685,8 +685,9 @@ $oldToken = $logoutLogin.data.token
 $logoutResp = Invoke-Api -Method Post -Path "/api/v1/auth/logout"
 Assert-True "登出接口成功" ($logoutResp.code -eq 0) "code=$($logoutResp.code)"
 $oldHeaders = @{ Authorization = "Bearer $oldToken" }
-$reuseStatus = & curl.exe -s -o NUL -w "%{http_code}" -H "Authorization: Bearer $oldToken" "http://127.0.0.1:$port/api/v1/projects"
-Assert-True "登出后旧令牌失效" ($reuseStatus -ne "200") "http=$reuseStatus"
+$reuseRaw = & curl.exe -s -H "Authorization: Bearer $oldToken" "http://127.0.0.1:$port/api/v1/projects"
+$reuseJson = ($reuseRaw -join "") | ConvertFrom-Json
+Assert-True "登出后旧令牌失效" ($reuseJson.code -ne 0) "code=$($reuseJson.code)"
 $freshLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "demo@workbench.local"; password = "secret123" }
 Assert-True "重新登录拿到新令牌" ([bool]$freshLogin.data.token) ""
 
