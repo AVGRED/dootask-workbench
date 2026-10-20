@@ -5,4 +5,10 @@ import "element-plus/dist/index.css";
 import App from "./App.vue";
 import { router } from "./router";
 
-createApp(App).use(createPinia()).use(router).use(ElementPlus).mount("#app");
+const app = createApp(App).use(createPinia()).use(router).use(ElementPlus);
+
+window.addEventListener("workbench-token-expired", () => {
+  void router.replace({ name: "login" });
+});
+
+app.mount("#app");
