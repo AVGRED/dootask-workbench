@@ -56,18 +56,20 @@
           </g>
           <circle class="core" :r="node.radius" :style="{ stroke: toneOf(node.status) }" />
           <image
-            v-if="node.avatar && node.radius >= 15"
+            v-if="node.avatar"
             class="avatar"
             :href="`/api/v1/avatars/${node.avatar}`"
-            :x="-node.radius * 0.58"
-            :y="-node.radius * 0.58"
-            :width="node.radius * 1.16"
-            :height="node.radius * 1.16"
-            :clip-path="`circle(${node.radius * 0.58}px at ${node.radius * 0.58}px ${node.radius * 0.58}px)`"
+            :x="-node.radius * 0.92"
+            :y="-node.radius * 0.92"
+            :width="node.radius * 1.84"
+            :height="node.radius * 1.84"
+            :clip-path="`circle(${node.radius * 0.92}px at ${node.radius * 0.92}px ${node.radius * 0.92}px)`"
           />
-          <text v-else-if="node.radius >= 13" class="initial" :dy="node.radius * 0.34" text-anchor="middle">
-            {{ (node.nickname || "?").slice(0, 1) }}
-          </text>
+          <!-- 默认头像：还没上传头像时显示剪影 -->
+          <g v-else class="avatar-default">
+            <circle cx="0" :cy="-node.radius * 0.22" :r="node.radius * 0.34" />
+            <ellipse cx="0" :cy="node.radius * 0.7" :rx="node.radius * 0.52" :ry="node.radius * 0.3" />
+          </g>
           <text class="label" :y="node.radius + 15" text-anchor="middle">
             {{ node.nickname || "未命名" }}<tspan v-if="node.self" class="self-tag">（我）</tspan>
           </text>
@@ -385,8 +387,13 @@ const tooltipStyle = computed(() => {
 .node.lit .spark line {
   opacity: 0.8;
 }
+.avatar-default {
+  fill: var(--wb-brand-700);
+  opacity: 0.85;
+  pointer-events: none;
+}
 .node .core {
-  fill: var(--wb-surface);
+  fill: color-mix(in srgb, var(--wb-brand-500) 8%, var(--wb-surface));
   stroke-width: 2;
 }
 .node.self .core {
