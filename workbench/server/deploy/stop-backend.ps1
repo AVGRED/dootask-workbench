@@ -1,4 +1,4 @@
-﻿# 停止工作台后端
+﻿# 停止星图后端
 # 用法：powershell -ExecutionPolicy Bypass -File deploy/stop-backend.ps1
 
 $serverDir = Split-Path -Parent $PSScriptRoot

@@ -4,9 +4,9 @@
       <aside class="brand-panel">
         <div class="brand-mark">
           <span class="brand-dot"></span>
-          <span class="brand-name">工作台</span>
+          <span class="brand-name">星图</span>
         </div>
-        <h1 class="brand-title">把项目、任务和日报<br />收进一块可自由编排的画布</h1>
+        <h1 class="brand-title">把项目、任务和日报<br />连成一张看得清的星图</h1>
         <div class="showcase">
           <figure class="shot shot-back">
             <img :src="shots.board" alt="看板" />
@@ -24,7 +24,7 @@
       <main class="form-panel">
         <div class="form-head">
           <h2>登录</h2>
-          <p>使用工作台账号继续</p>
+          <p>使用星图账号继续</p>
         </div>
 
         <el-form :model="form" @submit.prevent="submit">
@@ -401,5 +401,9 @@ onMounted(initRemembered);
   25% { transform: translateX(-4px); }
   50% { transform: translateX(4px); }
   75% { transform: translateX(-2px); }
+}
+.brand-dot {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
 }
 </style>

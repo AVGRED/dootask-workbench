@@ -1,7 +1,7 @@
 <template>
   <el-container class="home">
     <el-header class="home-header">
-      <span>工作台 · 员工端</span>
+      <span>星图 · 员工端</span>
       <span>
         {{ auth.user?.nickname || auth.user?.username }}
         <el-button link type="primary" @click="logout">退出</el-button>

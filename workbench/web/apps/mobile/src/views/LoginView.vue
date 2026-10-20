@@ -3,19 +3,19 @@
     <div class="hero">
       <div class="hero-mark">
         <span class="dot"></span>
-        <span>工作台</span>
+        <span>星图</span>
       </div>
-      <h1 class="hero-title">今天的事<br />装进一块画布</h1>
+      <h1 class="hero-title">今天的事<br />汇入一张星图</h1>
       <p class="hero-sub">项目 · 任务 · 日报，随时随地看一眼</p>
 
       <figure class="hero-shot">
-        <img :src="dashboardShot" alt="工作台首页预览" />
+        <img :src="dashboardShot" alt="星图首页预览" />
       </figure>
     </div>
 
     <div class="sheet">
       <h2 class="sheet-title">登录</h2>
-      <p class="sheet-sub">使用工作台账号继续</p>
+      <p class="sheet-sub">使用星图账号继续</p>
 
       <div v-if="error" class="error-banner" :class="{ shake: shaking }">
         <span class="error-icon">!</span>
@@ -68,7 +68,7 @@
       </div>
     </div>
 
-    <p class="version">工作台 v2 · 移动端</p>
+    <p class="version">星图 · 移动端 v2</p>
   </div>
 </template>
 
@@ -351,5 +351,9 @@ onMounted(() => {
   25% { transform: translateX(-4px); }
   50% { transform: translateX(4px); }
   75% { transform: translateX(-2px); }
+}
+.dot {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
 }
 </style>

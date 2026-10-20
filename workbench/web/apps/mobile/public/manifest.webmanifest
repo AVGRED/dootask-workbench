@@ -1,6 +1,6 @@
 {
-  "name": "工作台 · 移动端",
-  "short_name": "工作台",
+  "name": "星图 · 移动端",
+  "short_name": "星图",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

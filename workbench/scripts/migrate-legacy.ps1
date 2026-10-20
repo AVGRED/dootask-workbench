@@ -1,7 +1,7 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
-    旧 dootask 数据 → 工作台 v2 迁移。
+    旧 dootask 数据 → 星图 v2 迁移。
 
 .DESCRIPTION
     调用已打包的 workbench-app jar，以「无 Web 模式」运行迁移器：

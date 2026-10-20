@@ -2,7 +2,7 @@
   <header class="app-header">
     <div class="header-left">
       <button class="brand" type="button" @click="go('dashboard')">
-        <span class="brand-dot"></span>工作台
+        <span class="brand-dot"></span>星图
       </button>
       <nav class="nav">
         <router-link
@@ -305,5 +305,9 @@ onMounted(async () => {
   .nav-item {
     padding: 8px;
   }
+}
+.brand-dot {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
 }
 </style>

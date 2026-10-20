@@ -1,4 +1,4 @@
-﻿# 启动工作台后端（jar 方式，脱离终端长期运行）
+﻿# 启动星图后端（jar 方式，脱离终端长期运行）
 # 用法：powershell -ExecutionPolicy Bypass -File deploy/run-backend.ps1
 
 $ErrorActionPreference = "Stop"

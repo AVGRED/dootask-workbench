@@ -4,9 +4,9 @@
       <aside class="brand-panel">
         <div class="brand-mark">
           <span class="brand-dot"></span>
-          <span class="brand-name">工作台 · 管理端</span>
+          <span class="brand-name">星图 · 管理端</span>
         </div>
-        <h1 class="brand-title">看清每个人在做什么<br />也看清每个项目走到哪</h1>
+        <h1 class="brand-title">看清每个人在做什么<br />也看清拼图落在星图哪一格</h1>
         <div class="showcase">
           <figure class="shot shot-back">
             <img :src="shots.projects" alt="项目总览" />
@@ -384,5 +384,9 @@ onMounted(initRemembered);
   25% { transform: translateX(-4px); }
   50% { transform: translateX(4px); }
   75% { transform: translateX(-2px); }
+}
+.brand-dot {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
 }
 </style>

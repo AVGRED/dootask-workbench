@@ -35,7 +35,7 @@ const tabs = [
 ];
 
 const TITLES: Record<string, string> = {
-  home: "工作台",
+  home: "星图",
   projects: "我的项目",
   tasks: "任务",
   report: "每日日报",
@@ -43,7 +43,7 @@ const TITLES: Record<string, string> = {
   messages: "消息"
 };
 
-const title = computed(() => TITLES[String(route.name)] ?? "工作台");
+const title = computed(() => TITLES[String(route.name)] ?? "星图");
 const isPublic = computed(() => Boolean(route.meta.public));
 
 function isActive(tab: { name: string; path: string }): boolean {

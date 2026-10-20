@@ -263,3 +263,9 @@ html.dark .who,
 html.dark .title {
   color: var(--wb-text);
 }
+
+.title::before {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+

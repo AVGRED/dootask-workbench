@@ -10,7 +10,7 @@
             今天有 {{ openTaskCount }} 条待办 · {{ projectCount }} 个项目 ·
             本周已记录 {{ capacityMinutes }} 分钟
           </template>
-          <template v-else>正在加载你的工作台…</template>
+          <template v-else>正在加载你的星图…</template>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 ﻿#requires -Version 5.1
 <#
 .SYNOPSIS
-    工作台 v2 端到端冒烟脚本（需要已启动的 workbench-app 与可用的 MySQL）。
+    星图 v2 端到端冒烟脚本（需要已启动的 workbench-app 与可用的 MySQL）。
 
 .DESCRIPTION
     覆盖：登录（旧 md5 密码自动升级）、项目创建/改名/归档/恢复/删除、

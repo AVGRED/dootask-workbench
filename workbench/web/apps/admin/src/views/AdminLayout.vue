@@ -2,7 +2,7 @@
   <el-container class="shell">
     <el-header class="shell-header">
       <div class="left">
-        <span class="brand">工作台 · 管理端</span>
+        <span class="brand">星图 · 管理端</span>
         <nav class="tabs">
           <button
             v-for="tab in tabs"
@@ -139,5 +139,9 @@ async function logout(): Promise<void> {
 .shell-main {
   padding: 20px;
   background: var(--wb-bg);
+}
+.brand::before {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
 }
 </style>
