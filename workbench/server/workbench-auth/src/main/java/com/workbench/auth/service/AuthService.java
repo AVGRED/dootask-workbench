@@ -115,12 +115,17 @@ public class AuthService {
      * 旧库 {@code users} 表没有 {@code deleted_at} 列（软删是后来新增的语义），
      * 因此先按带软删过滤的语句查询，遇到未知列时退回不带过滤的语句。
      */
-    private List<Map<String, Object>> findByEmail(String email) {
-        String base = "select userid, email, nickname, password, encrypt from users where email = ?";
+    private List<Map<String, Object>> findByEmail(String account) {
+        // 支持用邮箱登录；不含 @ 的账号（如 admin）按昵称匹配，方便配置简短管理员账号
+        boolean alias = account != null && !account.contains("@");
+        String base = alias
+                ? "select userid, email, nickname, password, encrypt from users where (email = ? or nickname = ?)"
+                : "select userid, email, nickname, password, encrypt from users where email = ?";
+        Object[] args = alias ? new Object[] {account, account} : new Object[] {account};
         try {
-            return jdbcTemplate.queryForList(base + " and deleted_at is null limit 1", email);
+            return jdbcTemplate.queryForList(base + " and deleted_at is null order by userid limit 1", args);
         } catch (DataAccessException exception) {
-            return jdbcTemplate.queryForList(base + " limit 1", email);
+            return jdbcTemplate.queryForList(base + " order by userid limit 1", args);
         }
     }
 
