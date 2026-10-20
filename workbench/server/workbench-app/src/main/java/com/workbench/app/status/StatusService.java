@@ -43,18 +43,24 @@ public class StatusService {
 
     public List<Map<String, Object>> team(long currentUserid) {
         systemAdmin.requireAdmin(currentUserid);
-        String sql = "select u.userid, u.nickname, u.email, coalesce(u.avatar, '') as avatar, "
-                + "coalesce(s.status, 'idle') as status, "
-                + "coalesce(s.note, '') as note, s.updated_at as status_at, "
-                + "(select t.name from project_tasks t where t.owner_userid = u.userid and t.complete_at is null "
-                + "and t.deleted_at is null order by t.id desc limit 1) as current_task, "
-                + "(select count(*) from daily_reports d where d.userid = u.userid and d.report_date = curdate() "
-                + "and d.deleted_at is null) as report_today, "
-                + "(select coalesce(sum(w.minutes),0) from project_task_work_logs w where w.userid = u.userid "
-                + "and w.deleted_at is null and w.work_date >= date_sub(curdate(), interval 7 day)) as week_minutes "
-                + "from users u left join user_status s on s.userid = u.userid "
-                + "where u.deleted_at is null ";
-        return jdbc.queryForList(sql + "order by s.updated_at is null, s.updated_at desc, u.userid");
+        return jdbc.queryForList(
+                "select u.userid, u.nickname, u.email, coalesce(u.avatar, '') as avatar, "
+                        + "coalesce(s.status, 'idle') as status, coalesce(s.note, '') as note, "
+                        + "s.updated_at as status_at, t.current_task, "
+                        + "coalesce(r.report_today, 0) as report_today, coalesce(w.week_minutes, 0) as week_minutes "
+                        + "from users u "
+                        + "left join user_status s on s.userid = u.userid "
+                        + "left join (select t1.owner_userid, t1.name as current_task from project_tasks t1 "
+                        + "join (select owner_userid, max(id) as id from project_tasks where complete_at is null "
+                        + "and deleted_at is null group by owner_userid) latest on latest.id = t1.id) t "
+                        + "on t.owner_userid = u.userid "
+                        + "left join (select userid, count(*) as report_today from daily_reports "
+                        + "where report_date = curdate() and deleted_at is null group by userid) r on r.userid = u.userid "
+                        + "left join (select userid, sum(minutes) as week_minutes from project_task_work_logs "
+                        + "where deleted_at is null and work_date >= date_sub(curdate(), interval 7 day) "
+                        + "group by userid) w on w.userid = u.userid "
+                        + "where u.deleted_at is null "
+                        + "order by s.updated_at is null, s.updated_at desc, u.userid");
     }
 
     private Map<String, Object> row(long userid) {
