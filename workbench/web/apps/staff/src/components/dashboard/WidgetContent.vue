@@ -8,7 +8,6 @@
   </div>
 
   <div v-else-if="id.startsWith('project:')">
-    <div class="project-name">{{ project?.name }}</div>
     <div class="muted">{{ project?.done }}/{{ project?.total }} 完成 · {{ project?.members }} 人</div>
     <div class="progress"><div class="progress-bar" :style="{ width: `${project?.percent ?? 0}%` }"></div></div>
     <div class="project-actions">
@@ -71,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { client } from "../../stores/auth";
 
 export interface ProjectBlock {
@@ -83,25 +82,9 @@ export interface ProjectBlock {
   percent: number;
 }
 
-interface TaskRow {
-  id: number;
-  name: string;
-  project_id: number;
-  end_at: string | null;
-}
-
 const props = defineProps<{
   id: string;
-  tasks: TaskRow[];
-  reportSubmitted: boolean;
-  capacity: { minutes: number; available: number };
-  unread: number;
-  latestNotes: { id: number; title: string }[];
-  activity: { id: number; detail: string; created_at: string }[];
-  boardRows: { project_id: number; name: string; open_tasks: number }[];
-  ganttTasks: { id: number; name: string; start_at: string; end_at: string }[];
-  summary: { projects: number; openTasks: number; overdue: number };
-  project: ProjectBlock | undefined;
+  data: Record<string, unknown>;
 }>();
 
 const emit = defineEmits<{
@@ -113,6 +96,44 @@ const emit = defineEmits<{
   "go-report": [];
 }>();
 
+interface TaskRow {
+  id: number;
+  name: string;
+  project_id: number;
+  end_at: string | null;
+}
+
+const tasks = computed(() => (props.data["my-tasks"] as TaskRow[] | undefined) ?? []);
+const project = computed(() => props.data[props.id] as ProjectBlock | undefined);
+const reportSubmitted = computed(
+  () => ((props.data["daily-report"] as unknown[] | undefined)?.length ?? 0) > 0
+);
+const capacity = computed(
+  () => (props.data["capacity"] as { minutes: number; available: number } | undefined) ?? { minutes: 0, available: 0 }
+);
+const notifications = computed(
+  () => (props.data["notifications"] as { unread?: number; latest?: { id: number; title: string }[] } | undefined) ?? {}
+);
+const unread = computed(() => notifications.value.unread ?? 0);
+const latestNotes = computed(() => notifications.value.latest ?? []);
+const activity = computed(
+  () => (props.data["activity"] as { id: number; detail: string; created_at: string }[] | undefined) ?? []
+);
+const boardRows = computed(
+  () => (props.data["board"] as { project_id: number; name: string; open_tasks: number }[] | undefined) ?? []
+);
+const ganttTasks = computed(
+  () => (props.data["gantt"] as { id: number; name: string; start_at: string; end_at: string }[] | undefined) ?? []
+);
+const summary = computed(
+  () =>
+    (props.data["summary"] as { projects: number; openTasks: number; overdue: number } | undefined) ?? {
+      projects: 0,
+      openTasks: 0,
+      overdue: 0
+    }
+);
+
 const keyword = ref("");
 const hits = ref<{ id: number; title: string; subtitle: string; type: string }[]>([]);
 
@@ -120,11 +141,7 @@ async function doSearch(): Promise<void> {
   const text = keyword.value.trim();
   if (!text) return;
   try {
-    const result = (await client.search(text)) as {
-      projects: unknown[];
-      tasks: unknown[];
-      users: unknown[];
-    };
+    const result = (await client.search(text)) as { projects: unknown[]; tasks: unknown[]; users: unknown[] };
     hits.value = [
       ...result.projects.map((item) => ({ ...(item as object), type: "project" })),
       ...result.tasks.map((item) => ({ ...(item as object), type: "task" })),
@@ -134,9 +151,6 @@ async function doSearch(): Promise<void> {
     hits.value = [];
   }
 }
-
-// 仅用于模板的类型收窄
-void props;
 </script>
 
 <style scoped>
@@ -154,9 +168,6 @@ void props;
   border-radius: 50%;
   background: #67c23a;
   margin-right: 6px;
-}
-.dot.blue {
-  background: #409eff;
 }
 .muted {
   color: #909399;
@@ -180,11 +191,6 @@ void props;
 .row-metrics {
   display: flex;
   gap: 24px;
-}
-.project-name {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 4px;
 }
 .progress {
   height: 6px;
