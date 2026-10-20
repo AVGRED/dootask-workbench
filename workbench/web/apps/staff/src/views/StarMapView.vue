@@ -15,7 +15,7 @@
       </div>
 
       <Skeleton v-if="loading" variant="grid" :rows="2" />
-      <StarMapGraph v-else-if="data" :data="data" :height="520" />
+      <StarMapGraph v-else-if="data" :data="data" :height="480" />
     </el-main>
   </el-container>
 </template>

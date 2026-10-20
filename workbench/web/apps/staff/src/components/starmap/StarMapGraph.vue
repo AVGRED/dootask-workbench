@@ -2,13 +2,8 @@
   <div class="starmap" :style="{ height: `${height}px` }">
     <svg class="canvas" :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" preserveAspectRatio="xMidYMid meet">
       <defs>
-        <radialGradient v-for="tone in TONES" :id="`star-${tone}`" :key="tone">
-          <stop offset="0%" :stop-color="TONE_COLOR[tone]" stop-opacity="0.95" />
-          <stop offset="45%" :stop-color="TONE_COLOR[tone]" stop-opacity="0.35" />
-          <stop offset="100%" :stop-color="TONE_COLOR[tone]" stop-opacity="0" />
-        </radialGradient>
-        <filter id="soft-glow" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="6" />
+        <filter id="soft-glow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="7" />
         </filter>
       </defs>
 
@@ -21,7 +16,6 @@
           :r="star.r"
           :opacity="star.opacity"
           class="bg-star"
-          :style="{ animationDelay: `${star.delay}s`, animationDuration: `${star.duration}s` }"
         />
       </g>
 
@@ -47,22 +41,22 @@
           @mouseenter="hovered = node.userid"
           @mouseleave="hovered = null"
         >
-          <circle class="glow" :r="node.radius * 2.6" :fill="`url(#star-${node.status})`" />
-          <circle class="core" :r="node.radius" :style="{ fill: TONE_COLOR[node.status] ?? TONE_COLOR.idle }" />
+          <circle class="glow" :r="node.radius * 2.1" :style="{ fill: toneOf(node.status) }" filter="url(#soft-glow)" />
+          <circle class="core" :r="node.radius" :style="{ stroke: toneOf(node.status) }" />
           <image
-            v-if="node.avatar && node.radius >= 14"
+            v-if="node.avatar && node.radius >= 15"
             class="avatar"
             :href="`/api/v1/avatars/${node.avatar}`"
-            :x="-node.radius * 0.62"
-            :y="-node.radius * 0.62"
-            :width="node.radius * 1.24"
-            :height="node.radius * 1.24"
-            :clip-path="`circle(${node.radius * 0.62}px at ${node.radius * 0.62}px ${node.radius * 0.62}px)`"
+            :x="-node.radius * 0.58"
+            :y="-node.radius * 0.58"
+            :width="node.radius * 1.16"
+            :height="node.radius * 1.16"
+            :clip-path="`circle(${node.radius * 0.58}px at ${node.radius * 0.58}px ${node.radius * 0.58}px)`"
           />
-          <text v-else-if="node.radius >= 14" class="initial" :dy="node.radius * 0.34" text-anchor="middle">
+          <text v-else-if="node.radius >= 13" class="initial" :dy="node.radius * 0.34" text-anchor="middle">
             {{ (node.nickname || "?").slice(0, 1) }}
           </text>
-          <text class="label" :y="node.radius + 16" text-anchor="middle">
+          <text class="label" :y="node.radius + 15" text-anchor="middle">
             {{ node.nickname || "未命名" }}<tspan v-if="node.self" class="self-tag">（我）</tspan>
           </text>
         </g>
@@ -70,11 +64,11 @@
     </svg>
 
     <div class="hud">
-      <span class="hud-item"><i class="dot" style="background: #818cf8"></i>专注</span>
-      <span class="hud-item"><i class="dot" style="background: #f59e0b"></i>会议</span>
-      <span class="hud-item"><i class="dot" style="background: #22c55e"></i>外出</span>
-      <span class="hud-item"><i class="dot" style="background: #ef4444"></i>请假</span>
-      <span class="hud-item"><i class="dot" style="background: #94a3b8"></i>空闲</span>
+      <span class="hud-item"><i class="dot" :style="{ background: toneOf('focus') }"></i>专注</span>
+      <span class="hud-item"><i class="dot" :style="{ background: toneOf('meeting') }"></i>会议</span>
+      <span class="hud-item"><i class="dot" :style="{ background: toneOf('away') }"></i>外出</span>
+      <span class="hud-item"><i class="dot" :style="{ background: toneOf('leave') }"></i>请假</span>
+      <span class="hud-item"><i class="dot" :style="{ background: toneOf('idle') }"></i>空闲</span>
       <span class="hud-sep"></span>
       <span class="hud-text">连线 = 共同项目</span>
     </div>
@@ -96,18 +90,17 @@
 import { computed, ref } from "vue";
 import type { StarMapView, StarNode } from "@workbench/api";
 
-const props = withDefaults(defineProps<{ data: StarMapView; height?: number }>(), { height: 520 });
+const props = withDefaults(defineProps<{ data: StarMapView; height?: number }>(), { height: 480 });
 
 const WIDTH = 900;
 const HEIGHT = 560;
 
-const TONES = ["focus", "idle", "meeting", "away", "leave"] as const;
 const TONE_COLOR: Record<string, string> = {
-  focus: "#818cf8",
-  meeting: "#f59e0b",
-  away: "#22c55e",
-  leave: "#ef4444",
-  idle: "#94a3b8"
+  focus: "var(--wb-brand-600)",
+  meeting: "var(--wb-warning)",
+  away: "var(--wb-success)",
+  leave: "var(--wb-danger)",
+  idle: "var(--wb-text-3)"
 };
 
 const STATUS: Record<string, string> = {
@@ -117,6 +110,10 @@ const STATUS: Record<string, string> = {
   away: "外出",
   leave: "请假"
 };
+
+function toneOf(status: string): string {
+  return TONE_COLOR[status] ?? TONE_COLOR.idle;
+}
 
 function statusText(status: string): string {
   return STATUS[status] ?? status;
@@ -133,16 +130,14 @@ function seeded(seed: number): () => number {
 
 const bgStars = computed(() => {
   const rand = seeded(4271);
-  const stars: { key: number; x: number; y: number; r: number; opacity: number; delay: number; duration: number }[] = [];
-  for (let i = 0; i < 140; i++) {
+  const stars: { key: number; x: number; y: number; r: number; opacity: number }[] = [];
+  for (let i = 0; i < 90; i++) {
     stars.push({
       key: i,
       x: rand() * WIDTH,
       y: rand() * HEIGHT,
-      r: 0.6 + rand() * 1.5,
-      opacity: 0.2 + rand() * 0.6,
-      delay: rand() * 4,
-      duration: 3 + rand() * 4
+      r: 0.8 + rand() * 1.1,
+      opacity: 0.22 + rand() * 0.4
     });
   }
   return stars;
@@ -172,7 +167,7 @@ const nodesWithPos = computed(() => {
 
   const REPULSION = 26000;
   const SPRING = 0.008;
-  const SPRING_LENGTH = 240;
+  const SPRING_LENGTH = 220;
   const GRAVITY = 0.0015;
   const DAMPING = 0.9;
 
@@ -230,7 +225,7 @@ const nodesWithPos = computed(() => {
       ...node,
       x: pos.x,
       y: pos.y,
-      radius: 14 + Math.min(node.projectCount, 6) * 2 + (node.self ? 7 : 0)
+      radius: 17 + Math.min(node.projectCount, 6) * 2 + (node.self ? 7 : 0)
     };
   });
 });
@@ -252,7 +247,7 @@ const edgesWithPos = computed(() =>
       const nx = -(to.y - from.y);
       const ny = to.x - from.x;
       const norm = Math.hypot(nx, ny) || 1;
-      const bow = 12;
+      const bow = 10;
       const cx = mx + (nx / norm) * bow;
       const cy = my + (ny / norm) * bow;
       return { ...edge, path: `M ${from.x} ${from.y} Q ${cx} ${cy} ${to.x} ${to.y}` };
@@ -264,11 +259,11 @@ const hovered = ref<number | null>(null);
 const hoveredNode = computed(() => props.data.nodes.find((node) => node.userid === hovered.value) ?? null);
 
 function edgeWidth(weight: number): number {
-  return Math.min(1 + weight * 0.9, 3.5);
+  return Math.min(1 + weight * 0.8, 3);
 }
 
 function edgeOpacity(edge: { weight: number }): number {
-  return hovered.value === null ? Math.min(0.25 + edge.weight * 0.12, 0.6) : 0.18;
+  return hovered.value === null ? Math.min(0.28 + edge.weight * 0.12, 0.55) : 0.15;
 }
 
 function isRelated(userid: number): boolean {
@@ -301,12 +296,11 @@ const tooltipStyle = computed(() => {
 .starmap {
   position: relative;
   border-radius: var(--wb-radius-lg);
-  border: 1px solid rgba(129, 140, 248, 0.22);
+  border: 1px solid var(--wb-border);
   background:
-    radial-gradient(ellipse 60% 50% at 25% 20%, rgba(99, 102, 241, 0.3), transparent 60%),
-    radial-gradient(ellipse 50% 45% at 78% 78%, rgba(56, 189, 248, 0.18), transparent 62%),
-    radial-gradient(ellipse 40% 40% at 60% 35%, rgba(168, 85, 247, 0.14), transparent 65%),
-    linear-gradient(160deg, #070b1c 0%, #0a1026 45%, #05070f 100%);
+    radial-gradient(600px 320px at 18% 12%, color-mix(in srgb, var(--wb-brand-600) 7%, transparent), transparent 65%),
+    radial-gradient(520px 300px at 84% 82%, color-mix(in srgb, var(--wb-brand-400) 8%, transparent), transparent 65%),
+    var(--wb-surface);
   overflow: hidden;
 }
 .canvas {
@@ -316,59 +310,50 @@ const tooltipStyle = computed(() => {
   z-index: 1;
 }
 .bg-star {
-  fill: #dbeafe;
-  animation: twinkle 5s ease-in-out infinite;
-}
-@keyframes twinkle {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 0.9; }
+  fill: var(--wb-border-strong);
 }
 .edge {
   fill: none;
-  stroke: #a5b4fc;
-  filter: url(#soft-glow);
+  stroke: var(--wb-brand-400);
   transition: stroke-opacity 160ms ease, stroke 160ms ease;
 }
 .edge.active {
-  stroke: #e0e7ff;
+  stroke: var(--wb-brand-600);
 }
 .node {
   cursor: pointer;
   transition: opacity 180ms ease;
 }
 .node.dimmed {
-  opacity: 0.28;
+  opacity: 0.3;
 }
 .node .glow {
-  opacity: 0.55;
+  opacity: 0.2;
   transition: opacity 180ms ease;
 }
 .node:hover .glow,
 .node.lit .glow {
-  opacity: 0.95;
+  opacity: 0.4;
 }
 .node .core {
-  stroke: rgba(255, 255, 255, 0.62);
-  stroke-width: 1;
-}
-.node.self .core {
-  stroke: #fff;
+  fill: var(--wb-surface);
   stroke-width: 2;
 }
+.node.self .core {
+  fill: color-mix(in srgb, var(--wb-brand-600) 12%, var(--wb-surface));
+  stroke-width: 2.5;
+}
 .node .initial {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
-  fill: #0b1024;
+  fill: var(--wb-text);
 }
 .node .label {
-  font-size: 11.5px;
-  fill: #cbd5f5;
-  paint-order: stroke;
-  stroke: rgba(5, 8, 20, 0.75);
-  stroke-width: 3px;
+  font-size: 12.5px;
+  fill: var(--wb-text-2);
 }
 .self-tag {
-  fill: #c7d2fe;
+  fill: var(--wb-brand-600);
 }
 .avatar {
   pointer-events: none;
@@ -382,11 +367,11 @@ const tooltipStyle = computed(() => {
   gap: 12px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(10, 16, 38, 0.6);
-  border: 1px solid rgba(165, 180, 252, 0.22);
+  background: color-mix(in srgb, var(--wb-surface) 88%, transparent);
+  border: 1px solid var(--wb-border);
   backdrop-filter: blur(8px);
   font-size: 11.5px;
-  color: #cbd5f5;
+  color: var(--wb-text-3);
   z-index: 2;
 }
 .hud-item {
@@ -403,43 +388,42 @@ const tooltipStyle = computed(() => {
 .hud-sep {
   width: 1px;
   height: 11px;
-  background: rgba(165, 180, 252, 0.3);
+  background: var(--wb-border);
 }
 .hud-text {
-  color: #94a3c8;
+  color: var(--wb-text-3);
 }
 .tooltip {
   position: absolute;
   transform: translate(-50%, -110%);
   min-width: 172px;
   padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(12, 18, 40, 0.92);
-  border: 1px solid rgba(165, 180, 252, 0.3);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+  border-radius: var(--wb-radius);
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  box-shadow: var(--wb-shadow-2);
   font-size: 12px;
-  color: #cbd5f5;
+  color: var(--wb-text-2);
   pointer-events: none;
   z-index: 3;
-  backdrop-filter: blur(8px);
 }
 .tt-name {
   font-size: 13px;
   font-weight: 600;
-  color: #f8fafc;
+  color: var(--wb-text);
   margin-bottom: 4px;
 }
 .tt-uid {
   font-weight: 400;
   font-size: 11px;
-  color: #94a3c8;
+  color: var(--wb-text-3);
 }
 .tt-row {
   line-height: 1.6;
 }
 .tt-note {
   margin-top: 4px;
-  color: #94a3c8;
+  color: var(--wb-text-3);
 }
 .empty {
   position: absolute;
@@ -447,11 +431,8 @@ const tooltipStyle = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3c8;
+  color: var(--wb-text-3);
   font-size: 13px;
   z-index: 2;
-}
-@media (prefers-reduced-motion: reduce) {
-  .bg-star { animation: none; opacity: 0.6; }
 }
 </style>
