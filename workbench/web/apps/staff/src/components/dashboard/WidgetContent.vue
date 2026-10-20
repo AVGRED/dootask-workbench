@@ -1,5 +1,22 @@
 <template>
   <div v-if="id === 'my-tasks'">
+    <div class="todo-add">
+      <input
+        v-model="newTodo"
+        class="todo-input"
+        placeholder="加一条个人待办，回车保存"
+        maxlength="200"
+        @keyup.enter="addTodo"
+      />
+    </div>
+    <div v-for="todo in todos" :key="'todo-' + todo.id" class="line todo-line">
+      <input class="todo-check" type="checkbox" :checked="todo.done === 1" @change="toggleTodo(todo)" />
+      <span class="todo-title" :class="{ done: todo.done === 1 }">{{ todo.title }}</span>
+      <button class="todo-del" type="button" title="删除" @click="removeTodo(todo)">×</button>
+    </div>
+    <div v-if="todos.length === 0" class="muted">今天还没有个人待办</div>
+
+    <div class="todo-sep">项目任务</div>
     <div v-if="tasks.length === 0" class="muted">没有待办任务</div>
     <div v-for="task in tasks" :key="task.id" class="line" @click="emit('open-tasks', task.project_id)">
       <span class="dot"></span>{{ task.name }}
@@ -70,7 +87,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import type { PersonalTodo } from "@workbench/api";
 import { client } from "../../stores/auth";
 
 export interface ProjectBlock {
@@ -133,6 +151,39 @@ const summary = computed(
       overdue: 0
     }
 );
+
+const todos = ref<PersonalTodo[]>([]);
+const newTodo = ref("");
+
+async function loadTodos(): Promise<void> {
+  try {
+    todos.value = await client.myTodos();
+  } catch {
+    todos.value = [];
+  }
+}
+
+async function addTodo(): Promise<void> {
+  const title = newTodo.value.trim();
+  if (!title) return;
+  newTodo.value = "";
+  await client.createTodo(title);
+  await loadTodos();
+}
+
+async function toggleTodo(todo: PersonalTodo): Promise<void> {
+  await client.updateTodo(todo.id, { done: todo.done !== 1 });
+  await loadTodos();
+}
+
+async function removeTodo(todo: PersonalTodo): Promise<void> {
+  await client.deleteTodo(todo.id);
+  await loadTodos();
+}
+
+onMounted(() => {
+  if (props.id === "my-tasks") void loadTodos();
+});
 
 const keyword = ref("");
 const hits = ref<{ id: number; title: string; subtitle: string; type: string }[]>([]);
@@ -209,5 +260,66 @@ async function doSearch(): Promise<void> {
 }
 .search-out {
   margin-top: 6px;
+}
+.todo-add {
+  margin-bottom: 8px;
+}
+.todo-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--wb-text);
+  background: var(--wb-surface-2);
+  border: 1px dashed var(--wb-border-strong);
+  border-radius: 10px;
+  outline: none;
+}
+.todo-input:focus {
+  border-style: solid;
+  border-color: var(--wb-brand-400);
+  background: var(--wb-surface);
+}
+.todo-line {
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+}
+.todo-check {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--wb-brand-600);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.todo-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.todo-title.done {
+  color: var(--wb-text-3);
+  text-decoration: line-through;
+}
+.todo-del {
+  border: none;
+  background: none;
+  color: var(--wb-text-3);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0;
+  padding: 0 2px;
+}
+.todo-line:hover .todo-del {
+  opacity: 1;
+}
+.todo-sep {
+  margin: 12px 0 6px;
+  font-size: 11.5px;
+  color: var(--wb-text-3);
+  letter-spacing: 0.3px;
 }
 </style>

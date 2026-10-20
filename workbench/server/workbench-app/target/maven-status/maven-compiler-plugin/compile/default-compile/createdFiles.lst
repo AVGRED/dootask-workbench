@@ -2,10 +2,13 @@ com\workbench\app\status\StatusService.class
 com\workbench\app\starmap\StarMapService.class
 com\workbench\app\WorkbenchApplication.class
 com\workbench\app\search\SearchResult.class
+com\workbench\app\todo\PersonalTodoController$SaveTodoRequest.class
 com\workbench\app\search\SearchService.class
 com\workbench\app\config\AsyncConfig.class
 com\workbench\app\mail\MailController$MailTestResult.class
 com\workbench\app\search\SearchResult$Item.class
+com\workbench\app\todo\PersonalTodoController.class
+com\workbench\app\todo\PersonalTodoService.class
 com\workbench\app\admin\AdminOverviewController.class
 com\workbench\app\admin\AdminUserBatchController$BatchResult.class
 com\workbench\app\migrate\LegacyMigrationRunner.class

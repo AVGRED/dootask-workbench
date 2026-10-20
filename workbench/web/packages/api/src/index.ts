@@ -42,6 +42,7 @@ import type {
   SettingView,
   TagView,
   TaskView,
+  PersonalTodo,
   StarMapView,
   TeamStatusRow,
   TemplateRevisionView,
@@ -484,6 +485,22 @@ export class ApiClient {
       "GET",
       `/api/v1/admin/reports/missing${suffix}`
     );
+  }
+
+  async myTodos(): Promise<PersonalTodo[]> {
+    return this.request<PersonalTodo[]>("GET", "/api/v1/todos");
+  }
+
+  async createTodo(title: string): Promise<PersonalTodo> {
+    return this.request<PersonalTodo>("POST", "/api/v1/todos", { title });
+  }
+
+  async updateTodo(id: number, patch: { title?: string; done?: boolean }): Promise<PersonalTodo> {
+    return this.request<PersonalTodo>("PUT", `/api/v1/todos/${id}`, patch);
+  }
+
+  async deleteTodo(id: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/todos/${id}`);
   }
 
   async starMap(): Promise<StarMapView> {
