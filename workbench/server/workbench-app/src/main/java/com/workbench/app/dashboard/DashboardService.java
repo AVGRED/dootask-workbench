@@ -141,6 +141,7 @@ public class DashboardService {
         data.put("my-tasks", jdbc.queryForList(
                 "select id, name, project_id, end_at, p_level from project_tasks "
                         + "where owner_userid = ? and complete_at is null and deleted_at is null "
+                        + "and project_id in (select id from projects where deleted_at is null) "
                         + "order by (end_at is null), end_at asc, id desc limit 8", userid));
         List<Map<String, Object>> projects = jdbc.queryForList(
                 "select p.id, p.name, "
@@ -193,19 +194,19 @@ public class DashboardService {
                 "select t.id, t.name, t.start_at, t.end_at, t.project_id from project_tasks t "
                         + "where t.deleted_at is null and t.complete_at is null and t.start_at is not null "
                         + "and t.end_at is not null and t.end_at >= curdate() "
-                        + "and t.project_id in (select p.id from projects p where p.userid = ? or exists ("
-                        + "select 1 from project_users pu where pu.project_id = p.id and pu.userid = ?)) "
+                        + "and t.project_id in (select p.id from projects p where p.deleted_at is null and (p.userid = ? or exists ("
+                        + "select 1 from project_users pu where pu.project_id = p.id and pu.userid = ?))) "
                         + "order by t.start_at asc limit 8", userid, userid));
         data.put("summary", Map.of(
                 "projects", count("select count(*) from projects p where p.deleted_at is null and (p.userid = ? "
                         + "or exists (select 1 from project_users pu where pu.project_id = p.id and pu.userid = ?))",
                         userid, userid),
                 "openTasks", count("select count(*) from project_tasks t join projects p on p.id = t.project_id "
-                        + "where t.complete_at is null and t.deleted_at is null and (p.userid = ? or exists ("
+                        + "where p.deleted_at is null and t.complete_at is null and t.deleted_at is null and (p.userid = ? or exists ("
                         + "select 1 from project_users pu where pu.project_id = p.id and pu.userid = ?))",
                         userid, userid),
                 "overdue", count("select count(*) from project_tasks t join projects p on p.id = t.project_id "
-                        + "where t.complete_at is null and t.deleted_at is null and t.end_at < now() and (p.userid = ? "
+                        + "where p.deleted_at is null and t.complete_at is null and t.deleted_at is null and t.end_at < now() and (p.userid = ? "
                         + "or exists (select 1 from project_users pu where pu.project_id = p.id and pu.userid = ?))",
                         userid, userid)));
         return data;
