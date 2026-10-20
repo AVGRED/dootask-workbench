@@ -140,3 +140,89 @@ html.dark .tile-head {
   gap: 8px;
   margin-left: auto;
 }
+
+/* ---------------------------------------------------------------
+   P3 全站细节：焦点环、过渡、滚动条、选区、减少动效
+   --------------------------------------------------------------- */
+:where(a, button, .el-button, .el-input__wrapper, .el-select__wrapper, .el-menu-item):focus-visible {
+  outline: 2px solid var(--wb-brand-400);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--wb-brand-600) 22%, transparent);
+  color: var(--wb-text);
+}
+
+.el-button,
+.el-input__wrapper,
+.el-select__wrapper,
+.el-tag,
+.el-checkbox__inner,
+.el-radio__inner {
+  transition: background-color var(--wb-duration) var(--wb-ease),
+    border-color var(--wb-duration) var(--wb-ease),
+    color var(--wb-duration) var(--wb-ease),
+    box-shadow var(--wb-duration) var(--wb-ease);
+}
+
+.el-button:not(.is-text):not(.is-link):active {
+  transform: translateY(1px);
+}
+
+.el-dialog,
+.el-drawer,
+.el-popper {
+  border-radius: var(--wb-radius-lg);
+}
+
+.el-popper {
+  box-shadow: var(--wb-shadow-2);
+}
+
+/* 页面内容进入动画 */
+.dashboard-main,
+.page-body,
+.report-main,
+.shell-main {
+  animation: wb-fade-up 180ms var(--wb-ease) both;
+}
+@keyframes wb-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 细滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--wb-border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--wb-border-strong);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
