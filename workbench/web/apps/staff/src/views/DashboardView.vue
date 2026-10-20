@@ -30,7 +30,7 @@
           class="tile"
           :class="{ dragging: drag?.id === item.id }"
           :style="tileStyle(item)"
-          :data-color="colorIndexOf(item.id)"
+          :data-color="colorIndex[item.id] ?? 0"
           @pointerdown="onTileDown($event, item)"
         >
           <div class="tile-head">
@@ -120,6 +120,13 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { DashboardView, LayoutItem, WidgetDef } from "@workbench/api";
+import {
+  ROW,
+  ROW_HEIGHT,
+  buildColorIndex,
+  gridHeightOf,
+  tileStyleOf
+} from "../composables/bentoGrid";
 import { client } from "../stores/auth";
 
 const router = useRouter();
@@ -127,6 +134,7 @@ const loading = ref(false);
 const saving = ref(false);
 const addVisible = ref(false);
 const dash = ref<DashboardView | null>(null);
+const bentoRef = ref<HTMLElement | null>(null);
 const layout = ref<LayoutItem[]>([]);
 const catalog = ref<WidgetDef[]>([]);
 const status = ref("idle");
@@ -135,61 +143,6 @@ const avatarInput = ref<HTMLInputElement | null>(null);
 const searchKeyword = ref("");
 const searchResult = ref<{ projects: unknown[]; tasks: unknown[]; users: unknown[] } | null>(null);
 
-const PALETTE = [
-  { bg: "#dbe8fb", border: "#a8c6ee" },
-  { bg: "#dbf0e0", border: "#a6d1b3" },
-  { bg: "#fbe6d0", border: "#eac095" },
-  { bg: "#fbdee8", border: "#eeb2c6" },
-  { bg: "#e3dff6", border: "#bdb3e2" },
-  { bg: "#d6eeee", border: "#9fd0d4" },
-  { bg: "#f7eec6", border: "#e0d18b" },
-  { bg: "#e5e9f0", border: "#c0c9d7" }
-];
-
-const bentoRef = ref<HTMLElement | null>(null);
-
-function hashId(id: string): number {
-  let hash = 0;
-  for (let index = 0; index < id.length; index++) {
-    hash = (hash * 31 + id.charCodeAt(index)) | 0;
-  }
-  return Math.abs(hash);
-}
-
-function overlaps(a: LayoutItem, b: LayoutItem): boolean {
-  return a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;
-}
-
-const colorIndex = computed<Record<string, number>>(() => {
-  const result: Record<string, number> = {};
-  const items = [...layout.value].sort((a, b) => a.y - b.y || a.x - b.x);
-  for (const item of items) {
-    const used = new Set<number>();
-    for (const other of items) {
-      if (other.id === item.id || result[other.id] === undefined) continue;
-      if (overlaps(item, other)) used.add(result[other.id]);
-    }
-    let index = hashId(item.id) % PALETTE.length;
-    let guard = 0;
-    while (used.has(index) && guard < PALETTE.length) {
-      index = (index + 1) % PALETTE.length;
-      guard++;
-    }
-    result[item.id] = index;
-  }
-  return result;
-});
-
-function colorIndexOf(id: string): number {
-  return colorIndex.value[id] ?? 0;
-}
-
-function colorOf(id: string): { bg: string; border: string } {
-  return PALETTE[colorIndexOf(id)] ?? PALETTE[0];
-}
-
-const ROW = 112;
-const COL_PCT = 100 / 12;
 
 const drag = ref<{ id: string; startX: number; startY: number; startCol: number; startRow: number; w: number; h: number; mode: "move" | "resize" } | null>(null);
 
@@ -214,7 +167,8 @@ const flatHits = computed(() => {
   ] as { id: number; title: string; subtitle: string; type: string }[];
 });
 
-const gridHeight = computed(() => Math.max(...layout.value.map((item) => item.y + item.h), 4) * ROW + 8);
+const colorIndex = computed(() => buildColorIndex(layout.value));
+const gridHeight = computed(() => gridHeightOf(layout.value));
 const availableWidgets = computed(() => {
   const functionWidgets = catalog.value.filter((widget) => !layout.value.some((item) => item.id === widget.id));
   const projectWidgets = projectBlocks.value
@@ -256,15 +210,7 @@ function titleOf(id: string): string {
 }
 
 function tileStyle(item: LayoutItem): Record<string, string> {
-  const color = colorOf(item.id);
-  return {
-    background: color.bg,
-    borderColor: color.border,
-    left: `calc(${item.x * COL_PCT}% + 4px)`,
-    width: `calc(${item.w * COL_PCT}% - 8px)`,
-    top: `${item.y * ROW + 4}px`,
-    height: `${item.h * ROW - 8}px`
-  };
+  return tileStyleOf(item, colorIndex.value);
 }
 
 async function load(): Promise<void> {
@@ -344,7 +290,7 @@ function onMove(event: PointerEvent): void {
   const gridWidth = bentoRef.value?.clientWidth ?? window.innerWidth;
   const colWidth = gridWidth / 12;
   const dx = Math.round((event.clientX - drag.value.startX) / colWidth);
-  const dy = Math.round((event.clientY - drag.value.startY) / ROW);
+  const dy = Math.round((event.clientY - drag.value.startY) / ROW_HEIGHT);
   if (drag.value.mode === "move") {
     item.x = Math.min(Math.max(drag.value.startCol + dx, 0), 12 - item.w);
     item.y = Math.max(drag.value.startRow + dy, 0);
