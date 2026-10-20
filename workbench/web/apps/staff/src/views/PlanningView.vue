@@ -5,15 +5,27 @@
       <span class="page-title">规划 · 项目 {{ projectId }}</span>
       <span class="page-actions"><el-button type="primary" @click="openCreate">新建里程碑</el-button></span>
     </el-header>
-    <el-main>
-      <el-row :gutter="12" class="summary">
-        <el-col :span="6"><el-card shadow="never">依赖边 {{ risk.edgeCount }}</el-card></el-col>
-        <el-col :span="6"><el-card shadow="never">受阻任务 {{ risk.blockedCount }}</el-card></el-col>
-        <el-col :span="6"><el-card shadow="never">无负责人 {{ risk.unownedCount }}</el-card></el-col>
-        <el-col :span="6"><el-card shadow="never">已逾期 {{ risk.overdueCount }}</el-card></el-col>
-      </el-row>
+    <el-main class="page-body">
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-label">依赖边</div>
+          <div class="metric-value">{{ risk.edgeCount }}</div>
+        </div>
+        <div class="metric warn">
+          <div class="metric-label">受阻任务</div>
+          <div class="metric-value">{{ risk.blockedCount }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">无负责人</div>
+          <div class="metric-value">{{ risk.unownedCount }}</div>
+        </div>
+        <div class="metric danger">
+          <div class="metric-label">已逾期</div>
+          <div class="metric-value">{{ risk.overdueCount }}</div>
+        </div>
+      </div>
 
-      <el-table v-loading="loading" :data="milestones" border>
+      <el-table class="task-table" v-loading="loading" :data="milestones" border empty-text="暂无数据">
         <el-table-column prop="name" label="里程碑" min-width="180" />
         <el-table-column prop="targetAt" label="目标日期" width="130" />
         <el-table-column label="状态" width="100">
@@ -35,7 +47,7 @@
       </el-table>
 
       <div class="section-title">任务依赖</div>
-      <el-table :data="dependencies" border size="small">
+      <el-table class="task-table" :data="dependencies" border size="small" empty-text="暂无数据">
         <el-table-column prop="predecessorTaskId" label="前置任务" />
         <el-table-column prop="successorTaskId" label="后置任务" />
       </el-table>
@@ -46,7 +58,7 @@
           工作日 {{ capacity.workdays }} 天 · 每日 {{ capacity.dailyMinutes }} 分钟
         </span>
       </div>
-      <el-table :data="capacity?.members ?? []" border size="small">
+      <el-table class="task-table" :data="capacity?.members ?? []" border size="small" empty-text="暂无数据">
         <el-table-column prop="userid" label="成员" width="100" />
         <el-table-column prop="loggedMinutes" label="已登记(分钟)" />
         <el-table-column prop="availableMinutes" label="可用(分钟)" />
@@ -70,7 +82,7 @@
           <el-button type="primary" :loading="saving" @click="applySchedule">应用排期</el-button>
         </el-form-item>
       </el-form>
-      <el-table :data="batches" border size="small">
+      <el-table class="task-table" :data="batches" border size="small" empty-text="暂无数据">
         <el-table-column prop="requestId" label="请求号" min-width="160" />
         <el-table-column prop="changeCount" label="变更数" width="90" />
         <el-table-column prop="createdAt" label="时间" min-width="160" />
@@ -90,7 +102,7 @@
         任务模板
         <el-button link type="primary" @click="openTemplateCreate">新建模板</el-button>
       </div>
-      <el-table :data="templates" border size="small">
+      <el-table class="task-table" :data="templates" border size="small" empty-text="暂无数据">
         <el-table-column prop="name" label="名称" min-width="180" />
         <el-table-column prop="revisionNo" label="版本" width="80" />
         <el-table-column prop="revisionCount" label="快照数" width="90" />
@@ -321,7 +333,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--wb-border);
 }
 .summary {
   margin-bottom: 12px;

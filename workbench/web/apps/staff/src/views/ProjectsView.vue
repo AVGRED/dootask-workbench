@@ -30,7 +30,8 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="openPlanning(row as ProjectView)">规划</el-dropdown-item>
-                  <el-dropdown-item @click="openActivities(row as ProjectView)">动态</el-dropdown-item>
+                  <el-dropdown-item @click="openProjectReport(row as ProjectView)">报表</el-dropdown-item>
+            <el-dropdown-item @click="openActivities(row as ProjectView)">动态</el-dropdown-item>
                   <el-dropdown-item @click="openMembers(row as ProjectView)">成员</el-dropdown-item>
                   <el-dropdown-item v-if="!row.archived" @click="archive(row as ProjectView)">归档</el-dropdown-item>
                   <el-dropdown-item divided @click="remove(row as ProjectView)">删除</el-dropdown-item>
@@ -206,6 +207,10 @@ async function openTask(item: SearchItem): Promise<void> {
   if (!match) return;
   searchVisible.value = false;
   await router.push({ name: "tasks", params: { projectId: Number(match[1]) } });
+}
+
+async function openProjectReport(row: ProjectView): Promise<void> {
+  await router.push({ name: "report", params: { projectId: row.id } });
 }
 
 async function openActivities(row: ProjectView): Promise<void> {

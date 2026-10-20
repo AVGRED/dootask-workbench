@@ -226,3 +226,77 @@ html.dark .tile-head {
     scroll-behavior: auto !important;
   }
 }
+
+/* 页面主体内边距（配合 page-bar 使用） */
+.page-body {
+  padding: 16px 20px 28px;
+}
+
+/* 通用表格主题 */
+.task-table {
+  border-radius: var(--wb-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--wb-border);
+  --el-table-border-color: var(--wb-border);
+  --el-table-header-bg-color: var(--wb-surface-2);
+  --el-table-header-text-color: var(--wb-text-2);
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--wb-brand-600) 4%, transparent);
+  --el-table-bg-color: var(--wb-surface);
+  --el-table-tr-bg-color: var(--wb-surface);
+}
+.task-table.el-table--border,
+.task-table .el-table__inner-wrapper::before {
+  background-color: transparent;
+}
+.task-table .el-table__cell {
+  padding: 9px 0;
+}
+
+/* 指标卡 */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.metric {
+  padding: 14px 16px;
+  border-radius: var(--wb-radius-lg);
+  border: 1px solid var(--wb-border);
+  background: var(--wb-surface);
+  box-shadow: var(--wb-shadow-1);
+}
+.metric-label {
+  font-size: 12.5px;
+  color: var(--wb-text-3);
+}
+.metric-value {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--wb-text);
+}
+.metric.warn .metric-value {
+  color: var(--wb-warning);
+}
+.metric.danger .metric-value {
+  color: var(--wb-danger);
+}
+
+/* 区块标题 */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--wb-text);
+}
+.section-title::before {
+  content: "";
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--wb-brand-500);
+}

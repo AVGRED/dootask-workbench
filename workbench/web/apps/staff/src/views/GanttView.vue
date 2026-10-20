@@ -5,13 +5,26 @@
       <span class="page-title">甘特图 · 项目 {{ projectId }}</span>
       <span class="page-actions"><span v-if="gantt" class="range">{{ gantt.rangeStart }} ~ {{ gantt.rangeEnd }}</span></span>
     </el-header>
-    <el-main>
+    <el-main class="page-body">
       <div v-if="loading" class="empty">加载中…</div>
       <div v-else-if="!gantt || gantt.tasks.length === 0" class="empty">还没有带开始/结束日期的任务</div>
-      <div v-else class="gantt" :style="{ width: `${totalWidth}px` }">
+      <div v-else class="panel">
+        <div class="gantt-toolbar">
+          <div class="legend">
+            <span class="legend-item"><i class="dot brand"></i>进行中</span>
+            <span class="legend-item"><i class="dot ok"></i>已完成</span>
+            <span class="legend-item"><i class="dot muted"></i>依赖关系</span>
+          </div>
+          <div class="gantt-meta">
+            {{ gantt.tasks.length }} 个任务 · 跨度 {{ gantt.rangeStart }} ~ {{ gantt.rangeEnd }}
+          </div>
+        </div>
+
+        <div class="gantt" :style="{ minWidth: `${totalWidth}px` }">
         <div class="gantt-head">
           <div class="name-col">任务</div>
           <div class="timeline-head" :style="{ width: `${timelineWidth}px` }">
+            <div v-if="todayLeft !== null" class="today-line" :style="{ left: `${todayLeft}px` }"></div>
             <div v-for="day in days" :key="day.key" class="day-tick" :style="{ left: `${day.left}px` }">
               <span v-if="day.label">{{ day.label }}</span>
             </div>
@@ -44,7 +57,7 @@
             :key="`${edge.fromId}-${edge.toId}`"
             :d="edge.path"
             fill="none"
-            stroke="#909399"
+            stroke="var(--wb-text-3)"
             stroke-width="1.5"
             marker-end="url(#arrow)"
           />
@@ -52,10 +65,11 @@
         <svg width="0" height="0">
           <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#c0c4cc" />
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--wb-border-strong)" />
             </marker>
           </defs>
         </svg>
+        </div>
       </div>
     </el-main>
   </el-container>
@@ -168,41 +182,87 @@ async function openTask(taskId: number): Promise<void> {
   await router.push({ name: "tasks", params: { projectId: projectId.value }, query: { taskId } });
 }
 
+const todayLeft = computed(() => {
+  if (!gantt.value) return null;
+  const start = new Date(gantt.value.rangeStart + "T00:00:00").getTime();
+  const end = new Date(gantt.value.rangeEnd + "T00:00:00").getTime();
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  if (today < start || today > end) return null;
+  return Math.round(((today - start) / (end - start)) * timelineWidth.value);
+});
+
 onMounted(load);
 </script>
 
 <style scoped>
-.page-header {
+.range {
+  color: var(--wb-text-3);
+  font-size: 13px;
+}
+.panel {
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius-lg);
+  box-shadow: var(--wb-shadow-1);
+  padding: 14px;
+}
+.gantt-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #ebeef5;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
-.range {
-  color: #909399;
-  font-size: 13px;
+.legend {
+  display: flex;
+  gap: 16px;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--wb-text-2);
+}
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.dot.brand { background: var(--wb-brand-600); }
+.dot.ok { background: var(--wb-success); }
+.dot.muted { background: var(--wb-border-strong); }
+.gantt-meta {
+  font-size: 12.5px;
+  color: var(--wb-text-3);
 }
 .gantt {
   position: relative;
-  border: 1px solid #ebeef5;
-  border-radius: 6px;
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius);
   overflow: auto;
+  background: var(--wb-surface);
 }
 .gantt-head {
   display: flex;
   position: sticky;
   top: 0;
-  background: #fafafa;
-  z-index: 2;
-  border-bottom: 1px solid #ebeef5;
-  height: 30px;
+  background: var(--wb-surface-2);
+  z-index: 3;
+  border-bottom: 1px solid var(--wb-border);
+  height: 32px;
 }
 .name-col {
   width: 200px;
   flex: 0 0 200px;
-  padding: 6px 10px;
-  font-size: 13px;
-  border-right: 1px solid #ebeef5;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--wb-text-2);
+  border-right: 1px solid var(--wb-border);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -210,7 +270,7 @@ onMounted(load);
 .timeline-head,
 .timeline {
   position: relative;
-  background-image: linear-gradient(to right, #f0f2f5 1px, transparent 1px);
+  background-image: linear-gradient(to right, var(--wb-border) 1px, transparent 1px);
   background-size: 28px 100%;
 }
 .day-tick {
@@ -218,31 +278,56 @@ onMounted(load);
   top: 0;
   height: 100%;
   font-size: 11px;
-  color: #909399;
-  padding-left: 3px;
+  color: var(--wb-text-3);
+  padding-left: 4px;
+  line-height: 32px;
+}
+.today-line {
+  position: absolute;
+  top: 0;
+  bottom: -999px;
+  width: 2px;
+  background: var(--wb-danger);
+  opacity: 0.55;
+  z-index: 1;
+  pointer-events: none;
 }
 .gantt-row {
   display: flex;
-  border-bottom: 1px solid #f5f7fa;
+  border-bottom: 1px solid var(--wb-border);
+  transition: background var(--wb-duration) var(--wb-ease);
+}
+.gantt-row:nth-child(odd) {
+  background: color-mix(in srgb, var(--wb-surface-2) 55%, transparent);
+}
+.gantt-row:hover {
+  background: color-mix(in srgb, var(--wb-brand-600) 5%, transparent);
 }
 .bar {
   position: absolute;
-  top: 6px;
-  height: 20px;
-  border-radius: 4px;
-  background: #409eff;
+  top: 8px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--wb-brand-500), var(--wb-brand-700));
   color: #fff;
   font-size: 11px;
-  line-height: 20px;
-  padding: 0 6px;
+  line-height: 22px;
+  padding: 0 8px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   cursor: pointer;
   z-index: 2;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--wb-brand-700) 28%, transparent);
+  transition: transform var(--wb-duration) var(--wb-ease),
+    box-shadow var(--wb-duration) var(--wb-ease);
+}
+.bar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--wb-brand-700) 35%, transparent);
 }
 .bar.done {
-  background: #67c23a;
+  background: linear-gradient(90deg, var(--wb-success), color-mix(in srgb, var(--wb-success) 70%, #000));
 }
 .edge-layer {
   position: absolute;
