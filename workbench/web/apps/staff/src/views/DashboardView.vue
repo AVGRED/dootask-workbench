@@ -23,9 +23,7 @@
         </span>
       </div>
 
-      <div v-if="loading" class="skeleton-grid">
-        <div v-for="index in 8" :key="index" class="skeleton-tile" :class="{ wide: index % 5 === 1 }"></div>
-      </div>
+      <Skeleton v-if="loading" variant="grid" :rows="8" />
       <DashboardGrid
         v-else-if="dash"
         :layout="layout"
@@ -58,6 +56,7 @@ import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { DashboardView, LayoutItem, WidgetDef } from "@workbench/api";
 import AppHeader from "../components/layout/AppHeader.vue";
+import Skeleton from "../components/common/Skeleton.vue";
 import DashboardGrid from "../components/dashboard/DashboardGrid.vue";
 import type { ProjectBlock } from "../components/dashboard/WidgetContent.vue";
 import { client } from "../stores/auth";
@@ -223,26 +222,6 @@ onMounted(load);
   margin-top: 4px;
   font-size: 13px;
   color: var(--wb-text-3);
-}
-.skeleton-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-}
-.skeleton-tile {
-  height: 150px;
-  border-radius: var(--wb-radius-lg);
-  background: linear-gradient(90deg, var(--wb-surface) 25%, var(--wb-surface-2) 37%, var(--wb-surface) 63%);
-  background-size: 400% 100%;
-  animation: wb-shimmer 1.4s ease infinite;
-  border: 1px solid var(--wb-border);
-}
-.skeleton-tile.wide {
-  grid-column: span 2;
-}
-@keyframes wb-shimmer {
-  0% { background-position: 100% 50%; }
-  100% { background-position: 0 50%; }
 }
 .layout-bar {
   display: flex;

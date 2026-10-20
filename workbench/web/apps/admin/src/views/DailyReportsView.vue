@@ -43,7 +43,7 @@
         </div>
       </article>
     </div>
-    <div v-else class="empty">这一天还没有人提交日报</div>
+    <EmptyState v-else icon="📝" title="这一天还没有人提交日报" desc="可以切换到其他日期，或提醒未提交的同学" />
 
     <section v-if="missing.length > 0" class="missing">
       <div class="missing-head">
@@ -63,6 +63,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import type { AdminReportRow } from "@workbench/api";
+import EmptyState from "../components/common/EmptyState.vue";
 import { client } from "../stores/auth";
 
 const rows = ref<AdminReportRow[]>([]);

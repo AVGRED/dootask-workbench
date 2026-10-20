@@ -40,7 +40,7 @@
             </el-dropdown>
           </div>
         </div>
-        <div v-if="rows.length === 0 && !loading" class="empty">还没有项目，点右上角新建</div>
+        <EmptyState v-if="rows.length === 0 && !loading" icon="📁" title="还没有项目" desc="点右上角「新建项目」开始，或者等同事把你加进项目" />
       </div>
 
 
@@ -149,6 +149,7 @@ import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { ActivityView, MemberView, NotificationView, ProjectView, SearchItem, SearchResult } from "@workbench/api";
 import AppHeader from "../components/layout/AppHeader.vue";
+import EmptyState from "../components/common/EmptyState.vue";
 import { client } from "../stores/auth";
 
 const router = useRouter();
