@@ -1,13 +1,10 @@
 <template>
   <el-container class="page">
-    <el-header class="page-header">
-      <span>系统设置</span>
-      <span>
-        <el-button link type="primary" @click="goUsers">用户管理</el-button>
-        <el-button link type="primary" @click="logout">退出</el-button>
-      </span>
+    <el-header class="page-bar">
+      <span class="page-title">系统设置</span>
+      <span class="page-actions"></span>
     </el-header>
-    <el-main>
+    <el-main class="page-body">
       <el-alert
         v-if="error"
         :title="error"
@@ -80,12 +77,10 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { DictItemView, SettingView } from "@workbench/api";
 import { client } from "../stores/auth";
 
-const router = useRouter();
 const settings = ref<SettingView[]>([]);
 const dictItems = ref<DictItemView[]>([]);
 const draft = reactive<Record<string, string>>({});
@@ -158,16 +153,6 @@ async function removeDict(row: DictItemView): Promise<void> {
   }
 }
 
-async function goUsers(): Promise<void> {
-  await router.push({ name: "users" });
-}
-
-async function logout(): Promise<void> {
-  localStorage.removeItem("workbench.admin.token");
-  localStorage.removeItem("workbench.admin.user");
-  await router.replace({ name: "login" });
-}
-
 onMounted(reload);
 </script>
 
@@ -184,5 +169,22 @@ onMounted(reload);
 }
 .hint {
   margin-bottom: 12px;
+}
+.page-body {
+  padding: 16px 20px 28px;
+}
+.panel {
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius-lg);
+  box-shadow: var(--wb-shadow-1);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wb-text);
+  margin: 4px 0 10px;
 }
 </style>

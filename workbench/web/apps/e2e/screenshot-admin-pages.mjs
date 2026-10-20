@@ -20,6 +20,8 @@ await context.addInitScript(([t, u]) => {
 const page = await context.newPage();
 
 for (const [route, file] of [
+  ["users", "ui-admin-users.png"],
+  ["settings", "ui-admin-settings.png"],
   ["projects", "ui-admin-projects.png"],
   ["reports", "ui-admin-reports.png"]
 ]) {

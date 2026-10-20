@@ -1,22 +1,17 @@
 <template>
   <el-container class="page">
-    <el-header class="page-header">
-      <span>用户管理</span>
-      <span>
-        <el-button link type="primary" @click="goTeam">员工状态墙</el-button>
-        <el-button link type="primary" @click="goSettings">系统设置</el-button>
-        <el-button type="primary" @click="openCreate">新建用户</el-button>
-        <el-button link type="primary" @click="logout">退出</el-button>
-      </span>
+    <el-header class="page-bar">
+      <span class="page-title">用户管理</span>
+      <span class="page-actions"><el-button type="primary" @click="openCreate">新建用户</el-button>
+        <el-button type="danger" :disabled="selectedUserids.length === 0" @click="batchDelete">批量删除</el-button></span>
     </el-header>
-    <el-main>
+    <el-main class="page-body">
       <div class="toolbar">
         <el-input v-model="keyword" placeholder="搜索邮箱或昵称" clearable style="width: 240px" @keyup.enter="reload" />
         <el-button @click="reload">查询</el-button>
-          <el-button type="danger" :disabled="selectedUserids.length === 0" @click="batchDelete">批量删除</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="rows" border @selection-change="onSelect">
+      <el-table v-loading="loading" :data="rows" class="task-table" @selection-change="onSelect">
         <el-table-column type="selection" width="44" />
         <el-table-column prop="userid" label="ID" width="80" />
         <el-table-column prop="email" label="邮箱" min-width="200" />
@@ -77,13 +72,9 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { CreateUserRequest, UserView } from "@workbench/api";
-import { client, useAuthStore } from "../stores/auth";
-
-const auth = useAuthStore();
-const router = useRouter();
+import { client } from "../stores/auth";
 
 const rows = ref<UserView[]>([]);
 const total = ref(0);
@@ -162,14 +153,6 @@ async function changeRole(row: UserView, role: string): Promise<void> {
   }
 }
 
-async function goTeam(): Promise<void> {
-  await router.push({ name: "team" });
-}
-
-async function goSettings(): Promise<void> {
-  await router.push({ name: "settings" });
-}
-
 async function remove(row: UserView): Promise<void> {
   try {
     await ElMessageBox.confirm(`确定删除用户 ${row.nickname || row.email}？`, "删除确认", { type: "warning" });
@@ -183,11 +166,6 @@ async function remove(row: UserView): Promise<void> {
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
   }
-}
-
-async function logout(): Promise<void> {
-  auth.logout();
-  await router.replace({ name: "login" });
 }
 
 onMounted(() => {
@@ -209,5 +187,35 @@ onMounted(() => {
 }
 .pager {
   margin-top: 12px;
+}
+.page-body {
+  padding: 16px 20px 28px;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 14px;
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius-lg);
+  box-shadow: var(--wb-shadow-1);
+}
+.task-table {
+  border-radius: var(--wb-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--wb-border);
+  --el-table-border-color: var(--wb-border);
+  --el-table-header-bg-color: var(--wb-surface-2);
+  --el-table-header-text-color: var(--wb-text-2);
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--wb-brand-600) 4%, transparent);
+  --el-table-bg-color: var(--wb-surface);
+  --el-table-tr-bg-color: var(--wb-surface);
+}
+.task-table :deep(.el-table__header th) {
+  font-weight: 600;
+  font-size: 12.5px;
 }
 </style>
