@@ -5,7 +5,7 @@
       <span class="page-title">任务 · 项目 {{ projectId }}</span>
       <span class="page-actions"><el-button type="primary" @click="openCreate">新建任务</el-button></span>
     </el-header>
-    <el-main>
+    <el-main class="page-body">
       <div class="toolbar">
         <el-input v-model="keyword" placeholder="搜索任务标题" clearable style="width: 240px" @keyup.enter="reload" />
         <el-button @click="reload">查询</el-button>
@@ -28,17 +28,20 @@
         <el-button @click="exportWorklogs">导出工时</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="rows" border @selection-change="onSelectionChange">
+      <el-table v-loading="loading" :data="rows" class="task-table" @selection-change="onSelectionChange">
         <el-table-column type="selection" width="44" />
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="name" label="标题" min-width="220" />
         <el-table-column prop="desc" label="描述" min-width="220" />
         <el-table-column label="负责人" width="110">
-          <template #default="{ row }">{{ row.ownerUserid || "-" }}</template>
+          <template #default="{ row }">
+            <span v-if="row.ownerUserid" class="owner">#{{ row.ownerUserid }}</span>
+            <span v-else class="muted">—</span>
+          </template>
         </el-table-column>
         <el-table-column label="优先级" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.pLevel > 0 ? 'warning' : 'info'">{{ row.pLevel }}</el-tag>
+            <span class="p-level" :class="'p' + row.pLevel">P{{ row.pLevel }}</span>
           </template>
         </el-table-column>
         <el-table-column label="里程碑" width="110">
@@ -680,5 +683,62 @@ onMounted(() => {
   color: #909399;
   font-size: 12px;
   margin: 4px 0;
+}
+.page-body {
+  padding: 16px 20px 28px;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 14px;
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius-lg);
+  box-shadow: var(--wb-shadow-1);
+}
+.task-table {
+  border-radius: var(--wb-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--wb-border);
+  --el-table-border-color: var(--wb-border);
+  --el-table-header-bg-color: var(--wb-surface-2);
+  --el-table-header-text-color: var(--wb-text-2);
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--wb-brand-600) 4%, transparent);
+  --el-table-bg-color: var(--wb-surface);
+  --el-table-tr-bg-color: var(--wb-surface);
+}
+.task-table :deep(.el-table__header th) {
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.2px;
+}
+.task-table :deep(.el-table__cell) {
+  padding: 10px 0;
+}
+.task-table :deep(.el-table__row:hover .cell) {
+  color: var(--wb-text);
+}
+.p-level {
+  display: inline-block;
+  min-width: 34px;
+  text-align: center;
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--wb-surface-2);
+  color: var(--wb-text-2);
+}
+.p-level.p0 { background: color-mix(in srgb, var(--wb-danger) 14%, transparent); color: var(--wb-danger); }
+.p-level.p1 { background: color-mix(in srgb, var(--wb-warning) 16%, transparent); color: var(--wb-warning); }
+.p-level.p2 { background: color-mix(in srgb, var(--wb-brand-600) 12%, transparent); color: var(--wb-brand-700); }
+.owner {
+  font-size: 12.5px;
+  color: var(--wb-text-2);
+}
+.muted {
+  color: var(--wb-text-3);
 }
 </style>
