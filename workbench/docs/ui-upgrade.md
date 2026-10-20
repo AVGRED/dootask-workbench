@@ -132,6 +132,11 @@ cd workbench/web
 pnpm typecheck                      # 5 个包
 pnpm --filter @workbench/e2e test:api   # 14 项 API 测试
 
+# 浏览器用例（需要三端 dev server；缺密码时自动 skip）
+$env:WORKBENCH_DEMO_PASSWORD='<demo 密码>'
+$env:WORKBENCH_ADMIN_PASSWORD='<admin 密码>'
+pnpm --filter @workbench/e2e test       # 20 项（6 项浏览器：员工端 2 / 管理端 2 / 移动端 2；14 项 API）
+
 cd ../..
 $env:WORKBENCH_DEMO_PASSWORD='<demo 密码>'
 powershell -File workbench/scripts/e2e-smoke.ps1 -BaseUrl http://127.0.0.1:9020   # 191 项
