@@ -161,7 +161,7 @@ onMounted(load);
 
 <style scoped>
 .hero {
-  background: linear-gradient(150deg, #409eff, #79bbff 55%, #a8c6ee);
+  background: linear-gradient(150deg, var(--wb-brand-700), var(--wb-brand-500) 55%, var(--wb-brand-400));
   border-radius: 16px;
   padding: 16px;
   color: #fff;

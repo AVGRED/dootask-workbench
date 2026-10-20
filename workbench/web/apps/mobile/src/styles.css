@@ -1,9 +1,9 @@
 :root {
   color-scheme: light;
-  --brand: #409eff;
-  --text: #303133;
-  --muted: #909399;
-  --line: #ebeef5;
+  --brand: var(--wb-brand-600);
+  --text: var(--wb-text);
+  --muted: var(--wb-text-3);
+  --line: var(--wb-border);
 }
 
 * {
@@ -13,9 +13,10 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  color: var(--text);
-  background: #f5f7fa;
+  font-family: var(--wb-font);
+  color: var(--wb-text);
+  background: var(--wb-bg);
+  -webkit-font-smoothing: antialiased;
 }
 
 .app {
@@ -23,8 +24,10 @@ body {
   display: flex;
   flex-direction: column;
   padding-bottom: env(safe-area-inset-bottom);
+  background: var(--wb-bg);
 }
 
+/* 顶部栏 */
 .topbar {
   position: sticky;
   top: 0;
@@ -32,78 +35,118 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid var(--line);
+  height: 56px;
+  padding: 0 16px;
+  background: color-mix(in srgb, var(--wb-surface) 86%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--wb-border);
 }
-
 .title {
-  font-size: 17px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--wb-text);
 }
-
+.title::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, var(--wb-brand-400), var(--wb-brand-700));
+}
 .who {
-  color: var(--muted);
-  font-size: 13px;
+  font-size: 12.5px;
+  color: var(--wb-text-3);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--wb-surface-2);
+  border: 1px solid var(--wb-border);
 }
 
 .content {
   flex: 1;
-  padding: 12px;
+  padding: 14px 14px 18px;
 }
 
+/* 底部 tab */
 .tabbar {
   position: sticky;
   bottom: 0;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  background: #fff;
-  border-top: 1px solid var(--line);
+  gap: 4px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--wb-surface) 92%, transparent);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--wb-border);
 }
-
 .tab {
-  padding: 12px 0;
-  text-align: center;
-  font-size: 13px;
-  color: var(--muted);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 0;
+  border-radius: 12px;
+  font-size: 11.5px;
+  color: var(--wb-text-3);
   text-decoration: none;
-  background: none;
-  border: none;
+  transition: background var(--wb-duration) var(--wb-ease), color var(--wb-duration) var(--wb-ease);
 }
-
+.tab-icon {
+  font-size: 17px;
+  line-height: 1;
+}
 .tab.active {
-  color: var(--brand);
+  color: var(--wb-brand-700);
+  background: var(--wb-brand-50);
   font-weight: 600;
 }
-
-.card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 14px;
-  margin-bottom: 10px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+.tab-badge {
+  position: absolute;
+  top: 4px;
+  right: 22%;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--wb-danger);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
 }
 
+/* 卡片 */
+.card {
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius-lg);
+  padding: 14px;
+  margin-bottom: 10px;
+  box-shadow: var(--wb-shadow-1);
+}
 .card-title {
   font-size: 15px;
   font-weight: 600;
+  color: var(--wb-text);
 }
-
 .card-meta {
   margin-top: 6px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--wb-text-3);
 }
 
 .field {
   display: block;
   margin-bottom: 12px;
 }
-
 .field span {
   display: block;
   font-size: 13px;
-  color: var(--muted);
+  color: var(--wb-text-2);
   margin-bottom: 6px;
 }
 
@@ -111,12 +154,21 @@ input,
 textarea,
 select {
   width: 100%;
-  padding: 10px 12px;
+  padding: 11px 12px;
   font-size: 15px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text);
+  font-family: inherit;
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius);
+  background: var(--wb-surface);
+  color: var(--wb-text);
+  transition: border-color var(--wb-duration) var(--wb-ease), box-shadow var(--wb-duration) var(--wb-ease);
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--wb-brand-400);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wb-brand-600) 14%, transparent);
 }
 
 textarea {
@@ -126,22 +178,26 @@ textarea {
 
 button.primary {
   width: 100%;
-  padding: 12px;
+  padding: 13px;
   font-size: 15px;
   font-weight: 600;
   color: #fff;
-  background: var(--brand);
+  background: var(--wb-brand-600);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--wb-radius);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--wb-brand-600) 28%, transparent);
+}
+button.primary:active {
+  transform: translateY(1px);
 }
 
 button.ghost {
   padding: 8px 12px;
   font-size: 13px;
-  color: var(--brand);
-  background: #ecf5ff;
-  border: none;
-  border-radius: 6px;
+  color: var(--wb-brand-700);
+  background: var(--wb-brand-50);
+  border: 1px solid var(--wb-brand-100);
+  border-radius: 10px;
 }
 
 button:disabled {
@@ -149,15 +205,15 @@ button:disabled {
 }
 
 .error {
-  color: #f56c6c;
+  color: var(--wb-danger);
   font-size: 13px;
   margin-bottom: 10px;
 }
 
 .empty {
-  padding: 40px 0;
+  padding: 44px 0;
   text-align: center;
-  color: var(--muted);
+  color: var(--wb-text-3);
   font-size: 14px;
 }
 
@@ -172,7 +228,7 @@ button:disabled {
   min-width: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: #f56c6c;
+  background: var(--wb-danger);
   color: #fff;
   font-size: 11px;
   line-height: 18px;

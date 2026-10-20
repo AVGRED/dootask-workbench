@@ -8,7 +8,7 @@ const OUT = path.resolve(import.meta.dirname, "../../../screenshots");
 const loginResponse = await fetch(`${API}/api/v1/auth/login`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username: "demo@workbench.local", password: "secret123" })
+  body: JSON.stringify({ username: "demo@workbench.local", password: process.env.WORKBENCH_DEMO_PASSWORD ?? "" })
 });
 const login = (await loginResponse.json()).data;
 
