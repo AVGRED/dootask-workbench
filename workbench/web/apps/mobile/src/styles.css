@@ -234,3 +234,32 @@ button:disabled {
   line-height: 18px;
   text-align: center;
 }
+
+/* 暗色修正：浅色底在深色主题下改为半透明品牌色 */
+html.dark .tab.active {
+  background: color-mix(in srgb, var(--wb-brand-400) 20%, transparent);
+  color: var(--wb-brand-200);
+}
+html.dark button.ghost {
+  background: color-mix(in srgb, var(--wb-brand-400) 18%, transparent);
+  border-color: color-mix(in srgb, var(--wb-brand-300) 30%, transparent);
+  color: var(--wb-brand-200);
+}
+html.dark .status-item.active {
+  background: color-mix(in srgb, var(--wb-brand-400) 20%, transparent);
+  color: var(--wb-brand-200);
+  border-color: color-mix(in srgb, var(--wb-brand-300) 40%, transparent);
+}
+html.dark .avatar.placeholder {
+  background: color-mix(in srgb, var(--wb-brand-400) 20%, transparent);
+  color: var(--wb-brand-200);
+}
+html.dark .card,
+html.dark .profile-head {
+  background: var(--wb-surface);
+  border-color: var(--wb-border);
+}
+html.dark .who,
+html.dark .title {
+  color: var(--wb-text);
+}

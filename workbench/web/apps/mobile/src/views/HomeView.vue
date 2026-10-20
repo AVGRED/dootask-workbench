@@ -178,6 +178,7 @@ onMounted(load);
 }
 .status-chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 12px;
   overflow-x: auto;
@@ -193,7 +194,7 @@ onMounted(load);
 }
 .chip.active {
   background: #fff;
-  color: #409eff;
+  color: var(--wb-brand-600);
   font-weight: 600;
 }
 .quick-grid {
@@ -217,11 +218,11 @@ onMounted(load);
   margin-top: 4px;
 }
 .quick-value.ok {
-  color: #67c23a;
+  color: var(--wb-success);
 }
 .quick-hint {
   font-size: 11px;
-  color: #c0c4cc;
+  color: var(--wb-border-strong);
   margin-top: 2px;
 }
 .stat-grid {
@@ -241,7 +242,7 @@ onMounted(load);
   font-weight: 700;
 }
 .stat-num.warn {
-  color: #f56c6c;
+  color: var(--wb-danger);
 }
 .stat-label {
   font-size: 12px;

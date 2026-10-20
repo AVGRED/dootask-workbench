@@ -32,6 +32,16 @@
 
     <div class="card">
       <div class="row between">
+        <span class="card-title">外观</span>
+        <button class="ghost small" type="button" @click="toggleTheme">
+          {{ theme === "dark" ? "☀️ 亮色" : "🌙 暗色" }}
+        </button>
+      </div>
+      <div class="muted">当前：{{ theme === "dark" ? "暗色" : "亮色" }} · 选择会记住</div>
+    </div>
+
+    <div class="card">
+      <div class="row between">
         <span class="card-title">通知</span>
         <button v-if="notifications.length > 0" class="ghost small" type="button" @click="readAll">全部已读</button>
       </div>
@@ -52,6 +62,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import type { NotificationView } from "@workbench/api";
 import { client } from "../stores/auth";
+import { useTheme } from "../composables/useTheme";
 import { useAuthStore } from "../stores/auth";
 
 const auth = useAuthStore();
@@ -125,6 +136,8 @@ async function logout(): Promise<void> {
   await router.replace({ name: "login" });
 }
 
+const { theme, toggleTheme } = useTheme();
+
 onMounted(load);
 </script>
 
@@ -148,8 +161,8 @@ onMounted(load);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ecf5ff;
-  color: #409eff;
+  background: var(--wb-brand-50);
+  color: var(--wb-brand-600);
   font-size: 22px;
   font-weight: 700;
 }
@@ -177,13 +190,13 @@ onMounted(load);
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: #fafafa;
+  background: var(--wb-surface-2);
   font-size: 13px;
 }
 .status-item.active {
-  background: #ecf5ff;
-  border-color: #409eff;
-  color: #409eff;
+  background: var(--wb-brand-50);
+  border-color: var(--wb-brand-600);
+  color: var(--wb-brand-600);
   font-weight: 600;
 }
 .note {
@@ -206,6 +219,6 @@ onMounted(load);
 }
 .logout {
   margin-top: 8px;
-  background: #f56c6c;
+  background: var(--wb-danger);
 }
 </style>
