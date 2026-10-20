@@ -4,6 +4,21 @@
       <span class="hint">共 {{ rows.length }} 个项目</span>
       <el-input v-model="keyword" placeholder="筛选项目名 / 负责人" size="small" style="width: 220px" clearable />
     </div>
+    <div class="stats">
+      <div class="stat-card">
+        <span class="stat-label">项目总数</span>
+        <span class="stat-value">{{ rows.length }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">平均完成度</span>
+        <span class="stat-value">{{ avgPercent }}%</span>
+      </div>
+      <div class="stat-card warn">
+        <span class="stat-label">存在逾期</span>
+        <span class="stat-value">{{ overdueProjects }}</span>
+      </div>
+    </div>
+
     <div class="grid">
       <div v-for="row in filtered" :key="row.id" class="card">
         <div class="card-head">
@@ -41,6 +56,14 @@ const filtered = computed(() => {
   );
 });
 
+const avgPercent = computed(() => {
+  if (rows.value.length === 0) return 0;
+  const total = rows.value.reduce((sum, row) => sum + percent(row), 0);
+  return Math.round(total / rows.value.length);
+});
+
+const overdueProjects = computed(() => rows.value.filter((row) => row.overdue > 0).length);
+
 function percent(row: AdminProjectRow): number {
   return row.total === 0 ? 0 : Math.round((row.done * 100) / row.total);
 }
@@ -61,11 +84,39 @@ onMounted(load);
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .hint {
-  color: #909399;
+  color: var(--wb-text-3);
   font-size: 13px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: var(--wb-radius-lg);
+  border: 1px solid var(--wb-border);
+  background: var(--wb-surface);
+  box-shadow: var(--wb-shadow-1);
+}
+.stat-label {
+  font-size: 12.5px;
+  color: var(--wb-text-3);
+}
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--wb-text);
+}
+.stat-card.warn .stat-value {
+  color: var(--wb-warning);
 }
 .grid {
   display: grid;
@@ -74,18 +125,20 @@ onMounted(load);
 }
 .card {
   position: relative;
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 14px;
-  padding: 20px 22px;
-  min-height: 150px;
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.15s, transform 0.15s;
+  min-height: 150px;
+  padding: 20px 22px;
+  border-radius: var(--wb-radius-lg);
+  border: 1px solid var(--wb-border);
+  background: var(--wb-surface);
+  box-shadow: var(--wb-shadow-1);
+  transition: box-shadow var(--wb-duration) var(--wb-ease),
+    transform var(--wb-duration) var(--wb-ease);
 }
 .card:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
+  box-shadow: var(--wb-shadow-2);
+  transform: translateY(-2px);
 }
 .card-head {
   display: flex;
@@ -97,55 +150,56 @@ onMounted(load);
   font-weight: 700;
   font-size: 18px;
   line-height: 1.3;
+  color: var(--wb-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .overdue {
-  font-size: 12px;
-  color: #f56c6c;
-  background: #fef0f0;
-  padding: 3px 10px;
-  border-radius: 10px;
   flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--wb-danger);
+  background: color-mix(in srgb, var(--wb-danger) 12%, transparent);
+  padding: 3px 10px;
+  border-radius: 999px;
 }
 .meta {
-  color: #909399;
+  color: var(--wb-text-3);
   font-size: 13px;
   margin: 10px 0 16px;
 }
 .progress {
   height: 12px;
-  background: #f0f2f5;
+  background: var(--wb-surface-2);
   border-radius: 6px;
   overflow: hidden;
 }
 .bar {
   height: 100%;
   border-radius: 6px;
-  background: linear-gradient(90deg, #409eff, #79bbff);
+  background: linear-gradient(90deg, var(--wb-brand-400), var(--wb-brand-600));
 }
-.stats {
+.stats-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   margin-top: 12px;
   font-size: 14px;
-  color: #606266;
+  color: var(--wb-text-2);
 }
 .pct {
   font-size: 20px;
   font-weight: 700;
-  color: #409eff;
+  color: var(--wb-brand-700);
 }
 .updated-line {
   margin-top: 10px;
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--wb-text-3);
 }
 .empty {
   padding: 40px;
   text-align: center;
-  color: #909399;
+  color: var(--wb-text-3);
 }
 </style>
