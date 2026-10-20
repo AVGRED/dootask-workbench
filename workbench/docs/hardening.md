@@ -71,12 +71,23 @@
 - 语言包改由 el-config-provider 提供（中文化保持）
 - 构建对比（staff）：入口 chunk 1037KB → 108KB，总 JS 约 2MB → 722KB；页面按路由懒加载
 
+## 第三批（剩余审查项）
+
+### 7. 任务存在性泄露
+
+原先「任务不存在」与「无权访问该项目」返回不同错误，可据此探测任务是否存在。
+
+- **TaskService**：新增 `requireVisibleTask` / `requireVisibleWriteTask`，读写都先做可见性判定，缺失或无权限统一 `404 任务不存在`；`delete` 的子任务检查移到权限判定之后，避免泄露子任务数量。
+- **CommentService**：新增 `requireVisibleProjectId`，评论读写同样统一 404。
+- **AttachmentService / TagService**：可见性检查补 `roleOf` 判定，统一 404。
+- **回归测试**：`tests/api/task-access.spec.ts` 断言局外人对「存在但无权」与「不存在」的任务拿到完全一致的 code 与 message（25 → 26 项）。
+
 ## 未处理（明确留待后续）
 
 | 项 | 原因 |
 |---|---|
 | ESLint / Prettier 门禁 | 需要新增依赖并配置规则，本轮未做，仅靠 `vue-tsc` |
 | 星图浏览器测试 | 只有 API 断言，节点/连线渲染无回归保护 |
-| 任务存在性泄露 | 影响小，未动 |
+| ~~任务存在性泄露~~ | 已修复：TaskService / CommentService / AttachmentService / TagService 统一返回 404「任务不存在」 |
 | 暗色对比度工具化 | 仍为人工检查 |
 | CI 浏览器 job 实跑 | 结构已修，需真实 Actions 跑一轮 |
