@@ -1,18 +1,39 @@
 <template>
   <div class="starmap" :style="{ height: `${height}px` }">
-    <div class="starfield"></div>
-
     <svg class="canvas" :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <radialGradient v-for="tone in TONES" :id="`star-${tone}`" :key="tone">
+          <stop offset="0%" :stop-color="TONE_COLOR[tone]" stop-opacity="0.95" />
+          <stop offset="45%" :stop-color="TONE_COLOR[tone]" stop-opacity="0.35" />
+          <stop offset="100%" :stop-color="TONE_COLOR[tone]" stop-opacity="0" />
+        </radialGradient>
+        <filter id="soft-glow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="6" />
+        </filter>
+      </defs>
+
+      <g class="bg-stars">
+        <circle
+          v-for="star in bgStars"
+          :key="star.key"
+          :cx="star.x"
+          :cy="star.y"
+          :r="star.r"
+          :opacity="star.opacity"
+          class="bg-star"
+          :style="{ animationDelay: `${star.delay}s`, animationDuration: `${star.duration}s` }"
+        />
+      </g>
+
       <g class="edges">
-        <line
+        <path
           v-for="edge in edgesWithPos"
           :key="`${edge.from}-${edge.to}`"
-          :x1="edge.x1"
-          :y1="edge.y1"
-          :x2="edge.x2"
-          :y2="edge.y2"
-          :stroke-width="edgeWidth(edge.weight)"
+          :d="edge.path"
+          class="edge"
           :class="{ active: isEdgeActive(edge) }"
+          :stroke-width="edgeWidth(edge.weight)"
+          :stroke-opacity="edgeOpacity(edge)"
         />
       </g>
 
@@ -21,45 +42,47 @@
           v-for="node in nodesWithPos"
           :key="node.userid"
           class="node"
-          :class="{ self: node.self, dimmed: hovered !== null && !isRelated(node.userid) }"
+          :class="{ self: node.self, dimmed: hovered !== null && !isRelated(node.userid), lit: hovered === node.userid }"
           :transform="`translate(${node.x}, ${node.y})`"
           @mouseenter="hovered = node.userid"
           @mouseleave="hovered = null"
         >
-          <circle class="halo" :r="node.radius + 8" :class="`s-${node.status}`" />
-          <circle class="body" :r="node.radius" :class="`s-${node.status}`" />
+          <circle class="glow" :r="node.radius * 2.6" :fill="`url(#star-${node.status})`" />
+          <circle class="core" :r="node.radius" :style="{ fill: TONE_COLOR[node.status] ?? TONE_COLOR.idle }" />
           <image
-            v-if="node.avatar"
+            v-if="node.avatar && node.radius >= 14"
             class="avatar"
             :href="`/api/v1/avatars/${node.avatar}`"
-            :x="-node.radius"
-            :y="-node.radius"
-            :width="node.radius * 2"
-            :height="node.radius * 2"
-            :clip-path="`circle(${node.radius}px at ${node.radius}px ${node.radius}px)`"
+            :x="-node.radius * 0.62"
+            :y="-node.radius * 0.62"
+            :width="node.radius * 1.24"
+            :height="node.radius * 1.24"
+            :clip-path="`circle(${node.radius * 0.62}px at ${node.radius * 0.62}px ${node.radius * 0.62}px)`"
           />
-          <text v-else class="initial" :dy="node.radius * 0.36" text-anchor="middle">
+          <text v-else-if="node.radius >= 14" class="initial" :dy="node.radius * 0.34" text-anchor="middle">
             {{ (node.nickname || "?").slice(0, 1) }}
           </text>
-          <text class="label" :y="node.radius + 15" text-anchor="middle">
+          <text class="label" :y="node.radius + 16" text-anchor="middle">
             {{ node.nickname || "未命名" }}<tspan v-if="node.self" class="self-tag">（我）</tspan>
           </text>
         </g>
       </g>
     </svg>
 
-    <div class="legend">
-      <span class="legend-item"><i class="dot brand"></i>专注</span>
-      <span class="legend-item"><i class="dot warn"></i>会议</span>
-      <span class="legend-item"><i class="dot ok"></i>外出</span>
-      <span class="legend-item"><i class="dot danger"></i>请假</span>
-      <span class="legend-item"><i class="dot idle"></i>空闲</span>
-      <span class="legend-sep"></span>
-      <span class="legend-text">连线＝共同项目，越粗合作越多</span>
+    <div class="hud">
+      <span class="hud-item"><i class="dot" style="background: #818cf8"></i>专注</span>
+      <span class="hud-item"><i class="dot" style="background: #f59e0b"></i>会议</span>
+      <span class="hud-item"><i class="dot" style="background: #22c55e"></i>外出</span>
+      <span class="hud-item"><i class="dot" style="background: #ef4444"></i>请假</span>
+      <span class="hud-item"><i class="dot" style="background: #94a3b8"></i>空闲</span>
+      <span class="hud-sep"></span>
+      <span class="hud-text">连线 = 共同项目</span>
     </div>
 
     <div v-if="hoveredNode" class="tooltip" :style="tooltipStyle">
-      <div class="tt-name">{{ hoveredNode.nickname || "未命名" }} <span class="tt-uid">#{{ hoveredNode.userid }}</span></div>
+      <div class="tt-name">
+        {{ hoveredNode.nickname || "未命名" }} <span class="tt-uid">#{{ hoveredNode.userid }}</span>
+      </div>
       <div class="tt-row">{{ statusText(hoveredNode.status) }} · {{ hoveredNode.role === "admin" ? "管理员" : "员工" }}</div>
       <div class="tt-row">参与项目 {{ hoveredNode.projectCount }} 个</div>
       <div v-if="hoveredNode.note" class="tt-note">“{{ hoveredNode.note }}”</div>
@@ -77,9 +100,15 @@ const props = withDefaults(defineProps<{ data: StarMapView; height?: number }>()
 
 const WIDTH = 900;
 const HEIGHT = 560;
-const height = HEIGHT;
 
-const hovered = ref<number | null>(null);
+const TONES = ["focus", "idle", "meeting", "away", "leave"] as const;
+const TONE_COLOR: Record<string, string> = {
+  focus: "#818cf8",
+  meeting: "#f59e0b",
+  away: "#22c55e",
+  leave: "#ef4444",
+  idle: "#94a3b8"
+};
 
 const STATUS: Record<string, string> = {
   focus: "专注",
@@ -93,55 +122,117 @@ function statusText(status: string): string {
   return STATUS[status] ?? status;
 }
 
+function seeded(seed: number): () => number {
+  let state = seed % 2147483647;
+  if (state <= 0) state += 2147483646;
+  return () => {
+    state = (state * 16807) % 2147483647;
+    return (state - 1) / 2147483646;
+  };
+}
+
+const bgStars = computed(() => {
+  const rand = seeded(4271);
+  const stars: { key: number; x: number; y: number; r: number; opacity: number; delay: number; duration: number }[] = [];
+  for (let i = 0; i < 140; i++) {
+    stars.push({
+      key: i,
+      x: rand() * WIDTH,
+      y: rand() * HEIGHT,
+      r: 0.6 + rand() * 1.5,
+      opacity: 0.2 + rand() * 0.6,
+      delay: rand() * 4,
+      duration: 3 + rand() * 4
+    });
+  }
+  return stars;
+});
+
+/** 简单力导向布局：斥力 + 弹簧 + 向心，确定性初值。 */
 const nodesWithPos = computed(() => {
   const nodes = props.data.nodes;
-  const centerId = props.data.centerUserid;
-  const center = nodes.find((node) => node.userid === centerId) ?? nodes[0];
-  const others = nodes.filter((node) => node !== center);
+  const links = props.data.edges;
+  if (nodes.length === 0) return [];
 
   const cx = WIDTH / 2;
-  const cy = HEIGHT / 2 - 10;
-  const positioned: (StarNode & { x: number; y: number; radius: number })[] = [];
+  const cy = HEIGHT / 2;
+  const rand = seeded(8821);
 
-  // 人少时把所有人放在一个环上（避免连线穿过中心节点）；人多时中心放"我"
-  const ringOnly = nodes.length <= 3;
-
-  if (ringOnly) {
-    const radius = Math.min(WIDTH, HEIGHT) * 0.26;
-    nodes.forEach((node, index) => {
-      const angle = -Math.PI / 2 + (index / nodes.length) * Math.PI * 2;
-      positioned.push({
-        ...node,
-        x: cx + Math.cos(angle) * radius,
-        y: cy + Math.sin(angle) * radius,
-        radius: 18 + Math.min(node.projectCount, 6) * 2
-      });
-    });
-    return positioned;
-  }
-
-  const radius = Math.min(WIDTH, HEIGHT) * 0.33;
-
-  if (center) {
-    positioned.push({
-      ...center,
-      x: cx,
-      y: cy,
-      radius: 34 + Math.min(center.projectCount, 6) * 2
-    });
-  }
-
-  others.forEach((node, index) => {
-    const angle = -Math.PI / 2 + (index / Math.max(others.length, 1)) * Math.PI * 2;
-    positioned.push({
-      ...node,
+  const positions = new Map<number, { x: number; y: number; vx: number; vy: number }>();
+  nodes.forEach((node, index) => {
+    const angle = (index / nodes.length) * Math.PI * 2 + rand() * 0.4;
+    const radius = 120 + rand() * 80;
+    positions.set(node.userid, {
       x: cx + Math.cos(angle) * radius,
       y: cy + Math.sin(angle) * radius,
-      radius: 18 + Math.min(node.projectCount, 6) * 2
+      vx: 0,
+      vy: 0
     });
   });
 
-  return positioned;
+  const REPULSION = 26000;
+  const SPRING = 0.008;
+  const SPRING_LENGTH = 240;
+  const GRAVITY = 0.0015;
+  const DAMPING = 0.9;
+
+  for (let step = 0; step < 420; step++) {
+    const list = [...positions.entries()];
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i][1];
+        const b = list[j][1];
+        let dx = a.x - b.x;
+        let dy = a.y - b.y;
+        let dist = Math.hypot(dx, dy) || 0.01;
+        if (dist < 1) dist = 1;
+        const force = REPULSION / (dist * dist);
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        a.vx += fx;
+        a.vy += fy;
+        b.vx -= fx;
+        b.vy -= fy;
+      }
+    }
+
+    for (const link of links) {
+      const a = positions.get(link.from);
+      const b = positions.get(link.to);
+      if (!a || !b) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy) || 0.01;
+      const diff = (dist - SPRING_LENGTH) * SPRING;
+      const fx = (dx / dist) * diff;
+      const fy = (dy / dist) * diff;
+      a.vx += fx;
+      a.vy += fy;
+      b.vx -= fx;
+      b.vy -= fy;
+    }
+
+    for (const node of positions.values()) {
+      node.vx += (cx - node.x) * GRAVITY;
+      node.vy += (cy - node.y) * GRAVITY;
+      node.vx *= DAMPING;
+      node.vy *= DAMPING;
+      node.x += node.vx;
+      node.y += node.vy;
+      node.x = Math.min(Math.max(node.x, 90), WIDTH - 90);
+      node.y = Math.min(Math.max(node.y, 70), HEIGHT - 70);
+    }
+  }
+
+  return nodes.map((node: StarNode) => {
+    const pos = positions.get(node.userid)!;
+    return {
+      ...node,
+      x: pos.x,
+      y: pos.y,
+      radius: 14 + Math.min(node.projectCount, 6) * 2 + (node.self ? 7 : 0)
+    };
+  });
 });
 
 const positionOf = computed(() => {
@@ -156,16 +247,29 @@ const edgesWithPos = computed(() =>
       const from = positionOf.value.get(edge.from);
       const to = positionOf.value.get(edge.to);
       if (!from || !to) return null;
-      return { ...edge, x1: from.x, y1: from.y, x2: to.x, y2: to.y };
+      const mx = (from.x + to.x) / 2;
+      const my = (from.y + to.y) / 2;
+      const nx = -(to.y - from.y);
+      const ny = to.x - from.x;
+      const norm = Math.hypot(nx, ny) || 1;
+      const bow = 12;
+      const cx = mx + (nx / norm) * bow;
+      const cy = my + (ny / norm) * bow;
+      return { ...edge, path: `M ${from.x} ${from.y} Q ${cx} ${cy} ${to.x} ${to.y}` };
     })
     .filter((edge): edge is NonNullable<typeof edge> => edge !== null)
 );
 
+const hovered = ref<number | null>(null);
+const hoveredNode = computed(() => props.data.nodes.find((node) => node.userid === hovered.value) ?? null);
+
 function edgeWidth(weight: number): number {
-  return Math.min(1 + weight * 0.8, 4);
+  return Math.min(1 + weight * 0.9, 3.5);
 }
 
-const hoveredNode = computed(() => props.data.nodes.find((node) => node.userid === hovered.value) ?? null);
+function edgeOpacity(edge: { weight: number }): number {
+  return hovered.value === null ? Math.min(0.25 + edge.weight * 0.12, 0.6) : 0.18;
+}
 
 function isRelated(userid: number): boolean {
   if (hovered.value === null) return true;
@@ -186,9 +290,10 @@ const tooltipStyle = computed(() => {
   if (!node) return {};
   const pos = positionOf.value.get(node.userid);
   if (!pos) return {};
-  const left = (pos.x / WIDTH) * 100;
-  const top = (pos.y / HEIGHT) * 100;
-  return { left: `${Math.min(Math.max(left, 12), 82)}%`, top: `${Math.max(top - 4, 8)}%` };
+  return {
+    left: `${Math.min(Math.max((pos.x / WIDTH) * 100, 12), 82)}%`,
+    top: `${Math.max((pos.y / HEIGHT) * 100 - 6, 8)}%`
+  };
 });
 </script>
 
@@ -196,77 +301,79 @@ const tooltipStyle = computed(() => {
 .starmap {
   position: relative;
   border-radius: var(--wb-radius-lg);
-  border: 1px solid var(--wb-border);
+  border: 1px solid rgba(129, 140, 248, 0.22);
   background:
-    radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--wb-brand-600) 10%, transparent), transparent 45%),
-    radial-gradient(circle at 80% 75%, color-mix(in srgb, var(--wb-brand-400) 12%, transparent), transparent 50%),
-    var(--wb-surface);
+    radial-gradient(ellipse 60% 50% at 25% 20%, rgba(99, 102, 241, 0.3), transparent 60%),
+    radial-gradient(ellipse 50% 45% at 78% 78%, rgba(56, 189, 248, 0.18), transparent 62%),
+    radial-gradient(ellipse 40% 40% at 60% 35%, rgba(168, 85, 247, 0.14), transparent 65%),
+    linear-gradient(160deg, #070b1c 0%, #0a1026 45%, #05070f 100%);
   overflow: hidden;
-}
-.starfield {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(var(--wb-border-strong) 1px, transparent 1px);
-  background-size: 26px 26px;
-  opacity: 0.35;
-  pointer-events: none;
 }
 .canvas {
   position: relative;
   width: 100%;
   height: 100%;
+  z-index: 1;
 }
-.edges line {
-  stroke: var(--wb-brand-500);
-  opacity: 0.18;
-  transition: opacity var(--wb-duration) var(--wb-ease);
+.bg-star {
+  fill: #dbeafe;
+  animation: twinkle 5s ease-in-out infinite;
 }
-.edges line.active {
-  opacity: 0.85;
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+.edge {
+  fill: none;
+  stroke: #a5b4fc;
+  filter: url(#soft-glow);
+  transition: stroke-opacity 160ms ease, stroke 160ms ease;
+}
+.edge.active {
+  stroke: #e0e7ff;
 }
 .node {
   cursor: pointer;
-  transition: opacity var(--wb-duration) var(--wb-ease);
+  transition: opacity 180ms ease;
 }
 .node.dimmed {
-  opacity: 0.35;
+  opacity: 0.28;
 }
-.node .halo {
-  fill: transparent;
-  stroke-width: 6;
-  opacity: 0.16;
-  stroke: var(--wb-text-3);
+.node .glow {
+  opacity: 0.55;
+  transition: opacity 180ms ease;
 }
-.node .halo.s-focus { stroke: var(--wb-brand-600); }
-.node .halo.s-meeting { stroke: var(--wb-warning); }
-.node .halo.s-away { stroke: var(--wb-success); }
-.node .halo.s-leave { stroke: var(--wb-danger); }
-.node .body {
-  fill: var(--wb-surface);
-  stroke-width: 2.5;
-  stroke: var(--wb-border-strong);
+.node:hover .glow,
+.node.lit .glow {
+  opacity: 0.95;
 }
-.node .body.s-focus { stroke: var(--wb-brand-600); }
-.node .body.s-meeting { stroke: var(--wb-warning); }
-.node .body.s-away { stroke: var(--wb-success); }
-.node .body.s-leave { stroke: var(--wb-danger); }
-.node.self .body {
-  fill: color-mix(in srgb, var(--wb-brand-600) 10%, var(--wb-surface));
-  stroke-width: 3.5;
+.node .core {
+  stroke: rgba(255, 255, 255, 0.62);
+  stroke-width: 1;
+}
+.node.self .core {
+  stroke: #fff;
+  stroke-width: 2;
 }
 .node .initial {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
-  fill: var(--wb-brand-700);
+  fill: #0b1024;
 }
 .node .label {
   font-size: 11.5px;
-  fill: var(--wb-text-2);
+  fill: #cbd5f5;
+  paint-order: stroke;
+  stroke: rgba(5, 8, 20, 0.75);
+  stroke-width: 3px;
 }
 .self-tag {
-  fill: var(--wb-brand-600);
+  fill: #c7d2fe;
 }
-.legend {
+.avatar {
+  pointer-events: none;
+}
+.hud {
   position: absolute;
   left: 14px;
   bottom: 12px;
@@ -275,64 +382,64 @@ const tooltipStyle = computed(() => {
   gap: 12px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--wb-surface) 88%, transparent);
-  border: 1px solid var(--wb-border);
-  backdrop-filter: blur(6px);
+  background: rgba(10, 16, 38, 0.6);
+  border: 1px solid rgba(165, 180, 252, 0.22);
+  backdrop-filter: blur(8px);
   font-size: 11.5px;
-  color: var(--wb-text-3);
+  color: #cbd5f5;
+  z-index: 2;
 }
-.legend-item {
+.hud-item {
   display: inline-flex;
   align-items: center;
   gap: 5px;
 }
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   display: inline-block;
 }
-.dot.brand { background: var(--wb-brand-600); }
-.dot.warn { background: var(--wb-warning); }
-.dot.ok { background: var(--wb-success); }
-.dot.danger { background: var(--wb-danger); }
-.dot.idle { background: var(--wb-text-3); }
-.legend-sep {
+.hud-sep {
   width: 1px;
-  height: 12px;
-  background: var(--wb-border);
+  height: 11px;
+  background: rgba(165, 180, 252, 0.3);
+}
+.hud-text {
+  color: #94a3c8;
 }
 .tooltip {
   position: absolute;
   transform: translate(-50%, -110%);
-  min-width: 168px;
+  min-width: 172px;
   padding: 10px 12px;
-  border-radius: var(--wb-radius);
-  background: var(--wb-surface);
-  border: 1px solid var(--wb-border);
-  box-shadow: var(--wb-shadow-2);
+  border-radius: 12px;
+  background: rgba(12, 18, 40, 0.92);
+  border: 1px solid rgba(165, 180, 252, 0.3);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
   font-size: 12px;
-  color: var(--wb-text-2);
+  color: #cbd5f5;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
+  backdrop-filter: blur(8px);
 }
 .tt-name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--wb-text);
+  color: #f8fafc;
   margin-bottom: 4px;
 }
 .tt-uid {
   font-weight: 400;
   font-size: 11px;
-  color: var(--wb-text-3);
+  color: #94a3c8;
 }
 .tt-row {
   line-height: 1.6;
 }
 .tt-note {
   margin-top: 4px;
-  color: var(--wb-text-3);
+  color: #94a3c8;
 }
 .empty {
   position: absolute;
@@ -340,7 +447,11 @@ const tooltipStyle = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--wb-text-3);
+  color: #94a3c8;
   font-size: 13px;
+  z-index: 2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-star { animation: none; opacity: 0.6; }
 }
 </style>
