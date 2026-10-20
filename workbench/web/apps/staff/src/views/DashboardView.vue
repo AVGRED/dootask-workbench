@@ -1,26 +1,55 @@
 <template>
   <el-container class="page">
     <el-header class="page-header">
-      <span class="brand">工作台</span>
-      <span class="header-actions">
-        <el-select v-model="status" size="small" style="width: 120px" @change="changeStatus">
-          <el-option label="专注" value="focus" />
-          <el-option label="空闲" value="idle" />
-          <el-option label="会议" value="meeting" />
-          <el-option label="外出" value="away" />
-          <el-option label="请假" value="leave" />
+      <div class="header-left">
+        <span class="brand">工作台</span>
+        <nav class="tabs">
+          <button class="tab active" type="button">首页</button>
+          <button class="tab" type="button" @click="goProjects">项目</button>
+          <button class="tab" type="button" @click="goReport">日报</button>
+        </nav>
+      </div>
+      <div class="header-right">
+        <el-select v-model="status" size="small" class="status-select" @change="changeStatus">
+          <el-option label="🎯 专注" value="focus" />
+          <el-option label="☕ 空闲" value="idle" />
+          <el-option label="🗣 会议" value="meeting" />
+          <el-option label="🚶 外出" value="away" />
+          <el-option label="🌴 请假" value="leave" />
         </el-select>
-        <el-button size="small" @click="pickAvatar">我的头像</el-button>
-        <img v-if="myAvatar" class="my-avatar" :src="`/api/v1/avatars/${myAvatar}`" alt="我的头像" />
+
+        <el-dropdown trigger="click" @command="onLayoutCommand">
+          <el-button size="small">布局 ▾</el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="add">添加板块</el-dropdown-item>
+              <el-dropdown-item command="save">保存布局</el-dropdown-item>
+              <el-dropdown-item command="reset" divided>恢复默认</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+
+        <el-button size="small" class="theme-btn" @click="toggleTheme">
+          {{ theme === "dark" ? "☀️" : "🌙" }}
+        </el-button>
+
+        <el-dropdown trigger="click" @command="onUserCommand">
+          <span class="avatar-entry">
+            <img v-if="myAvatar" class="my-avatar" :src="`/api/v1/avatars/${myAvatar}`" alt="头像" />
+            <span v-else class="my-avatar placeholder">{{ (authName || "我").slice(0, 1) }}</span>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="avatar">上传头像</el-dropdown-item>
+              <el-dropdown-item command="projects">全部项目</el-dropdown-item>
+              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <input ref="avatarInput" type="file" accept="image/*" hidden @change="onAvatarPicked" />
-        <el-button size="small" @click="addVisible = true">添加板块</el-button>
-        <el-button size="small" :loading="saving" @click="saveLayout">保存布局</el-button>
-        <el-button size="small" @click="resetLayout">恢复默认</el-button>
-        <el-button size="small" @click="toggleTheme">{{ theme === "dark" ? "☀️ 亮色" : "🌙 暗色" }}</el-button>
-        <el-button size="small" @click="goProjects">全部项目</el-button>
-        <el-button link type="primary" @click="logout">退出</el-button>
-      </span>
+      </div>
     </el-header>
+
 
     <el-main>
       <div v-if="loading" class="empty">加载中…</div>
@@ -69,6 +98,8 @@ const dash = ref<DashboardView | null>(null);
 const layout = ref<LayoutItem[]>([]);
 const catalog = ref<WidgetDef[]>([]);
 const status = ref("idle");
+const storedUser = JSON.parse(localStorage.getItem("workbench.user") ?? "{}") as { nickname?: string };
+const authName = ref(storedUser.nickname ?? "");
 const myAvatar = ref("");
 const avatarInput = ref<HTMLInputElement | null>(null);
 
@@ -115,6 +146,26 @@ async function load(): Promise<void> {
     ElMessage.error(exception instanceof Error ? exception.message : "加载仪表盘失败");
   } finally {
     loading.value = false;
+  }
+}
+
+async function onLayoutCommand(command: string): Promise<void> {
+  if (command === "add") {
+    addVisible.value = true;
+  } else if (command === "save") {
+    await saveLayout();
+  } else if (command === "reset") {
+    await resetLayout();
+  }
+}
+
+async function onUserCommand(command: string): Promise<void> {
+  if (command === "avatar") {
+    pickAvatar();
+  } else if (command === "projects") {
+    await goProjects();
+  } else if (command === "logout") {
+    await logout();
   }
 }
 
@@ -226,40 +277,111 @@ onMounted(load);
 
 <style scoped>
 .page-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #ebeef5;
+  height: 64px;
+  padding: 0 20px;
+  background: color-mix(in srgb, var(--wb-surface) 82%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--wb-border);
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 .brand {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
+  color: var(--wb-text);
+  letter-spacing: 0.2px;
 }
-.header-actions {
+.brand::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 8px;
+  background: var(--wb-brand-600);
+  transform: translateY(-1px);
+}
+.tabs {
   display: flex;
-  gap: 8px;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--wb-radius);
+  background: var(--wb-surface-2);
+  border: 1px solid var(--wb-border);
+}
+.tab {
+  border: none;
+  background: transparent;
+  padding: 7px 14px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--wb-text-2);
+  cursor: pointer;
+  transition: background var(--wb-duration) var(--wb-ease), color var(--wb-duration) var(--wb-ease);
+}
+.tab:hover {
+  color: var(--wb-text);
+  background: color-mix(in srgb, var(--wb-brand-600) 8%, transparent);
+}
+.tab.active {
+  background: var(--wb-brand-600);
+  color: #fff;
+  box-shadow: var(--wb-shadow-1);
+}
+.header-right {
+  display: flex;
   align-items: center;
+  gap: 8px;
+}
+.status-select {
+  width: 116px;
+}
+.theme-btn {
+  padding: 5px 10px;
+}
+.avatar-entry {
+  display: inline-flex;
+  cursor: pointer;
 }
 .my-avatar {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--wb-border);
+}
+.my-avatar.placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--wb-brand-50);
+  color: var(--wb-brand-700);
+  font-size: 13px;
+  font-weight: 600;
 }
 .add-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 6px 0;
-  border-bottom: 1px solid #f5f7fa;
+  border-bottom: 1px solid var(--wb-border);
 }
 .muted {
-  color: #909399;
+  color: var(--wb-text-3);
 }
 .empty {
   padding: 60px;
   text-align: center;
-  color: #909399;
+  color: var(--wb-text-3);
 }
 </style>

@@ -11,7 +11,8 @@
             :class="{ active: route.name === tab.name }"
             @click="go(tab.name)"
           >
-            {{ tab.label }}
+            <span class="tab-icon">{{ tab.icon }}</span>
+            <span class="tab-label">{{ tab.label }}</span>
           </button>
         </nav>
       </div>
@@ -38,9 +39,9 @@ const router = useRouter();
 const { theme, toggleTheme } = useTheme();
 
 const tabs = [
-  { name: "team", label: "状态墙" },
-  { name: "projects", label: "项目总览" },
-  { name: "reports", label: "每日日报" }
+  { name: "team", label: "状态墙", icon: "👥" },
+  { name: "projects", label: "项目总览", icon: "📁" },
+  { name: "reports", label: "每日日报", icon: "📝" }
 ];
 
 async function go(name: string): Promise<void> {
@@ -58,50 +59,85 @@ async function logout(): Promise<void> {
 <style scoped>
 .shell {
   min-height: 100vh;
+  background: var(--wb-bg);
 }
 .shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #ebeef5;
-  background: #fff;
+  height: 64px;
+  padding: 0 20px;
+  background: color-mix(in srgb, var(--wb-surface) 82%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--wb-border);
 }
 .left {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
 }
 .brand {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
+  color: var(--wb-text);
+  letter-spacing: 0.2px;
+}
+.brand::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 8px;
+  background: var(--wb-brand-600);
+  transform: translateY(-1px);
 }
 .tabs {
   display: flex;
-  gap: 4px;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--wb-radius);
+  background: var(--wb-surface-2);
+  border: 1px solid var(--wb-border);
 }
 .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: none;
   background: transparent;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #606266;
+  padding: 7px 14px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--wb-text-2);
   cursor: pointer;
+  transition: background var(--wb-duration) var(--wb-ease),
+    color var(--wb-duration) var(--wb-ease);
 }
 .tab:hover {
-  background: #f5f7fa;
+  color: var(--wb-text);
+  background: color-mix(in srgb, var(--wb-brand-600) 8%, transparent);
 }
 .tab.active {
-  background: #ecf5ff;
-  color: #409eff;
-  font-weight: 600;
+  background: var(--wb-brand-600);
+  color: #fff;
+  box-shadow: var(--wb-shadow-1);
+}
+.tab-icon {
+  font-size: 13px;
+  line-height: 1;
 }
 .right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 .shell-main {
-  background: #f7f8fa;
+  padding: 20px;
+  background: var(--wb-bg);
 }
 </style>
