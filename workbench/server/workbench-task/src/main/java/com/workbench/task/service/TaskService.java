@@ -104,8 +104,7 @@ public class TaskService {
     }
 
     public TaskView update(long currentUserid, long taskId, SaveTaskRequest request) {
-        Task task = requireTask(taskId);
-        requireWrite(currentUserid, Objects.requireNonNull(task.getProjectId()));
+        Task task = requireVisibleWriteTask(currentUserid, taskId);
         task.setName(request.name());
         if (request.desc() != null) task.setDesc(request.desc());
         if (request.ownerUserid() != null) task.setOwnerUserid(request.ownerUserid());
@@ -145,8 +144,7 @@ public class TaskService {
     }
 
     public void complete(long currentUserid, long taskId, boolean completed) {
-        Task task = requireTask(taskId);
-        requireWrite(currentUserid, Objects.requireNonNull(task.getProjectId()));
+        Task task = requireVisibleWriteTask(currentUserid, taskId);
         LocalDateTime now = LocalDateTime.now();
         if (completed) {
             task.setCompleteAt(now);
@@ -165,17 +163,15 @@ public class TaskService {
     }
 
     public void delete(long currentUserid, long taskId) {
-        Task task = requireTask(taskId);
+        Task task = requireVisibleWriteTask(currentUserid, taskId);
         ensureNoChildren(taskId);
-        requireWrite(currentUserid, Objects.requireNonNull(task.getProjectId()));
         taskMapper.deleteById(taskId);
         activityService.record(Objects.requireNonNull(task.getProjectId()), taskId, currentUserid, "task.delete",
                 "task", taskId, "删除任务：" + task.getName());
     }
 
     public java.util.List<TaskView> children(long currentUserid, long taskId) {
-        Task task = requireTask(taskId);
-        requireAccess(currentUserid, Objects.requireNonNull(task.getProjectId()));
+        requireVisibleTask(currentUserid, taskId);
         return taskMapper.selectList(new LambdaQueryWrapper<Task>()
                         .eq(Task::getParentId, taskId)
                         .orderByAsc(Task::getSort)
@@ -192,6 +188,36 @@ public class TaskService {
                 .isNull(Task::getDeletedAt));
         if (children != null && children > 0) {
             throw new BusinessException("该任务还有 " + children + " 个子任务，请先处理子任务");
+        }
+    }
+
+    /**
+     * 读操作取任务：任务不存在、或调用者不在项目里，都返回同一个错误，
+     * 避免通过错误文案探测"任务是否存在"。
+     */
+    private Task requireVisibleTask(long currentUserid, long taskId) {
+        Task task = taskMapper.selectById(taskId);
+        if (task == null || task.getProjectId() == null
+                || roleInQuietly(task.getProjectId(), currentUserid) == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+        return task;
+    }
+
+    /** 写操作取任务：同样先做可见性判定，只有确认可见后才区分 viewer 只读。 */
+    private Task requireVisibleWriteTask(long currentUserid, long taskId) {
+        Task task = requireVisibleTask(currentUserid, taskId);
+        if ("viewer".equals(roleInQuietly(Objects.requireNonNull(task.getProjectId()), currentUserid))) {
+            throw new BusinessException(403, "只读成员不能修改任务");
+        }
+        return task;
+    }
+
+    private String roleInQuietly(long projectId, long currentUserid) {
+        try {
+            return roleIn(projectId, currentUserid);
+        } catch (BusinessException exception) {
+            return null;
         }
     }
 

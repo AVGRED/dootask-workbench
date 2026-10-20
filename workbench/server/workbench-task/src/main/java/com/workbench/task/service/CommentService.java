@@ -39,15 +39,35 @@ public class CommentService {
     }
 
     @Transactional
-    public CommentView create(long currentUserid, long taskId, CreateCommentRequest request) {
+    /**
+     * 取任务所属项目，并确认调用者可见；两种情况（任务不存在 / 无权访问）返回同一错误，
+     * 避免通过评论接口探测任务是否存在。
+     */
+    private long requireVisibleProjectId(long taskId, long currentUserid, boolean write) {
         Long projectId = jdbcTemplate.query(
                 "select project_id from project_tasks where id = ? and deleted_at is null",
                 resultSet -> resultSet.next() ? resultSet.getLong("project_id") : null,
                 taskId);
         if (projectId == null || projectId == 0) {
-            throw new BusinessException("任务不存在");
+            throw new BusinessException(404, "任务不存在");
         }
-        projectAccess.requireWrite(projectId, currentUserid);
+        String role;
+        try {
+            role = projectAccess.roleOf(projectId, currentUserid);
+        } catch (BusinessException exception) {
+            role = null;
+        }
+        if (role == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+        if (write && "viewer".equals(role)) {
+            throw new BusinessException(403, "只读成员不能修改任务");
+        }
+        return projectId;
+    }
+
+    public CommentView create(long currentUserid, long taskId, CreateCommentRequest request) {
+        long projectId = requireVisibleProjectId(taskId, currentUserid, true);
 
         List<Long> mentions = request.mentionUserids() == null ? List.of() : request.mentionUserids().stream()
                 .filter(Objects::nonNull)
@@ -99,14 +119,7 @@ public class CommentService {
     }
 
     public List<CommentView> list(long taskId, long currentUserid) {
-        Long projectId = jdbcTemplate.query(
-                "select project_id from project_tasks where id = ? and deleted_at is null",
-                rs -> rs.next() ? rs.getLong("project_id") : null,
-                taskId);
-        if (projectId == null || projectId == 0) {
-            throw new BusinessException("任务不存在");
-        }
-        projectAccess.requireAccess(projectId, currentUserid);
+        requireVisibleProjectId(taskId, currentUserid, false);
         return commentMapper.selectList(new LambdaQueryWrapper<TaskComment>()
                         .eq(TaskComment::getTaskId, taskId)
                         .orderByAsc(TaskComment::getId))

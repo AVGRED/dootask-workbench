@@ -69,7 +69,7 @@ public class AttachmentService {
                 resultSet -> resultSet.next() ? resultSet.getLong("project_id") : null,
                 taskId);
         if (projectId == null || projectId == 0) {
-            throw new BusinessException("任务不存在");
+            throw new BusinessException(404, "任务不存在");
         }
         projectAccess.requireWrite(projectId, currentUserid);
 
@@ -151,9 +151,18 @@ public class AttachmentService {
                 rs -> rs.next() ? rs.getLong("project_id") : null,
                 taskId);
         if (projectId == null || projectId == 0) {
-            throw new BusinessException("任务不存在");
+            throw new BusinessException(404, "任务不存在");
         }
-        projectAccess.requireAccess(projectId, currentUserid);
+        String role;
+        try {
+            role = projectAccess.roleOf(projectId, currentUserid);
+        } catch (BusinessException exception) {
+            role = null;
+        }
+        if (role == null) {
+            // 与"任务不存在"同一个错误，避免探测任务是否存在
+            throw new BusinessException(404, "任务不存在");
+        }
     }
 
     private static String sha256(byte[] bytes) {

@@ -67,8 +67,24 @@ public class TagService {
         tagMapper.deleteById(tagId);
     }
 
-    public void attach(long taskId, long currentUserid, long tagId) {
+    /** 任务不存在与无权访问返回同一错误，避免探测。 */
+    private Task requireVisibleTask(long taskId, long currentUserid) {
         Task task = requireTask(taskId);
+        long projectId = task.getProjectId() == null ? 0 : task.getProjectId();
+        String role;
+        try {
+            role = projectAccess.roleOf(projectId, currentUserid);
+        } catch (BusinessException exception) {
+            role = null;
+        }
+        if (role == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+        return task;
+    }
+
+    public void attach(long taskId, long currentUserid, long tagId) {
+        Task task = requireVisibleTask(taskId, currentUserid);
         long projectId = task.getProjectId() == null ? 0 : task.getProjectId();
         projectAccess.requireWrite(projectId, currentUserid);
         Tag tag = tagMapper.selectById(tagId);
@@ -88,7 +104,7 @@ public class TagService {
     }
 
     public void detach(long taskId, long currentUserid, long tagId) {
-        Task task = requireTask(taskId);
+        Task task = requireVisibleTask(taskId, currentUserid);
         long projectId = task.getProjectId() == null ? 0 : task.getProjectId();
         projectAccess.requireWrite(projectId, currentUserid);
         taskTagMapper.delete(new LambdaQueryWrapper<TaskTag>()
@@ -97,7 +113,7 @@ public class TagService {
     }
 
     public List<TagView> tagsOfTask(long taskId, long currentUserid) {
-        Task task = requireTask(taskId);
+        Task task = requireVisibleTask(taskId, currentUserid);
         long projectId = task.getProjectId() == null ? 0 : task.getProjectId();
         projectAccess.requireAccess(projectId, currentUserid);
         List<Long> tagIds = taskTagMapper.selectList(new LambdaQueryWrapper<TaskTag>()
@@ -143,7 +159,7 @@ public class TagService {
     private Task requireTask(long taskId) {
         Task task = taskMapper.selectById(taskId);
         if (task == null) {
-            throw new BusinessException("任务不存在");
+            throw new BusinessException(404, "任务不存在");
         }
         return task;
     }
