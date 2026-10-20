@@ -161,7 +161,7 @@ onMounted(reload);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--wb-border);
 }
 .section-title {
   margin: 16px 0 8px;

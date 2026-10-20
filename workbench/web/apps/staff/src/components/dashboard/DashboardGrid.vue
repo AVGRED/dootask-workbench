@@ -144,13 +144,13 @@ function onCancel(): void {
 <style scoped>
 .bento {
   position: relative;
-  background-image: linear-gradient(#f5f7fa 1px, transparent 1px), linear-gradient(90deg, #f5f7fa 1px, transparent 1px);
+  background-image: linear-gradient(var(--wb-border) 1px, transparent 1px), linear-gradient(90deg, var(--wb-border) 1px, transparent 1px);
   background-size: 100% 112px, calc(100% / 12) 112px;
   border-radius: 8px;
 }
 .tile {
   position: absolute;
-  border: 1.5px solid var(--wb-border, #dcdfe6);
+  border: 1.5px solid var(--wb-border);
   border-radius: var(--wb-radius-lg, 14px);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   display: flex;
@@ -182,18 +182,18 @@ function onCancel(): void {
   gap: 7px;
   font-weight: 600;
   font-size: 14px;
-  color: var(--wb-text, #1e2233);
+  color: var(--wb-text);
 }
 .tile-title::before {
   content: "";
   width: 6px;
   height: 6px;
   border-radius: 2px;
-  background: var(--wb-brand-500, #6366f1);
+  background: var(--wb-brand-500);
   opacity: 0.9;
 }
 .tile-tools .remove {
-  color: var(--wb-text-3, #c0c4cc);
+  color: var(--wb-text-3);
   cursor: pointer;
   padding: 0 4px;
   opacity: 0;
@@ -223,7 +223,7 @@ function onCancel(): void {
 }
 .resize:hover {
   background:
-    linear-gradient(135deg, transparent 46%, #409eff 46%, #409eff 52%, transparent 52%),
-    linear-gradient(135deg, transparent 62%, #409eff 62%, #409eff 68%, transparent 68%);
+    linear-gradient(135deg, transparent 46%, var(--wb-brand-500) 46%, var(--wb-brand-500) 52%, transparent 52%),
+    linear-gradient(135deg, transparent 62%, var(--wb-brand-500) 62%, var(--wb-brand-500) 68%, transparent 68%);
 }
 </style>

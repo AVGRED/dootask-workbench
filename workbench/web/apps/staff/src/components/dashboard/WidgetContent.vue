@@ -166,11 +166,11 @@ async function doSearch(): Promise<void> {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #67c23a;
+  background: var(--wb-success);
   margin-right: 6px;
 }
 .muted {
-  color: #909399;
+  color: var(--wb-text-3);
 }
 .small {
   font-size: 12px;
@@ -181,12 +181,12 @@ async function doSearch(): Promise<void> {
   font-weight: 700;
 }
 .big.warn {
-  color: #f56c6c;
+  color: var(--wb-danger);
 }
 .unit {
   font-size: 12px;
   font-weight: 400;
-  color: #909399;
+  color: var(--wb-text-3);
 }
 .row-metrics {
   display: flex;
@@ -194,14 +194,14 @@ async function doSearch(): Promise<void> {
 }
 .progress {
   height: 6px;
-  background: #f0f2f5;
+  background: var(--wb-surface-2);
   border-radius: 3px;
   margin: 8px 0;
   overflow: hidden;
 }
 .progress-bar {
   height: 100%;
-  background: #409eff;
+  background: var(--wb-brand-500);
 }
 .project-actions {
   display: flex;

@@ -691,6 +691,10 @@ Assert-True "管理员可把角色改回 staff" ($reverted.data.role -eq "staff"
 $staffLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "e2e-role-$suffix@workbench.local"; password = "role123" }
 Assert-True "改回后登录角色为 staff" ($staffLogin.data.role -eq "staff") "role=$($staffLogin.data.role)"
 
+# 角色测试用户用完即删，避免状态墙残留
+$roleCleanup = Invoke-Api -Method Post -Path "/api/v1/admin/users/batch" -Body @{ action = "delete"; userids = @($roleUserid) }
+Assert-True "清理角色测试用户" ($roleCleanup.code -eq 0) "code=$($roleCleanup.code)"
+
 # 8. 分页与中文
 $users = Invoke-Api -Method Get -Path "/api/v1/users?page=1&size=5"
 Assert-True "用户分页 total>0" ($users.data.total -gt 0) "total=$($users.data.total)"

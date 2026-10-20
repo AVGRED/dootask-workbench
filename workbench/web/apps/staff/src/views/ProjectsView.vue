@@ -400,7 +400,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--wb-border);
 }
 .toolbar {
   display: flex;
@@ -414,7 +414,7 @@ onMounted(() => {
 }
 .project-card {
   background: #fff;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--wb-border);
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;
@@ -440,7 +440,7 @@ onMounted(() => {
 }
 .card-desc {
   margin-top: 8px;
-  color: #606266;
+  color: var(--wb-text-2);
   font-size: 13px;
   min-height: 36px;
   display: -webkit-box;
@@ -450,7 +450,7 @@ onMounted(() => {
 }
 .card-meta {
   margin-top: 6px;
-  color: #909399;
+  color: var(--wb-text-3);
   font-size: 12px;
 }
 .card-actions {
@@ -463,7 +463,7 @@ onMounted(() => {
   grid-column: 1 / -1;
   padding: 40px;
   text-align: center;
-  color: #909399;
+  color: var(--wb-text-3);
 }
 .pager {
   margin-top: 12px;
@@ -477,7 +477,7 @@ onMounted(() => {
   margin-left: 4px;
   padding: 0 5px;
   border-radius: 8px;
-  background: #f56c6c;
+  background: var(--wb-danger);
   color: #fff;
   font-size: 11px;
 }
@@ -488,12 +488,12 @@ onMounted(() => {
   margin-bottom: 10px;
 }
 .notify-unread {
-  color: #909399;
+  color: var(--wb-text-3);
   font-size: 12px;
 }
 .notify-item {
   padding: 10px 0;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--wb-border);
 }
 .notify-title {
   display: flex;
@@ -501,7 +501,7 @@ onMounted(() => {
   align-items: center;
 }
 .notify-meta {
-  color: #909399;
+  color: var(--wb-text-3);
   font-size: 12px;
   margin: 4px 0;
 }
@@ -514,19 +514,19 @@ onMounted(() => {
   margin: 12px 0 4px;
   font-weight: 600;
   font-size: 13px;
-  color: #606266;
+  color: var(--wb-text-2);
 }
 .search-item {
   padding: 8px 10px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--wb-border);
   border-radius: 6px;
   cursor: pointer;
 }
 .search-item:hover {
-  background: #f5f7fa;
+  background: var(--wb-border);
 }
 .search-sub {
-  color: #909399;
+  color: var(--wb-text-3);
   font-size: 12px;
   margin-left: 6px;
 }

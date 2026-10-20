@@ -636,7 +636,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--wb-border);
 }
 .toolbar {
   display: flex;
@@ -656,10 +656,10 @@ onMounted(() => {
 }
 .comment-item {
   padding: 10px 0;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--wb-border);
 }
 .comment-meta {
-  color: #909399;
+  color: var(--wb-text-3);
   font-size: 12px;
 }
 .comment-content {
@@ -667,20 +667,20 @@ onMounted(() => {
   white-space: pre-wrap;
 }
 .upload-tip {
-  color: #909399;
+  color: var(--wb-text-3);
   font-size: 12px;
   margin-top: 4px;
 }
 .attachment-item {
   padding: 10px 0;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--wb-border);
 }
 .attachment-name a {
-  color: #409eff;
+  color: var(--wb-brand-500);
   text-decoration: none;
 }
 .attachment-meta {
-  color: #909399;
+  color: var(--wb-text-3);
   font-size: 12px;
   margin: 4px 0;
 }
