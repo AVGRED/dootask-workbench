@@ -1,6 +1,8 @@
 import { expect, request as playwrightRequest, type APIRequestContext } from "@playwright/test";
 
-export const DEMO = { username: "demo@workbench.local", password: "secret123" };
+const demoPassword = process.env.WORKBENCH_DEMO_PASSWORD ?? "";
+
+export const DEMO = { username: "demo@workbench.local", password: demoPassword };
 
 export type Json = { code: number; message?: string; data: any };
 
@@ -35,6 +37,9 @@ export async function call(
 }
 
 export async function login(credentials = DEMO): Promise<string> {
+  if (!credentials.password) {
+    throw new Error("WORKBENCH_DEMO_PASSWORD 未设置，无法运行 API 测试（值见 server/deploy/workbench.env）");
+  }
   const result = await call(null, "POST", "/api/v1/auth/login", credentials);
   expect(result.code, `登录失败：${result.message}`).toBe(0);
   return result.data.token as string;

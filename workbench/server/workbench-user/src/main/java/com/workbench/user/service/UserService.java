@@ -75,6 +75,18 @@ public class UserService {
         return toView(user);
     }
 
+    /** 管理员重置某用户密码：重新 bcrypt 哈希。注意：已签发令牌仍有效直到过期。 */
+    public void changePassword(long userid, String password) {
+        if (password == null || password.length() < 8) {
+            throw new BusinessException("密码至少 8 位");
+        }
+        User user = require(userid);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setEncrypt("");
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+    }
+
     public void delete(long userid) {
         require(userid);
         userMapper.deleteById(userid);

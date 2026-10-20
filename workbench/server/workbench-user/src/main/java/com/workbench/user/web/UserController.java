@@ -68,6 +68,16 @@ public class UserController {
     }
 
     /** 修改角色：需要管理员；系统还没有管理员时允许首个用户自举为 admin。 */
+    @PutMapping("/{userid}/password")
+    public ApiResponse<Void> changePassword(
+            Principal principal,
+            @PathVariable long userid,
+            @RequestBody ChangePasswordRequest request) {
+        systemAdmin.requireAdmin(currentUserid(principal));
+        userService.changePassword(userid, request.password());
+        return ApiResponse.ok(null);
+    }
+
     @PutMapping("/{userid}/role")
     public ApiResponse<UserView> changeRole(
             Principal principal,
@@ -82,4 +92,7 @@ public class UserController {
         }
         return Long.parseLong(principal.getName());
     }
+}
+
+record ChangePasswordRequest(String password) {
 }

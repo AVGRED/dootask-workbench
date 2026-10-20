@@ -14,10 +14,16 @@
 param(
     [string]$BaseUrl = "http://127.0.0.1:9002",
     [string]$Username = "demo@workbench.local",
-    [string]$Password = "secret123"
+    [string]$Password = $env:WORKBENCH_DEMO_PASSWORD
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($Password)) {
+  Write-Host "WORKBENCH_DEMO_PASSWORD 未设置，无法运行冒烟脚本。" -ForegroundColor Red
+  Write-Host "请先设置环境变量（值见 server/deploy/workbench.env 的 DEMO_PASSWORD）" -ForegroundColor Yellow
+  exit 1
+}
 $script:token = ""
 $script:failures = 0
 $script:checks = 0
@@ -666,12 +672,16 @@ for ($i = 0; $i -lt $cleanupIds.Count; $i += 20) {
 $cleanupRemaining = @($cleanupIds).Count - $cleanupDeleted
 Assert-True "E2E 自清理测试账号" ($cleanupRemaining -le 0) "found=$($cleanupIds.Count) deleted=$cleanupDeleted"
 
-$reverted = Invoke-Api -Method Put -Path "/api/v1/users/$me/role" -Body @{ role = "staff" }
+# 角色变更用临时用户验证，避免把执行脚本的管理员自己降权（否则再次运行会因已存在管理员而无法自举）
+$roleUser = Invoke-Api -Method Post -Path "/api/v1/users" -Body @{ email = "e2e-role-$suffix@workbench.local"; nickname = "E2E角色"; password = "role123" }
+Assert-True "创建角色测试用户" ($roleUser.code -eq 0) "code=$($roleUser.code)"
+$roleUserid = $roleUser.data.userid
+$promoteRole = Invoke-Api -Method Put -Path "/api/v1/users/$roleUserid/role" -Body @{ role = "admin" }
+Assert-True "管理员可把角色改为 admin" ($promoteRole.data.role -eq "admin") "role=$($promoteRole.data.role)"
+$reverted = Invoke-Api -Method Put -Path "/api/v1/users/$roleUserid/role" -Body @{ role = "staff" }
 Assert-True "管理员可把角色改回 staff" ($reverted.data.role -eq "staff") "role=$($reverted.data.role)"
-
-$staffLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $Username; password = $Password }
+$staffLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "e2e-role-$suffix@workbench.local"; password = "role123" }
 Assert-True "改回后登录角色为 staff" ($staffLogin.data.role -eq "staff") "role=$($staffLogin.data.role)"
-$script:token = $staffLogin.data.token
 
 # 8. 分页与中文
 $users = Invoke-Api -Method Get -Path "/api/v1/users?page=1&size=5"
@@ -680,7 +690,7 @@ Assert-True "用户分页 size 生效" ($users.data.size -eq 5) "size=$($users.d
 
 Write-Host ""
 # 6.22 登出使旧令牌失效
-$logoutLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "demo@workbench.local"; password = "secret123" }
+$logoutLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $Username; password = $Password }
 $oldToken = $logoutLogin.data.token
 $logoutResp = Invoke-Api -Method Post -Path "/api/v1/auth/logout"
 Assert-True "登出接口成功" ($logoutResp.code -eq 0) "code=$($logoutResp.code)"
@@ -688,7 +698,7 @@ $oldHeaders = @{ Authorization = "Bearer $oldToken" }
 $reuseRaw = & curl.exe -s -H "Authorization: Bearer $oldToken" "http://127.0.0.1:$port/api/v1/projects"
 $reuseJson = ($reuseRaw -join "") | ConvertFrom-Json
 Assert-True "登出后旧令牌失效" ($reuseJson.code -ne 0) "code=$($reuseJson.code)"
-$freshLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = "demo@workbench.local"; password = "secret123" }
+$freshLogin = Invoke-Api -Method Post -Path "/api/v1/auth/login" -Body @{ username = $Username; password = $Password }
 Assert-True "重新登录拿到新令牌" ([bool]$freshLogin.data.token) ""
 
 if ($script:failures -eq 0) {
