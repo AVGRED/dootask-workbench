@@ -45,6 +45,10 @@
             />
           </label>
 
+          <div class="form-extra">
+            <el-checkbox v-model="remember">记住账号</el-checkbox>
+          </div>
+
           <transition name="fade">
             <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="form-error" />
           </transition>
@@ -66,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useTheme } from "../composables/useTheme";
@@ -76,9 +80,27 @@ const router = useRouter();
 const route = useRoute();
 const { theme, toggleTheme } = useTheme();
 
+const REMEMBER_KEY = "workbench.rememberedUser";
 const form = reactive({ username: "", password: "" });
+const remember = ref(true);
 const loading = ref(false);
 const error = ref("");
+
+function initRemembered(): void {
+  const saved = localStorage.getItem(REMEMBER_KEY);
+  if (saved) {
+    form.username = saved;
+    remember.value = true;
+  }
+}
+
+function persistRemembered(): void {
+  if (remember.value) {
+    localStorage.setItem(REMEMBER_KEY, form.username);
+  } else {
+    localStorage.removeItem(REMEMBER_KEY);
+  }
+}
 
 async function submit(): Promise<void> {
   if (!form.username || !form.password) {
@@ -89,6 +111,7 @@ async function submit(): Promise<void> {
   error.value = "";
   try {
     await auth.login({ username: form.username, password: form.password });
+    persistRemembered();
     const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
     await router.replace(redirect);
   } catch (exception) {
@@ -97,6 +120,7 @@ async function submit(): Promise<void> {
     loading.value = false;
   }
 }
+onMounted(initRemembered);
 </script>
 
 <style scoped>
@@ -271,5 +295,11 @@ async function submit(): Promise<void> {
   .form-panel {
     padding: 28px;
   }
+}
+.form-extra {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: -4px 0 12px;
 }
 </style>

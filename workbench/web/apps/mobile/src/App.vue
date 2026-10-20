@@ -1,13 +1,13 @@
 <template>
   <div class="app">
-    <header class="topbar">
+    <header v-if="!isPublic" class="topbar">
       <span class="title">{{ title }}</span>
       <span v-if="auth.isLoggedIn" class="who">{{ auth.user?.nickname ?? "" }}</span>
     </header>
-    <main class="content">
+    <main :class="isPublic ? 'content bare' : 'content'">
       <router-view />
     </main>
-    <nav v-if="auth.isLoggedIn" class="tabbar">
+    <nav v-if="auth.isLoggedIn && !isPublic" class="tabbar">
       <router-link v-for="tab in tabs" :key="tab.name" :to="tab.path" class="tab" :class="{ active: isActive(tab) }">
         <span class="tab-icon">{{ tab.icon }}</span>
         <span class="tab-label">{{ tab.label }}</span>
@@ -44,6 +44,7 @@ const TITLES: Record<string, string> = {
 };
 
 const title = computed(() => TITLES[String(route.name)] ?? "工作台");
+const isPublic = computed(() => Boolean(route.meta.public));
 
 function isActive(tab: { name: string; path: string }): boolean {
   if (tab.name === "home") return route.name === "home";
