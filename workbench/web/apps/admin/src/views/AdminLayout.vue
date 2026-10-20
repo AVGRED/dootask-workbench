@@ -18,6 +18,7 @@
       <div class="right">
         <el-button link type="primary" @click="go('users')">用户管理</el-button>
         <el-button link type="primary" @click="go('settings')">设置</el-button>
+        <el-button link @click="toggleTheme">{{ theme === "dark" ? "☀️" : "🌙" }}</el-button>
         <el-button link @click="logout">退出</el-button>
       </div>
     </el-header>
@@ -30,9 +31,11 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from "vue-router";
 import { client } from "../stores/auth";
+import { useTheme } from "../composables/useTheme";
 
 const route = useRoute();
 const router = useRouter();
+const { theme, toggleTheme } = useTheme();
 
 const tabs = [
   { name: "team", label: "状态墙" },

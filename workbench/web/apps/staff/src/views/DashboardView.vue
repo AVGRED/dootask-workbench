@@ -16,6 +16,7 @@
         <el-button size="small" @click="addVisible = true">添加板块</el-button>
         <el-button size="small" :loading="saving" @click="saveLayout">保存布局</el-button>
         <el-button size="small" @click="resetLayout">恢复默认</el-button>
+        <el-button size="small" @click="toggleTheme">{{ theme === "dark" ? "☀️ 亮色" : "🌙 暗色" }}</el-button>
         <el-button size="small" @click="goProjects">全部项目</el-button>
         <el-button link type="primary" @click="logout">退出</el-button>
       </span>
@@ -57,8 +58,10 @@ import type { DashboardView, LayoutItem, WidgetDef } from "@workbench/api";
 import DashboardGrid from "../components/dashboard/DashboardGrid.vue";
 import type { ProjectBlock } from "../components/dashboard/WidgetContent.vue";
 import { client } from "../stores/auth";
+import { useTheme } from "../composables/useTheme";
 
 const router = useRouter();
+const { theme, toggleTheme } = useTheme();
 const loading = ref(false);
 const saving = ref(false);
 const addVisible = ref(false);
