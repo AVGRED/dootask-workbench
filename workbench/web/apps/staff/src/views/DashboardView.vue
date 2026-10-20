@@ -39,68 +39,28 @@
               <span class="remove" title="移除板块" @click.stop="removeWidget(item.id)">×</span>
             </span>
           </div>
-          <div class="tile-body">
-            <div v-if="item.id === 'my-tasks'">
-              <div v-if="tasks.length === 0" class="muted">没有待办任务</div>
-              <div v-for="task in tasks" :key="task.id" class="line" @click="openTasks(task.project_id)">
-                <span class="dot"></span>{{ task.name }}
-                <span class="muted small">{{ task.end_at ? task.end_at.slice(0, 10) : "" }}</span>
-              </div>
-            </div>
-            <div v-else-if="item.id.startsWith('project:')">
-              <div class="muted">{{ projectOf(item.id)?.done }}/{{ projectOf(item.id)?.total }} 完成 · {{ projectOf(item.id)?.members }} 人</div>
-              <div class="progress"><div class="progress-bar" :style="{ width: `${projectOf(item.id)?.percent ?? 0}%` }"></div></div>
-              <div class="project-actions">
-                <el-button size="small" @click="openProject(projectOf(item.id))">任务</el-button>
-                <el-button size="small" @click="openBoard(projectOf(item.id))">看板</el-button>
-                <el-button size="small" @click="openGantt(projectOf(item.id))">甘特</el-button>
-              </div>
-            </div>
-            <div v-else-if="item.id === 'daily-report'">
-              <div class="big">{{ reportSubmitted ? "已提交" : "未提交" }}</div>
-              <el-button size="small" @click="goReport">去写日报</el-button>
-            </div>
-            <div v-else-if="item.id === 'capacity'">
-              <div class="big">{{ capacity.minutes }}<span class="unit"> 分钟</span></div>
-              <div class="muted">近 7 天 · 可用 {{ capacity.available }} 分钟</div>
-            </div>
-            <div v-else-if="item.id === 'notifications'">
-              <div class="big">{{ unread }}<span class="unit"> 未读</span></div>
-              <div v-for="note in latestNotes" :key="note.id" class="line">{{ note.title }}</div>
-            </div>
-            <div v-else-if="item.id === 'activity'">
-              <div v-for="log in activity" :key="log.id" class="line">
-                <span class="muted small">{{ (log.created_at ?? "").slice(5, 16) }}</span> {{ log.detail }}
-              </div>
-            </div>
-            <div v-else-if="item.id === 'board'">
-              <div v-for="row in boardRows" :key="row.project_id" class="line" @click="openBoardById(row.project_id)">
-                {{ row.name }} <span class="muted small">{{ row.open_tasks }} 个未完成</span>
-              </div>
-            </div>
-            <div v-else-if="item.id === 'gantt'">
-              <div v-for="task in ganttTasks" :key="task.id" class="line">
-                {{ task.name }}
-                <span class="muted small">{{ task.start_at?.slice(0, 10) }} → {{ task.end_at?.slice(0, 10) }}</span>
-              </div>
-            </div>
-            <div v-else-if="item.id === 'summary'">
-              <div class="row-metrics">
-                <div><div class="big">{{ summary.projects }}</div><div class="muted">项目</div></div>
-                <div><div class="big">{{ summary.openTasks }}</div><div class="muted">未完成</div></div>
-                <div><div class="big warn">{{ summary.overdue }}</div><div class="muted">逾期</div></div>
-              </div>
-            </div>
-            <div v-else-if="item.id === 'search'">
-              <el-input v-model="searchKeyword" placeholder="搜索项目 / 任务 / 人" @keyup.enter="doSearch" />
-              <div v-if="searchResult" class="search-out">
-                <div v-for="hit in flatHits" :key="hit.type + hit.id" class="line">{{ hit.title }}
-                  <span class="muted small">{{ hit.subtitle }}</span>
-                </div>
-              </div>
-            </div>
+<div class="tile-body">
+            <WidgetContent
+              :id="item.id"
+              :tasks="tasks"
+              :report-submitted="reportSubmitted"
+              :capacity="capacity"
+              :unread="unread"
+              :latest-notes="latestNotes"
+              :activity="activity"
+              :board-rows="boardRows"
+              :gantt-tasks="ganttTasks"
+              :summary="summary"
+              :project="projectOf(item.id)"
+              @open-tasks="openTasks"
+              @open-project="openProject"
+              @open-board="openBoard"
+              @open-gantt="openGantt"
+              @open-board-id="openBoardById"
+              @go-report="goReport"
+            />
           </div>
-          <div class="resize" title="拖动调整大小"></div>
+                    <div class="resize" title="拖动调整大小"></div>
         </div>
       </div>
 
@@ -127,6 +87,7 @@ import {
   gridHeightOf,
   tileStyleOf
 } from "../composables/bentoGrid";
+import WidgetContent from "../components/dashboard/WidgetContent.vue";
 import { client } from "../stores/auth";
 
 const router = useRouter();
@@ -140,8 +101,6 @@ const catalog = ref<WidgetDef[]>([]);
 const status = ref("idle");
 const myAvatar = ref("");
 const avatarInput = ref<HTMLInputElement | null>(null);
-const searchKeyword = ref("");
-const searchResult = ref<{ projects: unknown[]; tasks: unknown[]; users: unknown[] } | null>(null);
 
 
 const drag = ref<{ id: string; startX: number; startY: number; startCol: number; startRow: number; w: number; h: number; mode: "move" | "resize" } | null>(null);
@@ -158,14 +117,6 @@ const activity = computed(() => (dash.value?.data["activity"] as { id: number; d
 const boardRows = computed(() => (dash.value?.data["board"] as { project_id: number; name: string; open_tasks: number }[]) ?? []);
 const ganttTasks = computed(() => (dash.value?.data["gantt"] as { id: number; name: string; start_at: string; end_at: string }[]) ?? []);
 const summary = computed(() => (dash.value?.data["summary"] as { projects: number; openTasks: number; overdue: number }) ?? { projects: 0, openTasks: 0, overdue: 0 });
-const flatHits = computed(() => {
-  if (!searchResult.value) return [] as { id: number; title: string; subtitle: string; type: string }[];
-  return [
-    ...searchResult.value.projects.map((item) => ({ ...(item as object), type: "project" })),
-    ...searchResult.value.tasks.map((item) => ({ ...(item as object), type: "task" })),
-    ...searchResult.value.users.map((item) => ({ ...(item as object), type: "user" }))
-  ] as { id: number; title: string; subtitle: string; type: string }[];
-});
 
 const colorIndex = computed(() => buildColorIndex(layout.value));
 const gridHeight = computed(() => gridHeightOf(layout.value));
@@ -363,15 +314,6 @@ async function changeStatus(): Promise<void> {
     ElMessage.success("状态已更新");
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "设置状态失败");
-  }
-}
-
-async function doSearch(): Promise<void> {
-  if (!searchKeyword.value.trim()) return;
-  try {
-    searchResult.value = (await client.search(searchKeyword.value.trim())) as never;
-  } catch {
-    searchResult.value = null;
   }
 }
 
