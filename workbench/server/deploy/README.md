@@ -1,4 +1,4 @@
-# 工作台部署说明
+﻿# 工作台部署说明
 
 ## 1. 后端（jar 方式长期运行）
 
@@ -76,3 +76,23 @@ Compress-Archive -Path server\data\uploads\* -DestinationPath backup\uploads-$(G
 - [ ] 前端用 build 产物 + nginx，不使用 dev server
 - [ ] 后端用 jar + 启动脚本（或计划任务/服务）托管
 - [ ] 配置了数据库与上传目录的定期备份
+## 5. 测试账号与密码
+
+演示账号 `demo@workbench.local` 的密码已从默认值轮换，新密码在 `deploy/workbench.env` 的 `DEMO_PASSWORD`（该文件已被 gitignore，不会入库）。
+
+运行回归测试前先导出环境变量：
+
+`powershell
+$env:WORKBENCH_DEMO_PASSWORD='<deploy/workbench.env 里的 DEMO_PASSWORD>'
+powershell -File workbench/scripts/e2e-smoke.ps1 -BaseUrl http://127.0.0.1:9020
+pnpm --filter @workbench/e2e test:api
+`
+
+管理员重置任意用户密码：
+
+`
+PUT /api/v1/users/{userid}/password
+{ "password": "新密码（至少 8 位）" }
+`
+
+需管理员令牌；重置后旧令牌仍有效直到过期。
