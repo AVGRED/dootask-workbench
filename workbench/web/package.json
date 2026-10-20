@@ -8,6 +8,18 @@
     "test:e2e": "pnpm --filter @workbench/e2e test",
     "dev:staff": "pnpm --filter @workbench/staff dev",
     "dev:admin": "pnpm --filter @workbench/admin dev",
-    "dev:mobile": "pnpm --filter @workbench/mobile dev"
+    "dev:mobile": "pnpm --filter @workbench/mobile dev",
+    "lint": "eslint apps packages",
+    "lint:fix": "eslint apps packages --fix",
+    "format": "prettier --write \"apps/**/*.{ts,vue,css}\" \"packages/**/*.ts\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "eslint-plugin-vue": "^10.11.1",
+    "prettier": "^3.9.10",
+    "typescript-eslint": "^8.72.0",
+    "unplugin-element-plus": "^0.11.2",
+    "unplugin-vue-components": "^32.1.0"
   }
 }

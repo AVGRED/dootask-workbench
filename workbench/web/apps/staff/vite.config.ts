@@ -1,10 +1,17 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import Components from "unplugin-vue-components/vite";
+import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
+import ElementPlus from "unplugin-element-plus/vite";
 
 const apiTarget = process.env.WORKBENCH_API ?? "http://127.0.0.1:9000";
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    Components({ resolvers: [ElementPlusResolver({ importStyle: false })] }),
+    ElementPlus({ useSource: false })
+  ],
   server: {
     port: 5180,
     proxy: {
@@ -22,8 +29,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          "vendor-vue": ["vue", "vue-router", "pinia"],
-          "vendor-element": ["element-plus"]
+          "vendor-vue": ["vue", "vue-router", "pinia"]
         }
       }
     }

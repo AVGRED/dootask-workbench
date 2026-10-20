@@ -56,6 +56,21 @@
 
 - 删除 `apps/staff/src/views/HomeView.vue`（0 引用）
 
+## 第二批（P1 第二组）
+
+### 5. ESLint 门禁 + Prettier 配置
+
+- 新增 eslint.config.mjs（flat config：js + typescript-eslint + eslint-plugin-vue）
+- pnpm lint / lint:fix / ormat 脚本；.prettierrc.json
+- CI web job 增加 pnpm lint 步骤
+- 结果：0 error（3 个 e2e 脚本的 unused 警告）
+
+### 6. Element Plus 按需引入
+
+- unplugin-vue-components + unplugin-element-plus，移除 pp.use(ElementPlus)
+- 语言包改由 el-config-provider 提供（中文化保持）
+- 构建对比（staff）：入口 chunk 1037KB → 108KB，总 JS 约 2MB → 722KB；页面按路由懒加载
+
 ## 未处理（明确留待后续）
 
 | 项 | 原因 |

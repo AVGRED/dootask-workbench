@@ -37,6 +37,9 @@ jobs:
       - name: Install dependencies
         working-directory: workbench/web
         run: pnpm install --frozen-lockfile
+      - name: Lint
+        working-directory: workbench/web
+        run: pnpm lint
       - name: Typecheck
         working-directory: workbench/web
         run: pnpm typecheck
