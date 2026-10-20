@@ -7,11 +7,17 @@
           <span class="brand-name">工作台 · 管理端</span>
         </div>
         <h1 class="brand-title">看清每个人在做什么<br />也看清每个项目走到哪</h1>
-        <ul class="brand-points">
-          <li><span class="point-icon">◍</span>团队状态墙：在线状态、在做任务、近 7 天工时</li>
-          <li><span class="point-icon">◧</span>项目总览：完成度、逾期与成员分布</li>
-          <li><span class="point-icon">✎</span>日报审计：提交率、缺失名单、内容抽查</li>
-        </ul>
+        <div class="showcase">
+          <figure class="shot shot-back">
+            <img :src="shots.projects" alt="项目总览" />
+            <figcaption>项目总览 · 完成度与逾期</figcaption>
+          </figure>
+          <figure class="shot shot-front">
+            <img :src="shots.team" alt="状态墙" />
+            <figcaption>状态墙 · 谁在做什么</figcaption>
+          </figure>
+        </div>
+
         <div class="brand-foot">仅管理员可访问 · 操作留痕</div>
       </aside>
 
@@ -24,11 +30,13 @@
         <el-form :model="form" @submit.prevent="submit">
           <label class="field">
             <span class="field-label">账号</span>
+            <span v-if="fieldError.username" class="field-error">{{ fieldError.username }}</span>
             <el-input v-model="form.username" size="large" placeholder="邮箱或账号" autocomplete="username" />
           </label>
 
           <label class="field">
             <span class="field-label">密码</span>
+            <span v-if="fieldError.password" class="field-error">{{ fieldError.password }}</span>
             <el-input
               v-model="form.password"
               size="large"
@@ -36,6 +44,7 @@
               placeholder="请输入密码"
               show-password
               autocomplete="current-password"
+              @keyup="onPasswordKeyup"
               @keyup.enter="submit"
             />
           </label>
@@ -44,7 +53,7 @@
             <el-checkbox v-model="remember">记住账号</el-checkbox>
           </div>
 
-          <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="form-error" />
+          <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="form-error" :class="{ shake: shaking }" />
 
           <el-button type="primary" size="large" native-type="submit" :loading="loading" class="submit">登录</el-button>
         </el-form>
@@ -65,6 +74,10 @@ import { onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useTheme } from "../composables/useTheme";
+import teamShot from "../assets/showcase/team-dark.png";
+import projectsShot from "../assets/showcase/projects-dark.png";
+
+const shots = { team: teamShot, projects: projectsShot };
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -76,6 +89,13 @@ const form = reactive({ username: "", password: "" });
 const remember = ref(true);
 const loading = ref(false);
 const error = ref("");
+const fieldError = reactive<{ username: string; password: string }>({ username: "", password: "" });
+const capsLock = ref(false);
+const shaking = ref(false);
+
+function onPasswordKeyup(event: KeyboardEvent): void {
+  capsLock.value = Boolean(event.getModifierState?.("CapsLock"));
+}
 
 function initRemembered(): void {
   const saved = localStorage.getItem(REMEMBER_KEY);
@@ -93,9 +113,19 @@ function persistRemembered(): void {
   }
 }
 
+function triggerShake(): void {
+  shaking.value = true;
+  window.setTimeout(() => {
+    shaking.value = false;
+  }, 400);
+}
+
 async function submit(): Promise<void> {
-  if (!form.username || !form.password) {
+  fieldError.username = form.username ? "" : "请输入账号";
+  fieldError.password = form.password ? "" : "请输入密码";
+  if (fieldError.username || fieldError.password) {
     error.value = "请输入账号与密码";
+    triggerShake();
     return;
   }
   loading.value = true;
@@ -107,6 +137,7 @@ async function submit(): Promise<void> {
     await router.replace(redirect);
   } catch (exception) {
     error.value = exception instanceof Error ? exception.message : "登录失败";
+    triggerShake();
   } finally {
     loading.value = false;
   }
@@ -284,5 +315,74 @@ onMounted(initRemembered);
   justify-content: space-between;
   align-items: center;
   margin: -4px 0 12px;
+}
+.showcase {
+  position: relative;
+  flex: 0 0 auto;
+  height: 268px;
+  margin-top: 4px;
+}
+.shot {
+  position: absolute;
+  width: 62%;
+  aspect-ratio: 16 / 9;
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow: 0 16px 32px rgba(8, 10, 26, 0.42);
+  background: rgba(255, 255, 255, 0.06);
+  transition: transform var(--wb-duration) var(--wb-ease);
+}
+.shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+}
+.shot figcaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(transparent, rgba(6, 8, 22, 0.78));
+}
+.shot-back {
+  top: 6px;
+  left: 0;
+  transform: rotate(-4deg);
+  opacity: 0.82;
+}
+
+.shot-front {
+  top: 92px;
+  left: 26%;
+  transform: rotate(1.6deg);
+}
+.shot-front:hover {
+  transform: rotate(0deg) translateY(-4px);
+}
+.field-error {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--wb-danger);
+}
+.caps-hint {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--wb-warning);
+}
+.shake {
+  animation: wb-shake 320ms ease;
+}
+@keyframes wb-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
 }
 </style>

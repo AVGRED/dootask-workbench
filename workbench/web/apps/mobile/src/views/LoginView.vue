@@ -7,13 +7,17 @@
       </div>
       <h1 class="hero-title">今天的事<br />装进一块画布</h1>
       <p class="hero-sub">项目 · 任务 · 日报，随时随地看一眼</p>
+
+      <figure class="hero-shot">
+        <img :src="dashboardShot" alt="工作台首页预览" />
+      </figure>
     </div>
 
     <div class="sheet">
       <h2 class="sheet-title">登录</h2>
       <p class="sheet-sub">使用工作台账号继续</p>
 
-      <div v-if="error" class="error-banner">
+      <div v-if="error" class="error-banner" :class="{ shake: shaking }">
         <span class="error-icon">!</span>
         <span>{{ error }}</span>
       </div>
@@ -29,22 +33,26 @@
           placeholder="邮箱或账号"
           @keyup.enter="submit"
         />
+        <span v-if="fieldError === '请输入账号'" class="field-error">{{ fieldError }}</span>
       </label>
 
       <label class="field">
         <span class="field-label">密码</span>
+        <p v-if="capsLock" class="caps-hint">⚠️ 大写锁定已开启</p>
         <div class="input-wrap">
           <input
             v-model="password"
             :type="showPassword ? 'text' : 'password'"
             autocomplete="current-password"
             placeholder="请输入密码"
+            @keyup="onPasswordKeyup"
             @keyup.enter="submit"
           />
           <button class="toggle" type="button" @click="showPassword = !showPassword">
             {{ showPassword ? "隐藏" : "显示" }}
           </button>
         </div>
+        <span v-if="fieldError === '请输入密码'" class="field-error">{{ fieldError }}</span>
       </label>
 
       <button class="primary" type="button" :disabled="loading" @click="submit">
@@ -69,6 +77,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useTheme } from "../composables/useTheme";
+import dashboardShot from "../assets/showcase/dashboard-dark.png";
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -80,10 +89,27 @@ const password = ref("");
 const error = ref("");
 const loading = ref(false);
 const showPassword = ref(false);
+const fieldError = ref("");
+const capsLock = ref(false);
+const shaking = ref(false);
+
+function onPasswordKeyup(event: KeyboardEvent): void {
+  capsLock.value = Boolean(event.getModifierState?.("CapsLock"));
+}
+
+function triggerShake(): void {
+  shaking.value = true;
+  window.setTimeout(() => {
+    shaking.value = false;
+  }, 400);
+}
 
 async function submit(): Promise<void> {
+  fieldError.value = "";
   if (!username.value || !password.value) {
+    fieldError.value = !username.value ? "请输入账号" : "请输入密码";
     error.value = "请输入账号与密码";
+    triggerShake();
     return;
   }
   error.value = "";
@@ -94,6 +120,7 @@ async function submit(): Promise<void> {
     await router.replace({ name: "home" });
   } catch (exception) {
     error.value = exception instanceof Error ? exception.message : "登录失败";
+    triggerShake();
   } finally {
     loading.value = false;
   }
@@ -287,5 +314,42 @@ onMounted(() => {
   text-align: center;
   font-size: 11px;
   color: var(--wb-text-3);
+}
+.hero-shot {
+  position: relative;
+  width: 64%;
+  margin: 14px 0 -30px auto;
+  aspect-ratio: 16 / 10;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 18px 30px rgba(6, 8, 22, 0.4);
+  transform: rotate(-4deg);
+}
+.hero-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+}
+.field-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--wb-danger);
+}
+.caps-hint {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--wb-warning);
+}
+.shake {
+  animation: wb-shake 320ms ease;
+}
+@keyframes wb-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
 }
 </style>
