@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
-    "typecheck": "playwright test --list"
+    "typecheck": "playwright test --list",
+    "test:api": "playwright test -c playwright.api.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0",
