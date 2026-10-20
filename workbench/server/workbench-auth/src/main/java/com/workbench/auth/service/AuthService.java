@@ -118,10 +118,12 @@ public class AuthService {
     private List<Map<String, Object>> findByEmail(String account) {
         // 支持用邮箱登录；不含 @ 的账号（如 admin）按昵称匹配，方便配置简短管理员账号
         boolean alias = account != null && !account.contains("@");
+        // 不含 @ 的账号：先按昵称、再按邮箱本地部分（如工号 401004 → 401004@workbench.local）
         String base = alias
-                ? "select userid, email, nickname, password, encrypt from users where (email = ? or nickname = ?)"
+                ? "select userid, email, nickname, password, encrypt from users "
+                + "where (email = ? or nickname = ? or email like concat(?, '@%'))"
                 : "select userid, email, nickname, password, encrypt from users where email = ?";
-        Object[] args = alias ? new Object[] {account, account} : new Object[] {account};
+        Object[] args = alias ? new Object[] {account, account, account} : new Object[] {account};
         try {
             return jdbcTemplate.queryForList(base + " and deleted_at is null order by userid limit 1", args);
         } catch (DataAccessException exception) {
