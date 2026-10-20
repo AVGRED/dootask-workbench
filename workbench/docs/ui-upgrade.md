@@ -155,7 +155,7 @@ powershell -File workbench/scripts/e2e-smoke.ps1 -BaseUrl http://127.0.0.1:9020 
 | `web` | `pnpm install` → `pnpm typecheck` → `pnpm build` |
 | `browser` | 起 MySQL → 打包并启动后端(9000) → 用 `scripts/seed-ci-users.sql` 播种 demo/admin → 起三端 dev server → `pnpm test:e2e`（14 API + 6 浏览器），失败上传 `test-results` |
 
-浏览器 job 的关键约定：`WORKBENCH_API=http://127.0.0.1:9000`、`WORKBENCH_DEMO_PASSWORD=secret123`、`WORKBENCH_ADMIN_USERNAME=admin` / `WORKBENCH_ADMIN_PASSWORD=a1s2d3f4!@#`，与 `seed-ci-users.sql` 里的 md5 种子密码对应（首次登录自动升 BCrypt）。
+浏览器 job 的关键约定：`WORKBENCH_API=http://127.0.0.1:9000`、`WORKBENCH_DEMO_PASSWORD=secret123`、`WORKBENCH_ADMIN_USERNAME=admin` / `WORKBENCH_ADMIN_PASSWORD=<CI 专用密码>`，与 `seed-ci-users.sql` 里的 md5 种子密码对应（首次登录自动升 BCrypt）。
 
 > 注：工作流 YAML 已用解析器校验，未在真实 GitHub Actions 上跑过（本地无 Actions runner），首次上线需观察一轮。
 

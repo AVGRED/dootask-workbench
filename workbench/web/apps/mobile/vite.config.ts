@@ -13,5 +13,14 @@ export default defineConfig({
         changeOrigin: true
       }
     }
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-vue": ["vue", "vue-router", "pinia"],
+        }
+      }
+    }
+  },
 });

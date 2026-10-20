@@ -21,6 +21,10 @@ import org.springframework.stereotype.Service;
 public class StarMapService {
 
     private static final int MAX_NODES = 500;
+    /** 单项目参与配对的成员上限，避免大项目 O(n²) 爆炸。 */
+    private static final int MAX_MEMBERS_PER_PROJECT = 60;
+    /** 返回给前端的边数上限。 */
+    private static final int MAX_EDGES = 2000;
 
     private final JdbcTemplate jdbc;
     private final SystemAdmin systemAdmin;
@@ -112,10 +116,16 @@ public class StarMapService {
         // 连边：同一项目内两两相连；权重 = 共同项目数
         Map<String, Integer> weights = new LinkedHashMap<>();
         Map<String, java.util.List<String>> edgeProjects = new LinkedHashMap<>();
+        boolean truncated = false;
+        outer:
         for (Map.Entry<Long, Set<Long>> projectEntry : projectUsers.entrySet()) {
             long projectId = projectEntry.getKey();
             Set<Long> users = projectEntry.getValue();
             List<Long> list = new ArrayList<>(users);
+            if (list.size() > MAX_MEMBERS_PER_PROJECT) {
+                list = new ArrayList<>(list.subList(0, MAX_MEMBERS_PER_PROJECT));
+                truncated = true;
+            }
             for (int i = 0; i < list.size(); i++) {
                 for (int j = i + 1; j < list.size(); j++) {
                     long a = list.get(i);
@@ -124,6 +134,10 @@ public class StarMapService {
                         continue;
                     }
                     String key = a + ":" + b;
+                    if (!weights.containsKey(key) && weights.size() >= MAX_EDGES) {
+                        truncated = true;
+                        break outer;
+                    }
                     weights.merge(key, 1, Integer::sum);
                     String projectName = projectNames.getOrDefault(projectId, "");
                     if (!projectName.isBlank()) {
@@ -162,6 +176,7 @@ public class StarMapService {
         result.put("centerUserid", currentUserid);
         result.put("nodes", nodes);
         result.put("edges", edges);
+        result.put("truncated", truncated);
         return result;
     }
 }

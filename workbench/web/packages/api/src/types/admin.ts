@@ -89,6 +89,8 @@ export interface StarEdge {
 
 export interface StarMapView {
   scope: "all" | "collaborators";
+  /** 关系过多时后端会截断，前端据此提示 */
+  truncated?: boolean;
   centerUserid: number;
   nodes: StarNode[];
   edges: StarEdge[];

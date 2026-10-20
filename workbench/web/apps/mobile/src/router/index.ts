@@ -1,22 +1,15 @@
 import { createRouter, createWebHistory } from "vue-router";
-import LoginView from "../views/LoginView.vue";
-import HomeView from "../views/HomeView.vue";
-import ProjectsView from "../views/ProjectsView.vue";
-import ProfileView from "../views/ProfileView.vue";
-import TasksView from "../views/TasksView.vue";
-import ReportView from "../views/ReportView.vue";
-import MessagesView from "../views/MessagesView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/login", name: "login", component: LoginView, meta: { public: true } },
-    { path: "/", name: "home", component: HomeView },
-    { path: "/projects", name: "projects", component: ProjectsView },
-    { path: "/projects/:projectId/tasks", name: "tasks", component: TasksView },
-    { path: "/report", name: "report", component: ReportView },
-    { path: "/messages", name: "messages", component: MessagesView },
-    { path: "/profile", name: "profile", component: ProfileView }
+    { path: "/login", name: "login", component: () => import("../views/LoginView.vue"), meta: { public: true } },
+    { path: "/", name: "home", component: () => import("../views/HomeView.vue") },
+    { path: "/projects", name: "projects", component: () => import("../views/ProjectsView.vue") },
+    { path: "/projects/:projectId/tasks", name: "tasks", component: () => import("../views/TasksView.vue") },
+    { path: "/report", name: "report", component: () => import("../views/ReportView.vue") },
+    { path: "/messages", name: "messages", component: () => import("../views/MessagesView.vue") },
+    { path: "/profile", name: "profile", component: () => import("../views/ProfileView.vue") }
   ]
 });
 

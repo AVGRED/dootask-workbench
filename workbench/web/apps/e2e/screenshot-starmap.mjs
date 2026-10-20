@@ -16,7 +16,7 @@ async function login(username, password) {
 
 const demo = await login("demo@workbench.local", process.env.WORKBENCH_DEMO_PASSWORD ?? "");
 const legacy = await login("legacy@example.com", "secret123");
-const admin = await login("admin", "a1s2d3f4!@#");
+const admin = await login("admin", process.env.WORKBENCH_ADMIN_PASSWORD ?? "");
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 

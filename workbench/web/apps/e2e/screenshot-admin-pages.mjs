@@ -8,7 +8,7 @@ const OUT = path.resolve(import.meta.dirname, "../../../screenshots");
 const login = (await (await fetch(`${API}/api/v1/auth/login`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username: "admin", password: "a1s2d3f4!@#" })
+  body: JSON.stringify({ username: "admin", password: process.env.WORKBENCH_ADMIN_PASSWORD ?? "" })
 })).json()).data;
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });

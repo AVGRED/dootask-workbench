@@ -1,28 +1,18 @@
 import { createRouter, createWebHistory } from "vue-router";
-import LoginView from "../views/LoginView.vue";
-import DashboardView from "../views/DashboardView.vue";
-import ProjectsView from "../views/ProjectsView.vue";
-import TasksView from "../views/TasksView.vue";
-import PlanningView from "../views/PlanningView.vue";
-import KanbanView from "../views/KanbanView.vue";
-import GanttView from "../views/GanttView.vue";
-import DailyReportView from "../views/DailyReportView.vue";
-import ReportView from "../views/ReportView.vue";
-import StarMapView from "../views/StarMapView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/login", name: "login", component: LoginView, meta: { public: true } },
-    { path: "/", name: "dashboard", component: DashboardView },
-    { path: "/projects", name: "projects", component: ProjectsView },
-    { path: "/reports", name: "reports", component: DailyReportView },
-    { path: "/starmap", name: "starmap", component: StarMapView },
-    { path: "/projects/:projectId/tasks", name: "tasks", component: TasksView },
-    { path: "/projects/:projectId/planning", name: "planning", component: PlanningView },
-    { path: "/projects/:projectId/board", name: "board", component: KanbanView },
-    { path: "/projects/:projectId/gantt", name: "gantt", component: GanttView },
-    { path: "/projects/:projectId/report", name: "report", component: ReportView }
+    { path: "/login", name: "login", component: () => import("../views/LoginView.vue"), meta: { public: true } },
+    { path: "/", name: "dashboard", component: () => import("../views/DashboardView.vue") },
+    { path: "/projects", name: "projects", component: () => import("../views/ProjectsView.vue") },
+    { path: "/reports", name: "reports", component: () => import("../views/DailyReportView.vue") },
+    { path: "/starmap", name: "starmap", component: () => import("../views/StarMapView.vue") },
+    { path: "/projects/:projectId/tasks", name: "tasks", component: () => import("../views/TasksView.vue") },
+    { path: "/projects/:projectId/planning", name: "planning", component: () => import("../views/PlanningView.vue") },
+    { path: "/projects/:projectId/board", name: "board", component: () => import("../views/KanbanView.vue") },
+    { path: "/projects/:projectId/gantt", name: "gantt", component: () => import("../views/GanttView.vue") },
+    { path: "/projects/:projectId/report", name: "report", component: () => import("../views/ReportView.vue") }
   ]
 });
 

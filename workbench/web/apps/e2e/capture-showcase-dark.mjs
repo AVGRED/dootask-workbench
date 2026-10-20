@@ -17,7 +17,7 @@ async function login(username, password) {
 }
 
 const demo = await login("demo@workbench.local", process.env.WORKBENCH_DEMO_PASSWORD ?? "");
-const admin = await login("admin", "a1s2d3f4!@#");
+const admin = await login("admin", process.env.WORKBENCH_ADMIN_PASSWORD ?? "");
 
 const projects = (await (await fetch(`${API}/api/v1/projects?page=1&size=5`, {
   headers: { Authorization: `Bearer ${demo.token}` }

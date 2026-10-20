@@ -94,6 +94,7 @@
       <div v-if="hoveredNode.note" class="tt-note">“{{ hoveredNode.note }}”</div>
     </div>
 
+    <div v-if="data.truncated" class="truncated-hint">关系过多，仅展示前 2000 条连线</div>
     <div v-if="data.nodes.length === 0" class="empty">还没有协作数据</div>
   </div>
 </template>
@@ -473,6 +474,18 @@ const tooltipStyle = computed(() => {
 .tt-note {
   margin-top: 4px;
   color: var(--wb-text-3);
+}
+.truncated-hint {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--wb-warning) 12%, var(--wb-surface));
+  border: 1px solid color-mix(in srgb, var(--wb-warning) 30%, transparent);
+  color: var(--wb-warning);
+  font-size: 11.5px;
+  z-index: 2;
 }
 .empty {
   position: absolute;
