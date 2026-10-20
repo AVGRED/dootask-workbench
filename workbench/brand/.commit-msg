@@ -1,0 +1,19 @@
+feat(brand): 新增星图 Logo 设计与三端图标接入
+
+设计概念：一颗四角星（人/事）连向两个节点（共同项目），即「星图」；
+靛蓝渐变圆角底（#4338ca → #818cf8）与产品主色同族。
+
+新增 brand/：
+- logo-mark.svg（主图标）
+- logo-mark-compact.svg（≤32px 用的简化版）
+- logo-mark-mono.svg（单色 currentColor）
+- logo-horizontal.svg（图标 + 星图 + STARMAP 字标）
+- png/ 6 张导出（512/192/64/32/单色/横版）
+- README.md（概念、文件说明、配色、使用规范）
+
+接入：
+- 员工端 / 管理端：favicon.svg + favicon-32.png + apple-touch-icon + theme-color
+- 移动端：PWA icon.svg 换成简化版，补 192/512 PNG，manifest icons 更新，
+  theme_color 从旧的 #409eff 改为 #4f46e5
+
+导出脚本：apps/e2e/render-logo.mjs（1x 尺寸导出）
