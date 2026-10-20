@@ -33,6 +33,7 @@ async function shot(url, file, theme) {
 
 await shot(`${STAFF}/`, "ui-dashboard-light.png", "light");
 await shot(`${STAFF}/`, "ui-dashboard-dark.png", "dark");
+await shot(`${STAFF}/projects`, "ui-projects-light.png", "light");
 await shot(`${ADMIN}/team`, "ui-admin-light.png", "light");
 await shot(`${ADMIN}/team`, "ui-admin-dark.png", "dark");
 

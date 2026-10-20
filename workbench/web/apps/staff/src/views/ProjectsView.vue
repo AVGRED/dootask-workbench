@@ -1,19 +1,10 @@
 <template>
   <el-container class="page">
-    <el-header class="page-header">
-      <span>
-        <el-button link type="primary" @click="goHome">← 返回首页</el-button>
-        我的项目
-      </span>
-      <span>
-        <el-button type="primary" @click="openCreate">新建项目</el-button>
-        <el-button @click="openReports">我的日报</el-button>
-        <el-button @click="openNotifications">消息<span v-if="unread > 0" class="notify-badge">{{ unread }}</span></el-button>
-        <el-button link type="primary" @click="logout">退出</el-button>
-      </span>
-    </el-header>
+    <AppHeader />
+
     <el-main>
       <div class="toolbar">
+        <el-button type="primary" @click="openCreate">新建项目</el-button>
         <el-input v-model="keyword" placeholder="搜索项目名称" clearable style="width: 240px" @keyup.enter="reload" />
         <el-button @click="reload">查询</el-button>
         <el-input v-model="searchKeyword" placeholder="全局搜索项目/任务/人" clearable style="width: 220px" @keyup.enter="runSearch" />
@@ -156,9 +147,9 @@ import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { ActivityView, MemberView, NotificationView, ProjectView, SearchItem, SearchResult } from "@workbench/api";
-import { client, useAuthStore } from "../stores/auth";
+import AppHeader from "../components/layout/AppHeader.vue";
+import { client } from "../stores/auth";
 
-const auth = useAuthStore();
 const router = useRouter();
 
 const rows = ref<ProjectView[]>([]);
@@ -241,11 +232,6 @@ async function loadActivities(): Promise<void> {
 function onActivityPage(next: number): void {
   activityPage.value = next;
   void loadActivities();
-}
-
-async function openNotifications(): Promise<void> {
-  notifyVisible.value = true;
-  await loadNotifications();
 }
 
 async function loadNotifications(): Promise<void> {
@@ -349,10 +335,6 @@ async function openMembers(row: ProjectView): Promise<void> {
   await loadMembers(row.id);
 }
 
-async function goHome(): Promise<void> {
-  await router.push({ name: "dashboard" });
-}
-
 async function openTasks(row: ProjectView): Promise<void> {
   await router.push({ name: "tasks", params: { projectId: row.id } });
 }
@@ -367,10 +349,6 @@ async function openGantt(row: ProjectView): Promise<void> {
 
 async function openPlanning(row: ProjectView): Promise<void> {
   await router.push({ name: "planning", params: { projectId: row.id } });
-}
-
-async function openReports(): Promise<void> {
-  await router.push({ name: "reports" });
 }
 
 async function loadMembers(projectId: number): Promise<void> {
@@ -404,12 +382,6 @@ async function dropMember(userid: number): Promise<void> {
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "移除失败");
   }
-}
-
-async function logout(): Promise<void> {
-  await client.logout().catch(() => undefined);
-  auth.logout();
-  await router.replace({ name: "login" });
 }
 
 onMounted(() => {

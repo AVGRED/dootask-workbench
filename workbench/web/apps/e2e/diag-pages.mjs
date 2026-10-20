@@ -5,7 +5,7 @@ const API = "http://127.0.0.1:9020";
 const loginResponse = await fetch(`${API}/api/v1/auth/login`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username: "demo@workbench.local", password: "secret123" })
+  body: JSON.stringify({ username: "demo@workbench.local", password: process.env.WORKBENCH_DEMO_PASSWORD ?? "" })
 });
 const loginJson = await loginResponse.json();
 const login = loginJson.data ?? {};
