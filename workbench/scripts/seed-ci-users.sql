@@ -1,0 +1,11 @@
+-- CI 浏览器验收账号：
+--   demo@workbench.local / secret123       （staff，用于员工端 + 移动端用例）
+--   admin@workbench.local / a1s2d3f4!@#    （admin，用于管理端用例）
+-- 密码以 md5 写入，首次登录由后端自动升级为 BCrypt。
+INSERT INTO users (email, nickname, profession, password, encrypt, login_num, role, created_at, updated_at)
+VALUES
+  ('demo@workbench.local', '演示用户', '', '5d7845ac6ee7cfffafc5fe5f35cf666d', '', 0, 'staff', NOW(), NOW()),
+  ('admin@workbench.local', 'admin', '', '92abcbc14a5db6a19d104acf010082e7', '', 0, 'admin', NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+  password = VALUES(password),
+  role = VALUES(role);

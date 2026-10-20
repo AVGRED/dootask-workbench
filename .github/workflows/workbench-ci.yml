@@ -91,10 +91,10 @@ jobs:
             sleep 2
           done
           curl -fsS http://127.0.0.1:9000/actuator/health
-      - name: Seed demo user
+      - name: Seed demo & admin users
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq mysql-client
-          mysql -h 127.0.0.1 -uroot -proot workbench < workbench/scripts/seed-demo-user.sql
+          mysql -h 127.0.0.1 -uroot -proot workbench < workbench/scripts/seed-ci-users.sql
       - name: Install web dependencies
         working-directory: workbench/web
         run: pnpm install --frozen-lockfile
@@ -119,6 +119,10 @@ jobs:
         working-directory: workbench/web
         env:
           PW_CHANNEL: chromium
+          WORKBENCH_API: http://127.0.0.1:9000
+          WORKBENCH_DEMO_PASSWORD: secret123
+          WORKBENCH_ADMIN_PASSWORD: "a1s2d3f4!@#"
+          WORKBENCH_ADMIN_USERNAME: admin
         run: pnpm test:e2e
       - name: Upload artifacts on failure
         if: failure()
