@@ -17,7 +17,7 @@
 | `apps/e2e/screenshot-*.mjs`、`capture-showcase*.mjs` | 改为读 `process.env.WORKBENCH_ADMIN_PASSWORD` |
 | `docs/ui-upgrade.md` | 密码替换为 `<CI 专用密码>` 占位符 |
 
-验证：`git grep -I "a1s2d3f4" -- workbench` 返回 0 条。
+验证：`git grep -I "<旧的 admin 口令>" -- workbench` 返回 0 条。
 
 > 注意：本机运行截图脚本前需先 `$env:WORKBENCH_ADMIN_PASSWORD='...'`。
 
