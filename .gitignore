@@ -78,3 +78,11 @@ workbench/web/apps/e2e/playwright-report/
 
 # local screenshots
 workbench/screenshots/
+
+# Workbench v2 后端部署产物
+workbench/server/logs/
+workbench/server/workbench.pid
+workbench/server/deploy/workbench.env
+workbench/server/data/
+workbench/screenshots/
+workbench/web/screenshots/

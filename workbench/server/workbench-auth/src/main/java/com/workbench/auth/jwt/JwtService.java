@@ -22,9 +22,26 @@ public class JwtService {
     private final SecretKey key;
     private final Duration ttl;
 
+    private static final String DEFAULT_SECRET = "change-me-in-production-please-use-32-bytes-min";
+
+    /** 拒绝默认/过短密钥，避免带着示例配置上线。 */
+    private static void validateSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("必须通过 JWT_SECRET 配置签名密钥");
+        }
+        if (DEFAULT_SECRET.equals(secret)) {
+            throw new IllegalStateException(
+                    "JWT_SECRET 仍是默认示例值，请改成至少 32 字符的随机串后再启动（例如 openssl rand -base64 48）");
+        }
+        if (secret.length() < 32) {
+            throw new IllegalStateException("JWT_SECRET 长度不足 32 字符，请使用随机长串");
+        }
+    }
+
     public JwtService(
             @Value("${workbench.jwt.secret}") String secret,
             @Value("${workbench.jwt.ttl:PT12H}") Duration ttl) {
+        validateSecret(secret);
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.ttl = ttl;
     }
