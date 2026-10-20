@@ -18,15 +18,25 @@
       </g>
 
       <g class="edges">
-        <path
-          v-for="edge in edgesWithPos"
-          :key="`${edge.from}-${edge.to}`"
-          :d="edge.path"
-          class="edge"
-          :class="{ active: isEdgeActive(edge) }"
-          :stroke-width="edgeWidth(edge.weight)"
-          :stroke-opacity="edgeOpacity(edge)"
-        />
+        <g v-for="edge in edgesWithPos" :key="`${edge.from}-${edge.to}`">
+          <path
+            :d="edge.path"
+            class="edge"
+            :class="{ active: isEdgeActive(edge) }"
+            :stroke-width="edgeWidth(edge.weight)"
+            :stroke-opacity="edgeOpacity(edge)"
+          />
+          <text
+            v-if="showEdgeLabels"
+            class="edge-label"
+            :x="edge.labelX"
+            :y="edge.labelY"
+            text-anchor="middle"
+            :class="{ active: isEdgeActive(edge) }"
+          >
+            {{ edge.label }}
+          </text>
+        </g>
       </g>
 
       <g class="nodes">
@@ -253,11 +263,20 @@ const edgesWithPos = computed(() =>
       const bow = 10;
       const cx = mx + (nx / norm) * bow;
       const cy = my + (ny / norm) * bow;
-      return { ...edge, path: `M ${from.x} ${from.y} Q ${cx} ${cy} ${to.x} ${to.y}` };
+      const labels = (edge.projects ?? []).filter(Boolean);
+      const text = labels.length > 0 ? labels.join(" · ") : `${edge.weight} 个项目`;
+      return {
+        ...edge,
+        path: `M ${from.x} ${from.y} Q ${cx} ${cy} ${to.x} ${to.y}`,
+        labelX: from.x * 0.25 + cx * 0.5 + to.x * 0.25,
+        labelY: from.y * 0.25 + cy * 0.5 + to.y * 0.25,
+        label: text.length > 18 ? `${text.slice(0, 17)}…` : text
+      };
     })
     .filter((edge): edge is NonNullable<typeof edge> => edge !== null)
 );
 
+const showEdgeLabels = computed(() => props.data.edges.length <= 14);
 const hovered = ref<number | null>(null);
 const hoveredNode = computed(() => props.data.nodes.find((node) => node.userid === hovered.value) ?? null);
 
@@ -327,6 +346,19 @@ const tooltipStyle = computed(() => {
 }
 .edge.active {
   stroke: var(--wb-brand-600);
+}
+.edge-label {
+  font-size: 10.5px;
+  fill: var(--wb-text-2);
+  paint-order: stroke;
+  stroke: var(--wb-surface);
+  stroke-width: 3px;
+  pointer-events: none;
+  transition: fill 160ms ease;
+}
+.edge-label.active {
+  fill: var(--wb-brand-700);
+  font-weight: 600;
 }
 .node {
   cursor: pointer;

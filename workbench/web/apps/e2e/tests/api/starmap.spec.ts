@@ -9,6 +9,9 @@ test.describe("星图", () => {
     );
     const body = await response.json();
     expect(body.code).toBe(0);
+    for (const edge of body.data.edges) {
+      expect(Array.isArray(edge.projects)).toBeTruthy();
+    }
     expect(["all", "collaborators"]).toContain(body.data.scope);
     expect(body.data.centerUserid).toBeGreaterThan(0);
 

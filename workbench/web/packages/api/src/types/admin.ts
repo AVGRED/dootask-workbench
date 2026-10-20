@@ -83,6 +83,8 @@ export interface StarEdge {
   from: number;
   to: number;
   weight: number;
+  /** 共同参与的项目名（最多 5 个），用于连线上标注关系 */
+  projects?: string[];
 }
 
 export interface StarMapView {

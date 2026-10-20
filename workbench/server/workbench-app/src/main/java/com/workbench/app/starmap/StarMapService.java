@@ -34,15 +34,19 @@ public class StarMapService {
         boolean admin = systemAdmin.isAdmin(currentUserid);
 
         List<Map<String, Object>> projects = admin
-                ? jdbc.queryForList("select id, userid from projects where deleted_at is null")
+                ? jdbc.queryForList("select id, userid, name from projects where deleted_at is null")
                 : jdbc.queryForList(
-                        "select id, userid from projects where deleted_at is null "
+                        "select id, userid, name from projects where deleted_at is null "
                                 + "and (userid = ? or id in (select project_id from project_users where userid = ?))",
                         currentUserid, currentUserid);
 
         Set<Long> projectIds = new LinkedHashSet<>();
+        Map<Long, String> projectNames = new LinkedHashMap<>();
         for (Map<String, Object> row : projects) {
-            projectIds.add(((Number) row.get("id")).longValue());
+            long id = ((Number) row.get("id")).longValue();
+            projectIds.add(id);
+            Object name = row.get("name");
+            projectNames.put(id, name == null ? "" : name.toString());
         }
 
         // project -> userids（创建者 + 成员）
@@ -107,7 +111,10 @@ public class StarMapService {
 
         // 连边：同一项目内两两相连；权重 = 共同项目数
         Map<String, Integer> weights = new LinkedHashMap<>();
-        for (Set<Long> users : projectUsers.values()) {
+        Map<String, java.util.List<String>> edgeProjects = new LinkedHashMap<>();
+        for (Map.Entry<Long, Set<Long>> projectEntry : projectUsers.entrySet()) {
+            long projectId = projectEntry.getKey();
+            Set<Long> users = projectEntry.getValue();
             List<Long> list = new ArrayList<>(users);
             for (int i = 0; i < list.size(); i++) {
                 for (int j = i + 1; j < list.size(); j++) {
@@ -116,7 +123,12 @@ public class StarMapService {
                     if (!visible.contains(a) || !visible.contains(b)) {
                         continue;
                     }
-                    weights.merge(a + ":" + b, 1, Integer::sum);
+                    String key = a + ":" + b;
+                    weights.merge(key, 1, Integer::sum);
+                    String projectName = projectNames.getOrDefault(projectId, "");
+                    if (!projectName.isBlank()) {
+                        edgeProjects.computeIfAbsent(key, ignored -> new ArrayList<>()).add(projectName);
+                    }
                 }
             }
         }
@@ -136,10 +148,13 @@ public class StarMapService {
         List<Map<String, Object>> edges = new ArrayList<>();
         for (Map.Entry<String, Integer> entry : weights.entrySet()) {
             String[] parts = entry.getKey().split(":");
-            edges.add(Map.of(
-                    "from", Long.parseLong(parts[0]),
-                    "to", Long.parseLong(parts[1]),
-                    "weight", entry.getValue()));
+            List<String> names = edgeProjects.getOrDefault(entry.getKey(), List.of());
+            Map<String, Object> edge = new LinkedHashMap<>();
+            edge.put("from", Long.parseLong(parts[0]));
+            edge.put("to", Long.parseLong(parts[1]));
+            edge.put("weight", entry.getValue());
+            edge.put("projects", names.size() > 5 ? names.subList(0, 5) : names);
+            edges.add(edge);
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
