@@ -1,5 +1,6 @@
 com\workbench\common\mail\MailProperties.class
 com\workbench\common\api\ApiResponse.class
+com\workbench\common\csv\Csv.class
 com\workbench\common\mail\MailService.class
 com\workbench\common\web\TraceIdFilter.class
 META-INF\spring-configuration-metadata.json

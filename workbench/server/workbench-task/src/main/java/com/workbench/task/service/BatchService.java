@@ -3,6 +3,7 @@ package com.workbench.task.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.workbench.common.api.BusinessException;
+import com.workbench.common.csv.Csv;
 import com.workbench.project.service.ProjectAccess;
 import com.workbench.task.entity.Task;
 import com.workbench.task.entity.TaskTag;
@@ -148,16 +149,7 @@ public class BatchService {
     }
 
     static String escape(String value) {
-        if (value == null) {
-            return "";
-        }
-        String text = value.replace("\"", "\"\"");
-        if (!text.isEmpty() && "=+-@\t\r".indexOf(text.charAt(0)) >= 0) {
-            text = "'" + text;
-        }
-        if (text.contains(",") || text.contains("\n") || text.contains("\"")) {
-            return "\"" + text + "\"";
-        }
-        return text;
+        return Csv.escape(value);
     }
+
 }

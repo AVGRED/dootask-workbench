@@ -2,6 +2,7 @@ package com.workbench.worklog.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.workbench.common.api.BusinessException;
+import com.workbench.common.csv.Csv;
 import com.workbench.project.service.ProjectAccess;
 import com.workbench.worklog.capacity.CapacityCalculator;
 import com.workbench.worklog.capacity.CapacityCalculator.LogRow;
@@ -150,17 +151,7 @@ public class WorklogService {
     }
 
     private static String escapeCsv(String value) {
-        if (value == null) {
-            return "";
-        }
-        String text = value.replace("\"", "\"\"");
-        if (!text.isEmpty() && "=+-@\t\r".indexOf(text.charAt(0)) >= 0) {
-            text = "'" + text;
-        }
-        if (text.contains(",") || text.contains("\n") || text.contains("\"")) {
-            return "\"" + text + "\"";
-        }
-        return text;
+        return Csv.escape(value);
     }
 
     private void requireTaskAccess(long taskId, long currentUserid) {
