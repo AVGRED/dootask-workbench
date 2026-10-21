@@ -14,6 +14,28 @@
         class="hint"
       />
 
+      <div class="section-title">账号安全</div>
+      <div class="panel password-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">修改我的密码</div>
+            <div class="panel-sub">只能修改当前登录账号（{{ currentAccount }}）的密码</div>
+          </div>
+          <el-button type="primary" :loading="changingPassword" @click="changePassword">更新密码</el-button>
+        </div>
+        <el-form label-width="90px" class="password-form">
+          <el-form-item label="原密码">
+            <el-input v-model="passwordForm.oldPassword" type="password" show-password placeholder="当前密码" />
+          </el-form-item>
+          <el-form-item label="新密码">
+            <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="至少 8 位" />
+          </el-form-item>
+          <el-form-item label="确认新密码">
+            <el-input v-model="passwordForm.confirm" type="password" show-password placeholder="再输入一次" />
+          </el-form-item>
+        </el-form>
+      </div>
+
       <div class="section-title">站点设置</div>
       <el-table v-loading="loading" :data="settings" border size="small">
         <el-table-column prop="key" label="键" width="180" />
@@ -76,10 +98,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { DictItemView, SettingView } from "@workbench/api";
-import { client } from "../stores/auth";
+import { client, useAuthStore } from "../stores/auth";
 
 const settings = ref<SettingView[]>([]);
 const dictItems = ref<DictItemView[]>([]);
@@ -95,6 +117,39 @@ const form = reactive<{ type: string; code: string; label: string; sort: number 
   label: "",
   sort: 0
 });
+
+const auth = useAuthStore();
+const currentAccount = computed(() => auth.user?.nickname || auth.user?.username || "当前账号");
+const passwordForm = reactive({ oldPassword: "", newPassword: "", confirm: "" });
+const changingPassword = ref(false);
+
+async function changePassword(): Promise<void> {
+  if (!passwordForm.oldPassword) {
+    ElMessage.warning("请输入原密码");
+    return;
+  }
+  if (passwordForm.newPassword.length < 8) {
+    ElMessage.warning("新密码至少 8 位");
+    return;
+  }
+  if (passwordForm.newPassword !== passwordForm.confirm) {
+    ElMessage.warning("两次输入的新密码不一致");
+    return;
+  }
+  changingPassword.value = true;
+  try {
+    // 只能改当前登录账号自己的密码：走 /me/password，接口按 token 里的 userid 校验
+    await client.changeMyPassword(passwordForm.oldPassword, passwordForm.newPassword);
+    passwordForm.oldPassword = "";
+    passwordForm.newPassword = "";
+    passwordForm.confirm = "";
+    ElMessage.success("密码已更新，下次请用新密码登录");
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "修改失败");
+  } finally {
+    changingPassword.value = false;
+  }
+}
 
 async function reload(): Promise<void> {
   loading.value = true;
@@ -157,6 +212,29 @@ onMounted(reload);
 </script>
 
 <style scoped>
+.password-panel {
+  margin-bottom: 8px;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wb-text);
+}
+.panel-sub {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--wb-text-3);
+}
+.password-form {
+  max-width: 420px;
+}
 .page-header {
   display: flex;
   align-items: center;
