@@ -1,1 +1,0 @@
-import{n as o}from"./index-CRbfc-Pe.js";const e="update:modelValue",n="change",s="input",i=t=>o?window.requestAnimationFrame(t):setTimeout(t,16),c=t=>o?window.cancelAnimationFrame(t):clearTimeout(t);export{n as C,s as I,e as U,c,i as r};

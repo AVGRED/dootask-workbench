@@ -86,3 +86,6 @@ workbench/server/deploy/workbench.env
 workbench/server/data/
 workbench/screenshots/
 workbench/web/screenshots/
+
+# build-release.ps1 生成的静态资源（打包进 jar，不入库）
+workbench/server/workbench-app/src/main/resources/static/
