@@ -28,6 +28,7 @@ export interface PageResult<T> {
 
 export interface UserView {
   userid: number;
+  account?: string;
   email: string;
   nickname: string;
   profession: string;
@@ -37,6 +38,7 @@ export interface UserView {
 }
 
 export interface CreateUserRequest {
+  account?: string;
   email: string;
   nickname: string;
   profession?: string;

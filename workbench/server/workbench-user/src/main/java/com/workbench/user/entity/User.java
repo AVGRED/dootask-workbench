@@ -17,6 +17,7 @@ public class User {
     @TableId(value = "userid", type = IdType.AUTO)
     private Long userid;
 
+    private String account;
     private String email;
     private String nickname;
     private String profession;
@@ -37,6 +38,14 @@ public class User {
 
     public void setUserid(Long userid) {
         this.userid = userid;
+    }
+
+    public String getAccount() {
+        return account;
+    }
+
+    public void setAccount(String account) {
+        this.account = account;
     }
 
     public String getEmail() {

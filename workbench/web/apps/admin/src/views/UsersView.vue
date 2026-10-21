@@ -13,7 +13,8 @@
 
       <el-table v-loading="loading" :data="rows" class="task-table" @selection-change="onSelect">
         <el-table-column type="selection" width="44" />
-        <el-table-column prop="userid" label="ID" width="80" />
+        <el-table-column prop="userid" label="ID" width="70" />
+        <el-table-column prop="account" label="账号" width="120" />
         <el-table-column prop="email" label="邮箱" min-width="200" />
         <el-table-column prop="nickname" label="昵称" width="140" />
         <el-table-column prop="profession" label="职位" width="140" />
@@ -48,9 +49,12 @@
     </el-main>
 
     <el-dialog v-model="createVisible" title="新建用户" width="420px">
-      <el-form :model="createForm" label-width="80px">
+      <el-form :model="createForm" label-width="90px">
+        <el-form-item label="账号">
+          <el-input v-model="createForm.account" placeholder="工号，如 401007；留空则取邮箱 @ 前面那段" />
+        </el-form-item>
         <el-form-item label="邮箱">
-          <el-input v-model="createForm.email" />
+          <el-input v-model="createForm.email" placeholder="name@example.com" />
         </el-form-item>
         <el-form-item label="昵称">
           <el-input v-model="createForm.nickname" />
@@ -85,7 +89,7 @@ const loading = ref(false);
 const selectedUserids = ref<number[]>([]);
 const saving = ref(false);
 const createVisible = ref(false);
-const createForm = reactive<CreateUserRequest>({ email: "", nickname: "", profession: "", password: "" });
+const createForm = reactive<CreateUserRequest>({ account: "", email: "", nickname: "", profession: "", password: "" });
 
 function onSelect(selection: { userid: number }[]): void {
   selectedUserids.value = selection.map((item) => item.userid);

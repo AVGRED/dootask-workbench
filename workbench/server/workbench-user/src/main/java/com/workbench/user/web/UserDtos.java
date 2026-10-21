@@ -13,6 +13,7 @@ public final class UserDtos {
     }
 
     public record CreateUserRequest(
+            @Size(max = 64) String account,
             @NotBlank(message = "请输入邮箱") @Email(message = "邮箱格式不正确") @Size(max = 100) String email,
             @NotBlank(message = "请输入昵称") @Size(max = 32) String nickname,
             @Size(max = 255) String profession,
@@ -30,6 +31,7 @@ public final class UserDtos {
 
     public record UserView(
             long userid,
+            String account,
             String email,
             String nickname,
             String profession,

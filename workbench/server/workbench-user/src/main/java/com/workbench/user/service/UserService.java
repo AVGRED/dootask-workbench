@@ -36,6 +36,8 @@ public class UserService {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>().orderByDesc(User::getUserid);
         if (StringUtils.hasText(keyword)) {
             wrapper.and(query -> query
+                    .like(User::getAccount, keyword)
+                    .or()
                     .like(User::getEmail, keyword)
                     .or()
                     .like(User::getNickname, keyword));
@@ -50,7 +52,13 @@ public class UserService {
         if (exists != null && exists > 0) {
             throw new BusinessException("邮箱已被使用");
         }
+        String account = resolveAccount(request.account(), request.email());
+        Long accountExists = userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getAccount, account));
+        if (accountExists != null && accountExists > 0) {
+            throw new BusinessException("账号已被使用");
+        }
         User user = new User();
+        user.setAccount(account);
         user.setEmail(request.email());
         user.setNickname(request.nickname());
         user.setProfession(request.profession() == null ? "" : request.profession());
@@ -107,6 +115,19 @@ public class UserService {
         return toView(user);
     }
 
+    /** 账号为空时用工号邮箱的 @ 前缀兜底。 */
+    private String resolveAccount(String requested, String email) {
+        String account = requested == null ? "" : requested.trim();
+        if (account.isEmpty()) {
+            int at = email.indexOf('@');
+            account = at > 0 ? email.substring(0, at) : email;
+        }
+        if (account.length() > 64) {
+            throw new BusinessException("账号最多 64 个字符");
+        }
+        return account;
+    }
+
     private User require(long userid) {
         User user = userMapper.selectById(userid);
         if (user == null) {
@@ -118,6 +139,7 @@ public class UserService {
     private static UserView toView(User user) {
         return new UserView(
                 user.getUserid(),
+                user.getAccount(),
                 user.getEmail(),
                 user.getNickname(),
                 user.getProfession(),
