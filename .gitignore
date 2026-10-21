@@ -89,3 +89,6 @@ workbench/web/screenshots/
 
 # build-release.ps1 生成的静态资源（打包进 jar，不入库）
 workbench/server/workbench-app/src/main/resources/static/
+
+# 手册渲染预览图
+workbench/docs/manual/preview*/
