@@ -59,7 +59,8 @@ public class StatusService {
                         + "left join (select userid, sum(minutes) as week_minutes from project_task_work_logs "
                         + "where deleted_at is null and work_date >= date_sub(curdate(), interval 7 day) "
                         + "group by userid) w on w.userid = u.userid "
-                        + "where u.deleted_at is null "
+                        // 状态墙只展示员工，管理员账号不上墙
+                        + "where u.deleted_at is null and coalesce(u.role, 'staff') <> 'admin' "
                         + "order by s.updated_at is null, s.updated_at desc, u.userid");
     }
 
