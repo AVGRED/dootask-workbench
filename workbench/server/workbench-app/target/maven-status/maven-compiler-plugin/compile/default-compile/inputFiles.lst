@@ -1,6 +1,7 @@
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\status\StatusController.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\profile\AvatarController.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\mail\MailController.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\config\SpaWebConfig.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\notice\AdminNoticeController.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\config\MailConfig.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\starmap\StarMapService.java

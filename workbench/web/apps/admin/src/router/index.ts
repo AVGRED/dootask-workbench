@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import AdminLayout from "../views/AdminLayout.vue";
 
 export const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: "/login", name: "login", component: () => import("../views/LoginView.vue"), meta: { public: true } },
     {

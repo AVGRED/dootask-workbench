@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vue-tsc --noEmit && vite build --base=/",
     "typecheck": "vue-tsc --noEmit",
     "test:unit": "node --test src/composables/*.test.ts"
   },

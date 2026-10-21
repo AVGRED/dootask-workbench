@@ -27,7 +27,17 @@ public class SecurityConfig {
             "/actuator/health",
             "/v3/api-docs/**",
             "/swagger-ui/**",
-            "/swagger-ui.html"
+            "/swagger-ui.html",
+            // 单域名部署时由同一个 jar 托管三个前端：这些是静态资源与 SPA 路由，不需要登录
+            "/",
+            "/index.html",
+            "/assets/**",
+            "/admin/**",
+            "/m/**",
+            "/favicon.svg",
+            "/favicon-32.png",
+            "/icon-*.png",
+            "/manifest.webmanifest"
     };
 
     @Bean
