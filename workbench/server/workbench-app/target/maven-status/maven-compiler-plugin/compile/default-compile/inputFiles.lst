@@ -1,7 +1,6 @@
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\status\StatusController.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\profile\AvatarController.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\mail\MailController.java
-D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\config\SpaWebConfig.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\notice\AdminNoticeController.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\config\MailConfig.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\starmap\StarMapService.java
@@ -21,6 +20,7 @@ D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\work
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\dashboard\DashboardService.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\config\MybatisPlusConfig.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\settings\MeSettingsController.java
+D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\config\SpaForwardController.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\admin\AdminOverviewController.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\todo\PersonalTodoService.java
 D:\repos\workbench\dootask\workbench\server\workbench-app\src\main\java\com\workbench\app\WorkbenchApplication.java

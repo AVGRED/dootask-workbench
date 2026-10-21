@@ -34,6 +34,12 @@ public class SecurityConfig {
             "/assets/**",
             "/admin/**",
             "/m/**",
+            // 员工端 history 路由（前端页面，不是接口）
+            "/login",
+            "/reports",
+            "/starmap",
+            "/settings",
+            "/projects/**",
             "/favicon.svg",
             "/favicon-32.png",
             "/icon-*.png",
