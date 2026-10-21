@@ -42,7 +42,8 @@ const tabs = [
   { name: "team", label: "状态墙", icon: "👥" },
   { name: "projects", label: "项目总览", icon: "📁" },
   { name: "reports", label: "每日日报", icon: "📝" },
-  { name: "starmap", label: "星图", icon: "✨" }
+  { name: "starmap", label: "星图", icon: "✨" },
+  { name: "notices", label: "通知", icon: "📢" }
 ];
 
 async function go(name: string): Promise<void> {

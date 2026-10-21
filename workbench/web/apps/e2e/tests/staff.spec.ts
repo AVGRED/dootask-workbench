@@ -21,7 +21,7 @@ test.describe("员工端", () => {
     await login(page);
 
     // 统一顶栏：三个导航项
-    await expect(page.locator(".app-header .nav-item")).toHaveCount(4);
+    await expect(page.locator(".app-header .nav-item")).toHaveCount(5);
 
     await page.locator(".app-header .nav-item", { hasText: "项目" }).click();
     await expect(page.getByRole("button", { name: "新建项目" })).toBeVisible();

@@ -14,6 +14,7 @@ export const router = createRouter({
         { path: "projects", name: "projects", component: () => import("../views/ProjectsOverviewView.vue") },
         { path: "reports", name: "reports", component: () => import("../views/DailyReportsView.vue") },
         { path: "starmap", name: "starmap", component: () => import("../views/StarMapView.vue") },
+        { path: "notices", name: "notices", component: () => import("../views/NoticesView.vue") },
         { path: "users", name: "users", component: () => import("../views/UsersView.vue") },
         { path: "settings", name: "settings", component: () => import("../views/SettingsView.vue") }
       ]

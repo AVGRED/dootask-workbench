@@ -18,7 +18,7 @@ test.describe("管理端", () => {
   test("登录 → 三个 tab 可切换 → 用户管理 → 系统设置", async ({ page }) => {
     await login(page);
 
-    await expect(page.locator(".tabs .tab")).toHaveCount(4);
+    await expect(page.locator(".tabs .tab")).toHaveCount(5);
     await expect(page.getByRole("button", { name: /状态墙/ })).toHaveClass(/active/);
     await expect(page.locator(".person").first()).toBeVisible();
 

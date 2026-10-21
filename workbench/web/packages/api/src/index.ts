@@ -42,6 +42,8 @@ import type {
   SettingView,
   TagView,
   TaskView,
+  AdminNotice,
+  MeProfile,
   PersonalTodo,
   StarMapView,
   TeamStatusRow,
@@ -485,6 +487,26 @@ export class ApiClient {
       "GET",
       `/api/v1/admin/reports/missing${suffix}`
     );
+  }
+
+  async meProfile(): Promise<MeProfile> {
+    return this.request<MeProfile>("GET", "/api/v1/me/profile");
+  }
+
+  async updateMeProfile(patch: { nickname: string; email: string; profession?: string }): Promise<MeProfile> {
+    return this.request<MeProfile>("PUT", "/api/v1/me/profile", patch);
+  }
+
+  async changeMyPassword(oldPassword: string, newPassword: string): Promise<void> {
+    await this.request<null>("PUT", "/api/v1/me/password", { oldPassword, newPassword });
+  }
+
+  async adminNotices(): Promise<AdminNotice[]> {
+    return this.request<AdminNotice[]>("GET", "/api/v1/admin/notices");
+  }
+
+  async publishNotice(input: { title: string; content: string }): Promise<{ id: number; receivers: number }> {
+    return this.request<{ id: number; receivers: number }>("POST", "/api/v1/admin/notices", input);
   }
 
   async myTodos(): Promise<PersonalTodo[]> {
