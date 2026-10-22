@@ -52,8 +52,9 @@ public class AdminOverviewController {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "select d.id, d.userid, u.nickname, u.email, d.report_date, d.content_done, "
                         + "d.content_blocker, d.content_plan, d.minutes, d.status, d.submitted_at "
-                        + "from daily_reports d left join users u on u.userid = d.userid "
-                        + "where d.deleted_at is null and d.report_date = ? order by d.userid", day);
+                        + "from daily_reports d join users u on u.userid = d.userid "
+                        + "where d.deleted_at is null and u.deleted_at is null and d.report_date = ? "
+                        + "order by d.userid", day);
         return ApiResponse.ok(rows);
     }
 
