@@ -1,5 +1,12 @@
 <template>
   <div class="app">
+    <div class="wb-galaxy" aria-hidden="true">
+      <span class="band band-a"></span>
+      <span class="band band-b"></span>
+      <span class="milky"></span>
+      <span class="stars"></span>
+    </div>
+
     <header v-if="!isPublic" class="topbar">
       <span class="title">{{ title }}</span>
       <span v-if="auth.isLoggedIn" class="who">{{ auth.user?.nickname ?? "" }}</span>

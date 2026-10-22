@@ -41,6 +41,7 @@ public class SecurityConfig {
             "/settings",
             "/projects/**",
             "/bg-*.svg",
+            "/galaxy-*.svg",
             "/favicon.svg",
             "/favicon-32.png",
             "/icon-*.png",

@@ -73,10 +73,6 @@ html.dark /* 页面级容器保持透明，让 body 的极淡背景图透出来 
   background-color: transparent;
 }
 
-html.dark body {
-  background-image: url("/bg-dark.svg");
-}
-
 html.dark {
   --wb-bg: #0f1117;
   --wb-surface: #171a23;
@@ -104,15 +100,12 @@ html.dark {
   --el-mask-color: rgba(6, 8, 14, 0.7);
 }
 
-html,
-body {
+html {
   background-color: var(--wb-bg);
-  /* 极淡的品牌色氛围图：左上/右下两层柔光 + 稀疏星点，避免干扰内容 */
-  background-image: url("/bg-light.svg");
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position: center top;
-  background-attachment: fixed;
+}
+
+body {
+  background-color: transparent;
   color: var(--wb-text);
   font-family: var(--wb-font);
   transition: background-color var(--wb-duration) var(--wb-ease),
@@ -320,4 +313,191 @@ html.dark .tile-head {
   height: 14px;
   border-radius: 2px;
   background: var(--wb-brand-500);
+}
+
+/* ============ 流动银河背景 ============
+   三层叠加：两条缓慢旋转的银色光带 + 一层缓慢漂移的星点。
+   只在视觉上提供"流动感"，不接收事件（pointer-events: none），
+   尊重 prefers-reduced-motion：用户关闭动效时完全静止。 */
+
+.wb-galaxy {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+.wb-galaxy > span {
+  position: absolute;
+  display: block;
+}
+
+.wb-galaxy .band {
+  width: 150vmax;
+  height: 150vmax;
+  left: 50%;
+  top: 50%;
+  margin: -75vmax 0 0 -75vmax;
+  border-radius: 50%;
+  filter: blur(64px);
+  opacity: 0.60;
+  will-change: transform;
+}
+
+.wb-galaxy .band-a {
+  background: conic-gradient(
+    from 30deg,
+    rgba(148, 157, 176, 0) 0deg,
+    rgba(148, 157, 176, 0.30) 70deg,
+    rgba(210, 216, 228, 0.12) 150deg,
+    rgba(148, 157, 176, 0) 220deg,
+    rgba(176, 184, 200, 0.24) 300deg,
+    rgba(148, 157, 176, 0) 360deg
+  );
+  animation: wb-galaxy-spin 180s linear infinite;
+}
+
+.wb-galaxy .band-b {
+  background: conic-gradient(
+    from 200deg,
+    rgba(120, 130, 150, 0) 0deg,
+    rgba(120, 130, 150, 0.22) 90deg,
+    rgba(190, 198, 214, 0.10) 180deg,
+    rgba(120, 130, 150, 0) 260deg,
+    rgba(150, 160, 178, 0.10) 330deg,
+    rgba(120, 130, 150, 0) 360deg
+  );
+  animation: wb-galaxy-spin 260s linear infinite reverse;
+  opacity: 0.50;
+}
+
+.wb-galaxy .stars {
+  inset: -640px;
+  background-image: url("/galaxy-stars-light.svg");
+  background-repeat: repeat;
+  background-size: 640px 640px;
+  opacity: 0.75;
+  animation: wb-galaxy-drift 240s linear infinite;
+  will-change: transform;
+}
+
+html.dark .wb-galaxy .band {
+  opacity: 0.5;
+}
+
+html.dark .wb-galaxy .band-a {
+  background: conic-gradient(
+    from 30deg,
+    rgba(200, 208, 224, 0) 0deg,
+    rgba(200, 208, 224, 0.34) 70deg,
+    rgba(236, 240, 248, 0.12) 150deg,
+    rgba(200, 208, 224, 0) 220deg,
+    rgba(180, 190, 210, 0.14) 300deg,
+    rgba(200, 208, 224, 0) 360deg
+  );
+}
+
+html.dark .wb-galaxy .band-b {
+  background: conic-gradient(
+    from 200deg,
+    rgba(170, 180, 200, 0) 0deg,
+    rgba(170, 180, 200, 0.26) 90deg,
+    rgba(226, 232, 244, 0.12) 180deg,
+    rgba(170, 180, 200, 0) 260deg,
+    rgba(150, 160, 178, 0.12) 330deg,
+    rgba(170, 180, 200, 0) 360deg
+  );
+}
+
+html.dark .wb-galaxy .stars {
+  background-image: url("/galaxy-stars-dark.svg");
+  opacity: 0.85;
+}
+
+@keyframes wb-galaxy-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes wb-galaxy-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-640px, -640px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-galaxy .band,
+  .wb-galaxy .stars {
+    animation: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .wb-galaxy .band {
+    filter: blur(48px);
+    opacity: 0.45;
+  }
+  .wb-galaxy .stars {
+    opacity: 0.6;
+  }
+}
+
+/* 银河带：一条斜穿屏幕的银色光带，缓慢平移，制造"流动"的主视觉 */
+.wb-galaxy .milky {
+  left: 50%;
+  top: 50%;
+  width: 240vmax;
+  height: 46vmax;
+  margin: -23vmax 0 0 -120vmax;
+  transform: rotate(-16deg);
+  background: linear-gradient(
+    90deg,
+    rgba(190, 198, 214, 0) 0%,
+    rgba(190, 198, 214, 0.16) 22%,
+    rgba(232, 236, 244, 0.30) 45%,
+    rgba(214, 220, 232, 0.18) 62%,
+    rgba(190, 198, 214, 0) 100%
+  );
+  filter: blur(70px);
+  opacity: 0.72;
+  animation: wb-galaxy-flow 90s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+html.dark .wb-galaxy .milky {
+  background: linear-gradient(
+    90deg,
+    rgba(170, 180, 200, 0) 0%,
+    rgba(170, 180, 200, 0.14) 22%,
+    rgba(236, 241, 250, 0.26) 45%,
+    rgba(190, 200, 218, 0.16) 62%,
+    rgba(170, 180, 200, 0) 100%
+  );
+  opacity: 1;
+}
+
+@keyframes wb-galaxy-flow {
+  from {
+    transform: rotate(-16deg) translate3d(-6%, 0, 0);
+    opacity: 0.75;
+  }
+  to {
+    transform: rotate(-14deg) translate3d(6%, 0, 0);
+    opacity: 0.95;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-galaxy .milky {
+    animation: none;
+  }
 }
