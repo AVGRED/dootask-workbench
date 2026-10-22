@@ -103,3 +103,36 @@ sshd 原配置备份：`/root/sshd_config.bak.*`
 
 尝试用命令行改端口（写 `port.pl` + 重启 BT-Panel）后，面板自己的路由没跟着更新，访问返回 404，**已回滚到 8888**。
 正确做法是在宝塔面板 UI 里改：**设置 → 面板端口**（它会同时更新自身配置），再到阿里云安全组放行新端口、关掉 8888；同时在 **设置 → 授权 IP** 里只放自己的出口 IP。
+
+## 日常加固：面板收口 + 自动备份（2026-10-22）
+
+### 面板只允许本机访问
+
+宝塔面板 8888 不再对公网开放，只允许 127.0.0.1：
+
+```bash
+iptables -I INPUT 1 -p tcp --dport 8888 -s 127.0.0.1 -j ACCEPT
+iptables -I INPUT 2 -p tcp --dport 8888 -j DROP
+service iptables save
+```
+
+需要面板时用 SSH 隧道（本机执行）：
+
+```powershell
+ssh -i C:\Users\H\.ssh\xingtu_ed25519 -L 8888:127.0.0.1:8888 root@47.109.88.107
+# 然后浏览器打开 http://127.0.0.1:8888
+```
+
+注意：验证时外网 `47.109.88.107:8888` 已 BLOCKED，但面板自身在本机也返回 404（nginx 页面），
+说明面板 UI 在加固前就不可用（可能面板配置/初始化问题）。需要时用 `bt` 命令修复或重装面板，与本加固无关。
+
+### 自动备份
+
+- 脚本：`/opt/xingtu/backup.sh`（700）
+- 内容：数据库 `mysqldump`（gzip 校验）+ `/opt/xingtu/data` 上传文件 + 关键配置（env / nginx vhost / systemd unit）
+- 位置：`/root/backup/`，文件名带时间戳
+- 保留：7 天（`find -mtime +7 -delete`）
+- 定时：root crontab 每天 03:00，日志 `/var/log/xingtu-backup.log`
+- 已验证：手动执行成功，产出 db/data/config 三个压缩包（当日总计约 220K）
+
+建议后续把 `/root/backup` 同步到阿里云 OSS 做异地备份（宝塔计划任务 + OSS 插件即可）。
