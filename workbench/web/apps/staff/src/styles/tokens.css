@@ -648,3 +648,8 @@ html.dark .wb-galaxy .sweep {
     animation-iteration-count: infinite !important;
   }
 }
+
+/* 浅色模式不要银河背景（只在暗色主题显示） */
+html:not(.dark) .wb-galaxy {
+  display: none;
+}
