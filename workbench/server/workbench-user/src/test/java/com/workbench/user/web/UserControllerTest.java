@@ -50,7 +50,7 @@ class UserControllerTest {
     @Test
     void listReturnsPage() throws Exception {
         given(userService.page(anyInt(), anyInt(), any())).willReturn(
-                PageResult.of(List.of(new UserView(7L, "a@b.com", "张三", "开发", "", 3, "staff")), 1, 1, 20));
+                PageResult.of(List.of(new UserView(7L, "401001", "a@b.com", "张三", "开发", "", 3, "staff", 0)), 1, 1, 20));
 
         mockMvc.perform(get("/api/v1/users").param("page", "1").param("size", "20"))
                 .andExpect(status().isOk())
@@ -104,7 +104,7 @@ class UserControllerTest {
     @Test
     void updatePassesNickname() throws Exception {
         given(userService.update(anyLong(), any())).willReturn(
-                new UserView(7L, "a@b.com", "李四", "开发", "", 3, "staff"));
+                new UserView(7L, "401001", "a@b.com", "李四", "开发", "", 3, "staff", 0));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .put("/api/v1/users/7").principal(principal)
@@ -127,7 +127,7 @@ class UserControllerTest {
     void changeRoleReturnsUpdatedUser() throws Exception {
         Principal principal = () -> "7";
         given(userService.changeRole(7L, 7L, "admin")).willReturn(
-                new UserView(7L, "a@b.com", "张三", "开发", "", 3, "admin"));
+                new UserView(7L, "401001", "a@b.com", "张三", "开发", "", 3, "admin", 0));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .put("/api/v1/users/7/role").principal(principal)

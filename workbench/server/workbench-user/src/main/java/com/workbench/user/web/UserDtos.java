@@ -18,7 +18,7 @@ public final class UserDtos {
             @NotBlank(message = "请输入昵称") @Size(max = 32) String nickname,
             @Size(max = 255) String profession,
             @Size(max = 255) String userimg,
-            @NotBlank(message = "请输入初始密码") @Size(min = 6, max = 64) String password
+            @NotBlank(message = "请输入初始密码") @Size(min = 8, max = 64) String password
     ) {
     }
 

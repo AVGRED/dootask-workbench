@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 超级管理员专属操作：代写日报、代建待办、强制下线、删除他人任务/项目，并记录审计。
@@ -27,6 +28,7 @@ public class SuperAdminService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Transactional
     public Map<String, Object> writeReport(long operator, long userid, LocalDate date,
                                            String done, String blocker, String plan, Integer minutes) {
         systemAdmin.requireSuper(operator);
@@ -58,6 +60,7 @@ public class SuperAdminService {
         return Map.of("userid", userid, "reportDate", day.toString());
     }
 
+    @Transactional
     public Map<String, Object> addTodo(long operator, long userid, String title) {
         systemAdmin.requireSuper(operator);
         requireUser(userid);
@@ -72,6 +75,7 @@ public class SuperAdminService {
     }
 
     /** 重置任意用户密码（含管理员），并让对方的登录态失效。 */
+    @Transactional
     public Map<String, Object> resetPassword(long operator, long userid, String password) {
         systemAdmin.requireSuper(operator);
         requireUser(userid);
@@ -85,6 +89,7 @@ public class SuperAdminService {
         return Map.of("userid", userid, "ok", true);
     }
 
+    @Transactional
     public Map<String, Object> forceLogout(long operator, long userid) {
         systemAdmin.requireSuper(operator);
         requireUser(userid);
@@ -94,6 +99,7 @@ public class SuperAdminService {
         return Map.of("userid", userid, "ok", true);
     }
 
+    @Transactional
     public Map<String, Object> deleteTask(long operator, long taskId) {
         systemAdmin.requireSuper(operator);
         int affected = jdbc.update("update project_tasks set deleted_at = now() where id = ? and deleted_at is null", taskId);
@@ -104,6 +110,7 @@ public class SuperAdminService {
         return Map.of("taskId", taskId, "ok", true);
     }
 
+    @Transactional
     public Map<String, Object> deleteProject(long operator, long projectId) {
         systemAdmin.requireSuper(operator);
         int affected = jdbc.update("update projects set deleted_at = now() where id = ? and deleted_at is null", projectId);

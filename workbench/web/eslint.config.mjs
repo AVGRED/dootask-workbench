@@ -74,6 +74,12 @@ export default tseslint.config(
   },
   {
     files: ["apps/e2e/**/*.mjs"],
+      languageOptions: {
+        globals: {
+          ...browserGlobals,
+          getComputedStyle: "readonly"
+        }
+      },
     rules: {
       "@typescript-eslint/no-unused-vars": "off"
     }

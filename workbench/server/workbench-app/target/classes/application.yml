@@ -42,5 +42,9 @@ workbench:
     base-url: ${WORKBENCH_BASE_URL:http://localhost:5180}
 
 springdoc:
+  # 生产默认关闭：/v3/api-docs 与 swagger-ui 不需要公网可访问
   api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
     path: /v3/api-docs
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}

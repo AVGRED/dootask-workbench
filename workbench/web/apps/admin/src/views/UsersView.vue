@@ -65,7 +65,7 @@
           <el-input v-model="createForm.profession" />
         </el-form-item>
         <el-form-item label="初始密码">
-          <el-input v-model="createForm.password" type="password" show-password />
+          <el-input v-model="createForm.password" type="password" show-password placeholder="至少 8 位" />
         </el-form-item>
       </el-form>
       <template #footer>

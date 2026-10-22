@@ -26,9 +26,14 @@ public class AuthService {
 
     private static final int LOGIN_MAX_FAILURES = 5;
     private static final long LOGIN_WINDOW_MS = 15 * 60 * 1000L;
+    /** 失败计数表的容量上限，防止伪造用户名把内存打爆。 */
+    private static final int LOGIN_MAX_KEYS = 5000;
     private final java.util.Map<String, java.util.Deque<Long>> loginFailures = new java.util.concurrent.ConcurrentHashMap<>();
 
     private void checkLoginRate(String username) {
+        if (loginFailures.size() > LOGIN_MAX_KEYS) {
+            loginFailures.clear();
+        }
         String key = username == null ? "" : username.toLowerCase(java.util.Locale.ROOT);
         java.util.Deque<Long> attempts = loginFailures.get(key);
         if (attempts == null) {
