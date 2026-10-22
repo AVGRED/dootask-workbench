@@ -525,6 +525,39 @@ export class ApiClient {
     await this.request<null>("DELETE", `/api/v1/todos/${id}`);
   }
 
+  async superWriteReport(payload: {
+    userid: number;
+    reportDate?: string;
+    done: string;
+    blocker?: string;
+    plan?: string;
+    minutes?: number;
+  }): Promise<void> {
+    await this.request<null>("POST", "/api/v1/super/reports", payload);
+  }
+
+  async superAddTodo(userid: number, title: string): Promise<void> {
+    await this.request<null>("POST", "/api/v1/super/todos", { userid, title });
+  }
+
+  async superForceLogout(userid: number): Promise<void> {
+    await this.request<null>("POST", `/api/v1/super/users/${userid}/force-logout`);
+  }
+
+  async superDeleteTask(taskId: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/super/tasks/${taskId}`);
+  }
+
+  async superDeleteProject(projectId: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/super/projects/${projectId}`);
+  }
+
+  async superAuditLogs(limit = 50): Promise<
+    { id: number; action: string; target_userid: number | null; detail: string; created_at: string; operator_name: string; target_name: string }[]
+  > {
+    return this.request("GET", `/api/v1/super/audit?limit=${limit}`);
+  }
+
   async adminSetStatus(userid: number, status: string, note = ""): Promise<void> {
     await this.request<null>("PUT", `/api/v1/admin/status/${userid}`, { status, note });
   }

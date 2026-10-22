@@ -13,12 +13,14 @@ com\workbench\app\config\AsyncConfig.class
 com\workbench\app\search\SearchResult$Item.class
 com\workbench\app\admin\AdminUserBatchController$BatchUsersRequest.class
 com\workbench\app\status\StatusController.class
+com\workbench\app\superadmin\SuperAdminService.class
 com\workbench\app\settings\MeSettingsController$ChangePasswordRequest.class
 com\workbench\app\settings\MeSettingsController.class
 com\workbench\app\todo\PersonalTodoController.class
 com\workbench\app\admin\AdminUserBatchController$BatchResult.class
 com\workbench\app\migrate\MigrationPlan$TableStep.class
 com\workbench\app\config\SpaForwardController.class
+com\workbench\app\superadmin\SuperAdminController.class
 com\workbench\app\admin\AdminOverviewController.class
 com\workbench\app\dashboard\DashboardService.class
 com\workbench\app\config\MailConfig.class
@@ -35,6 +37,8 @@ com\workbench\app\dashboard\DashboardDtos$LayoutItem.class
 com\workbench\app\dashboard\DashboardDtos$LayoutView.class
 com\workbench\app\settings\MeSettingsController$UpdateProfileRequest.class
 com\workbench\app\starmap\StarMapService.class
+com\workbench\app\superadmin\SuperAdminController$TodoRequest.class
+com\workbench\app\superadmin\SuperAdminController$ReportRequest.class
 com\workbench\app\status\StatusService.class
 com\workbench\app\mail\MailController$MailTestResult.class
 com\workbench\app\todo\PersonalTodoService.class

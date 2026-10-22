@@ -32,18 +32,34 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from "vue-router";
 import { client } from "../stores/auth";
+import { computed, onMounted, ref } from "vue";
 import { useTheme } from "../composables/useTheme";
 
 const route = useRoute();
+const tabs = computed(() => allTabs.filter((tab) => !("superOnly" in tab) || canSuper.value));
 const router = useRouter();
 const { theme, toggleTheme } = useTheme();
 
-const tabs = [
+onMounted(loadSuperFlag);
+
+const canSuper = ref(false);
+
+async function loadSuperFlag(): Promise<void> {
+  try {
+    const profile = await client.meProfile();
+    canSuper.value = profile.superAdmin === 1;
+  } catch {
+    canSuper.value = false;
+  }
+}
+
+const allTabs: { name: string; label: string; icon: string; superOnly?: boolean }[] = [
   { name: "team", label: "状态墙", icon: "👥" },
   { name: "projects", label: "项目总览", icon: "📁" },
   { name: "reports", label: "每日日报", icon: "📝" },
   { name: "starmap", label: "星图", icon: "✨" },
-  { name: "notices", label: "通知", icon: "📢" }
+  { name: "notices", label: "通知", icon: "📢" },
+  { name: "super", label: "超级管理", icon: "🛡️", superOnly: true }
 ];
 
 async function go(name: string): Promise<void> {

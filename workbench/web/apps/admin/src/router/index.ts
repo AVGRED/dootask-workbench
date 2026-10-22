@@ -15,6 +15,7 @@ export const router = createRouter({
         { path: "reports", name: "reports", component: () => import("../views/DailyReportsView.vue") },
         { path: "starmap", name: "starmap", component: () => import("../views/StarMapView.vue") },
         { path: "notices", name: "notices", component: () => import("../views/NoticesView.vue") },
+        { path: "super", name: "super", component: () => import("../views/SuperAdminView.vue") },
         { path: "users", name: "users", component: () => import("../views/UsersView.vue") },
         { path: "settings", name: "settings", component: () => import("../views/SettingsView.vue") }
       ]
