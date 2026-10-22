@@ -15,6 +15,7 @@ export interface MeProfile {
   profession: string;
   role: string;
   avatar: string;
+  superAdmin?: number;
 }
 
 /** 管理员发布的通知记录 */

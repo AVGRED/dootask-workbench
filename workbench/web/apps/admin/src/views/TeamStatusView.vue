@@ -34,7 +34,16 @@
           <div class="person-head">
             <span class="name">{{ row.nickname || "未命名" }}</span>
             <span class="uid">#{{ row.userid }}</span>
-            <span class="status-pill" :class="row.status">{{ statusText(row.status) }}</span>
+            <el-select
+              v-if="canManageStatus"
+              :model-value="row.status"
+              size="small"
+              class="status-edit"
+              @change="(value: string) => changeStatus(row, value)"
+            >
+              <el-option v-for="(label, value) in STATUS" :key="value" :label="label" :value="value" />
+            </el-select>
+            <span v-else class="status-pill" :class="row.status">{{ statusText(row.status) }}</span>
           </div>
 
           <p v-if="row.note" class="note">“{{ row.note }}”</p>
@@ -77,6 +86,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import type { TeamStatusRow } from "@workbench/api";
+import { ElMessage } from "element-plus";
 import { client } from "../stores/auth";
 
 const WEEK_CAPACITY = 2400;
@@ -86,6 +96,8 @@ const keyword = ref("");
 const filter = ref("all");
 const loading = ref(false);
 const error = ref("");
+const canManageStatus = ref(false);
+const changingUserid = ref(0);
 
 const filters = [
   { value: "all", label: "全部" },
@@ -103,6 +115,20 @@ const STATUS: Record<string, string> = {
   away: "外出",
   leave: "请假"
 };
+
+async function changeStatus(row: TeamStatusRow, value: string): Promise<void> {
+  if (!value || value === row.status) return;
+  changingUserid.value = row.userid;
+  try {
+    await client.adminSetStatus(row.userid, value, row.note ?? "");
+    row.status = value;
+    ElMessage.success(`已把 ${row.nickname || row.userid} 的状态改为${STATUS[value] ?? value}`);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "修改失败");
+  } finally {
+    changingUserid.value = 0;
+  }
+}
 
 function statusText(status: string): string {
   return STATUS[status] ?? status;
@@ -142,10 +168,26 @@ async function load(): Promise<void> {
   }
 }
 
-onMounted(load);
+onMounted(async () => {
+  try {
+    const profile = await client.meProfile();
+    canManageStatus.value = profile.superAdmin === 1;
+  } catch {
+    canManageStatus.value = false;
+  }
+  await load();
+});
 </script>
 
 <style scoped>
+.status-edit {
+  width: 96px;
+}
+.status-edit :deep(.el-select__wrapper) {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
 .team-page {
   padding-bottom: 24px;
 }

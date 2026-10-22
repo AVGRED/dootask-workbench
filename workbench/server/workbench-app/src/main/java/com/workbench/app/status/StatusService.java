@@ -41,6 +41,24 @@ public class StatusService {
         return row(userid);
     }
 
+    /** 超级管理员代改员工状态（例如员工忘切状态）。 */
+    public Map<String, Object> setStatusFor(long operatorUserid, long targetUserid, String status, String note) {
+        systemAdmin.requireSuper(operatorUserid);
+        Long exists = jdbc.queryForObject(
+                "select count(*) from users where userid = ? and deleted_at is null", Long.class, targetUserid);
+        if (exists == null || exists == 0) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        String safe = status == null ? "idle" : status;
+        if (!ALLOWED.contains(safe)) {
+            throw new BusinessException("状态只能是 focus/idle/meeting/away/leave");
+        }
+        jdbc.update("insert into user_status (userid, status, note, updated_at) values (?, ?, ?, now()) "
+                        + "on duplicate key update status = values(status), note = values(note), updated_at = now()",
+                targetUserid, safe, note == null ? "" : note.trim());
+        return row(targetUserid);
+    }
+
     public List<Map<String, Object>> team(long currentUserid) {
         systemAdmin.requireAdmin(currentUserid);
         return jdbc.queryForList(

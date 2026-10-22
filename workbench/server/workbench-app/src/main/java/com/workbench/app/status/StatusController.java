@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,6 +32,13 @@ public class StatusController {
     public ApiResponse<Map<String, Object>> setStatus(Principal principal,
                                                       @RequestBody SaveStatusRequest request) {
         return ApiResponse.ok(statusService.setStatus(currentUserid(principal), request.status(), request.note()));
+    }
+
+    @PutMapping("/admin/status/{userid}")
+    public ApiResponse<Map<String, Object>> setStatusFor(Principal principal,
+                                                         @PathVariable long userid,
+                                                         @RequestBody SaveStatusRequest request) {
+        return ApiResponse.ok(statusService.setStatusFor(currentUserid(principal), userid, request.status(), request.note()));
     }
 
     @GetMapping("/team/status")

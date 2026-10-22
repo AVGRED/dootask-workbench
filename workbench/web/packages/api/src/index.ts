@@ -525,6 +525,10 @@ export class ApiClient {
     await this.request<null>("DELETE", `/api/v1/todos/${id}`);
   }
 
+  async adminSetStatus(userid: number, status: string, note = ""): Promise<void> {
+    await this.request<null>("PUT", `/api/v1/admin/status/${userid}`, { status, note });
+  }
+
   async starMap(): Promise<StarMapView> {
     return this.request<StarMapView>("GET", "/api/v1/starmap");
   }

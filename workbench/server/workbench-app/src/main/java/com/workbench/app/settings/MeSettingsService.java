@@ -29,7 +29,8 @@ public class MeSettingsService {
     public Map<String, Object> profile(long userid) {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "select userid, email, nickname, coalesce(profession, '') as profession, "
-                        + "coalesce(role, 'staff') as role, coalesce(avatar, '') as avatar "
+                        + "coalesce(role, 'staff') as role, coalesce(avatar, '') as avatar, "
+                        + "coalesce(super_admin, 0) as superAdmin "
                         + "from users where userid = ? and deleted_at is null",
                 userid);
         if (rows.isEmpty()) {
