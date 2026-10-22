@@ -81,3 +81,25 @@ https://yanyunxiaoguang.cn -> 200（星图不受影响）
 - GHSA-w8hw-w9fx-j79w（CVE-2026-109618）
 - GHSA-6wmf-4rv5-p3rp（CVE-2026-109619）
 - IPA 告警：https://www.ipa.go.jp/security/security-alert/2026/alert20261022.html
+
+## 加固：SSH 与账号（2026-10-22）
+
+| 项 | 处理 |
+|---|---|
+| SSH 登录 | 改为**仅密钥**：`PasswordAuthentication no`、`PermitRootLogin prohibit-password`、`KbdInteractiveAuthentication no` |
+| 密钥 | 本机 `C:\Users\H\.ssh\xingtu_ed25519`（公钥已写入服务器 `/root/.ssh/authorized_keys`） |
+| root 密码 | 已更换为随机强密码，仅用于云控制台 VNC 应急登录（SSH 已不接受密码） |
+| 验证 | 密钥登录成功、密码登录被拒；`sshd -T` 显示 `passwordauthentication no` |
+
+连服务器：
+
+```powershell
+ssh -i C:\Users\H\.ssh\xingtu_ed25519 root@47.109.88.107
+```
+
+sshd 原配置备份：`/root/sshd_config.bak.*`
+
+### 宝塔面板端口
+
+尝试用命令行改端口（写 `port.pl` + 重启 BT-Panel）后，面板自己的路由没跟着更新，访问返回 404，**已回滚到 8888**。
+正确做法是在宝塔面板 UI 里改：**设置 → 面板端口**（它会同时更新自身配置），再到阿里云安全组放行新端口、关掉 8888；同时在 **设置 → 授权 IP** 里只放自己的出口 IP。
