@@ -1,16 +1,21 @@
 import { expect, test } from "@playwright/test";
+import { call, createProject, login } from "./api/helpers";
 
 const MOBILE = process.env.MOBILE_URL ?? "http://127.0.0.1:5182";
-const PASSWORD = process.env.WORKBENCH_DEMO_PASSWORD ?? "";
+const PASSWORD = process.env.WORKBENCH_STAFF_PASSWORD ?? "";
 
 test.describe("移动端", () => {
-  test.skip(!PASSWORD, "需要设置 WORKBENCH_DEMO_PASSWORD");
+  test.skip(!PASSWORD, "需要设置 WORKBENCH_STAFF_PASSWORD");
 
   test("登录 → 项目列表 → 进入任务页", async ({ page }) => {
+    // 保证至少有一个项目可点（用接口建，结束后删除）
+    const token = await login();
+    const projectId = await createProject(token, `E2E 移动端项目 ${Date.now()}`);
+    try {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${MOBILE}/login`);
 
-    await page.locator("input").nth(0).fill("demo@workbench.local");
+    await page.locator("input").nth(0).fill(process.env.WORKBENCH_STAFF_USERNAME ?? "401008");
     await page.locator("input[type='password']").fill(PASSWORD);
     await page.getByRole("button", { name: "登录" }).click();
 
@@ -23,12 +28,15 @@ test.describe("移动端", () => {
     await firstCard.click();
 
     await expect(page.getByRole("button", { name: "← 返回项目" })).toBeVisible();
+    } finally {
+      await call(token, "DELETE", `/api/v1/projects/${projectId}`);
+    }
   });
 
   test("我的页可切换明暗", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${MOBILE}/login`);
-    await page.locator("input").nth(0).fill("demo@workbench.local");
+    await page.locator("input").nth(0).fill(process.env.WORKBENCH_STAFF_USERNAME ?? "401008");
     await page.locator("input[type='password']").fill(PASSWORD);
     await page.getByRole("button", { name: "登录" }).click();
     await expect(page.locator(".tabbar")).toBeVisible({ timeout: 15_000 });

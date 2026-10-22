@@ -1,8 +1,21 @@
 import { expect, request as playwrightRequest, type APIRequestContext } from "@playwright/test";
 
-const demoPassword = process.env.WORKBENCH_DEMO_PASSWORD ?? "";
+const staffPassword = process.env.WORKBENCH_STAFF_PASSWORD ?? "";
 
-export const DEMO = { username: "demo@workbench.local", password: demoPassword };
+/** 普通员工账号（默认 401004），密码走环境变量，避免把口令写进仓库。 */
+export const STAFF = {
+  username: process.env.WORKBENCH_STAFF_USERNAME ?? "401008",
+  password: staffPassword
+};
+
+/** 管理员账号（默认 401001）。 */
+export const ADMIN = {
+  username: process.env.WORKBENCH_ADMIN_USERNAME ?? "401001",
+  password: process.env.WORKBENCH_ADMIN_PASSWORD ?? ""
+};
+
+/** 兼容旧引用。 */
+export const DEMO = STAFF;
 
 export type Json = { code: number; message?: string; data: any };
 
@@ -36,9 +49,9 @@ export async function call(
   return JSON.parse(text) as Json;
 }
 
-export async function login(credentials = DEMO): Promise<string> {
+export async function login(credentials = STAFF): Promise<string> {
   if (!credentials.password) {
-    throw new Error("WORKBENCH_DEMO_PASSWORD 未设置，无法运行 API 测试（值见 server/deploy/workbench.env）");
+    throw new Error("WORKBENCH_STAFF_PASSWORD 未设置，无法运行 API 测试");
   }
   const result = await call(null, "POST", "/api/v1/auth/login", credentials);
   expect(result.code, `登录失败：${result.message}`).toBe(0);

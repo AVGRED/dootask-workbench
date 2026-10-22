@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const STAFF = process.env.STAFF_URL ?? "http://127.0.0.1:5180";
 const ADMIN = process.env.ADMIN_URL ?? "http://127.0.0.1:5181";
 const API = process.env.WORKBENCH_API ?? "http://127.0.0.1:9020";
-const DEMO_PASSWORD = process.env.WORKBENCH_DEMO_PASSWORD ?? "";
+const DEMO_PASSWORD = process.env.WORKBENCH_STAFF_PASSWORD ?? "";
 const ADMIN_PASSWORD = process.env.WORKBENCH_ADMIN_PASSWORD ?? "";
 
 async function tokenFor(username: string, password: string): Promise<string> {
@@ -27,14 +27,14 @@ async function starmapCounts(token: string): Promise<{ nodes: number; edges: num
 }
 
 test.describe("星图", () => {
-  test.skip(!DEMO_PASSWORD, "需要设置 WORKBENCH_DEMO_PASSWORD");
+  test.skip(!DEMO_PASSWORD, "需要设置 WORKBENCH_STAFF_PASSWORD");
 
   test("员工端星图渲染节点与连线，悬浮出详情", async ({ page }) => {
-    const token = await tokenFor("demo@workbench.local", DEMO_PASSWORD);
+    const token = await tokenFor(process.env.WORKBENCH_STAFF_USERNAME ?? "401004", DEMO_PASSWORD);
     const expected = await starmapCounts(token);
 
     await page.goto(`${STAFF}/login`);
-    await page.getByPlaceholder("邮箱或账号").fill("demo@workbench.local");
+    await page.getByPlaceholder("邮箱或账号").fill(process.env.WORKBENCH_STAFF_USERNAME ?? "401004");
     await page.getByPlaceholder("请输入密码").fill(DEMO_PASSWORD);
     await page.getByRole("button", { name: "登录" }).click();
     await expect(page.locator(".app-header")).toBeVisible({ timeout: 15_000 });
@@ -62,7 +62,7 @@ test.describe("星图", () => {
   test("管理端星图是全公司视角", async ({ page }) => {
     test.skip(!ADMIN_PASSWORD, "需要设置 WORKBENCH_ADMIN_PASSWORD");
 
-    const username = process.env.WORKBENCH_ADMIN_USERNAME ?? "admin";
+    const username = process.env.WORKBENCH_ADMIN_USERNAME ?? "401001";
     const token = await tokenFor(username, ADMIN_PASSWORD);
     const expected = await starmapCounts(token);
     expect(expected.scope).toBe("all");

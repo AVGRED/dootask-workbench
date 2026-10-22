@@ -116,7 +116,7 @@
 重新生成（需要后端 9020 与三端 dev server 在跑）：
 
 ```powershell
-$env:WORKBENCH_DEMO_PASSWORD='<demo 密码>'
+$env:WORKBENCH_STAFF_PASSWORD='<demo 密码>'
 cd workbench/web/apps/e2e
 node screenshot-theme.mjs          # 员工端 + 管理端 明暗
 node screenshot-pages.mjs          # 任务 / 看板
@@ -136,12 +136,12 @@ pnpm typecheck                      # 5 个包
 pnpm --filter @workbench/e2e test:api   # 14 项 API 测试
 
 # 浏览器用例（需要三端 dev server；缺密码时自动 skip）
-$env:WORKBENCH_DEMO_PASSWORD='<demo 密码>'
+$env:WORKBENCH_STAFF_PASSWORD='<demo 密码>'
 $env:WORKBENCH_ADMIN_PASSWORD='<admin 密码>'
 pnpm --filter @workbench/e2e test       # 20 项（6 项浏览器：员工端 2 / 管理端 2 / 移动端 2；14 项 API）
 
 cd ../..
-$env:WORKBENCH_DEMO_PASSWORD='<demo 密码>'
+$env:WORKBENCH_STAFF_PASSWORD='<demo 密码>'
 powershell -File workbench/scripts/e2e-smoke.ps1 -BaseUrl http://127.0.0.1:9020   # 191 项
 ```
 
@@ -155,7 +155,7 @@ powershell -File workbench/scripts/e2e-smoke.ps1 -BaseUrl http://127.0.0.1:9020 
 | `web` | `pnpm install` → `pnpm typecheck` → `pnpm build` |
 | `browser` | 起 MySQL → 打包并启动后端(9000) → 用 `scripts/seed-ci-users.sql` 播种 demo/admin → 起三端 dev server → `pnpm test:e2e`（14 API + 6 浏览器），失败上传 `test-results` |
 
-浏览器 job 的关键约定：`WORKBENCH_API=http://127.0.0.1:9000`、`WORKBENCH_DEMO_PASSWORD=secret123`、`WORKBENCH_ADMIN_USERNAME=admin` / `WORKBENCH_ADMIN_PASSWORD=<CI 专用密码>`，与 `seed-ci-users.sql` 里的 md5 种子密码对应（首次登录自动升 BCrypt）。
+浏览器 job 的关键约定：`WORKBENCH_API=http://127.0.0.1:9000`、`WORKBENCH_STAFF_PASSWORD=secret123`、`WORKBENCH_ADMIN_USERNAME=admin` / `WORKBENCH_ADMIN_PASSWORD=<CI 专用密码>`，与 `seed-ci-users.sql` 里的 md5 种子密码对应（首次登录自动升 BCrypt）。
 
 > 注：工作流 YAML 已用解析器校验，未在真实 GitHub Actions 上跑过（本地无 Actions runner），首次上线需观察一轮。
 

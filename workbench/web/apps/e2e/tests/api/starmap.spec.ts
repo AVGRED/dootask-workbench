@@ -35,7 +35,7 @@ test.describe("星图", () => {
   });
 
   test("管理员视角是全公司，并且没有项目的员工也在图里", async () => {
-    const username = process.env.WORKBENCH_ADMIN_USERNAME ?? "admin";
+    const username = process.env.WORKBENCH_ADMIN_USERNAME ?? "401001";
     const password = process.env.WORKBENCH_ADMIN_PASSWORD ?? "";
     test.skip(!password, "需要设置 WORKBENCH_ADMIN_PASSWORD");
 
@@ -52,7 +52,7 @@ test.describe("星图", () => {
     const ids = nodes.map((node) => node.userid);
     expect(ids).toContain(body.data.centerUserid);
     expect(ids.length).toBeGreaterThanOrEqual(2);
-    expect(DEMO.username).toContain("demo");
+    expect(body.data.scope).toBe("all");
   });
 
   test("未登录不能访问星图", async () => {

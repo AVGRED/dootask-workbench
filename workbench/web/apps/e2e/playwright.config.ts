@@ -9,6 +9,8 @@ const channel = process.env.PW_CHANNEL ?? "chrome";
 
 export default defineConfig({
   testDir: "./tests",
+  // API 用例有自己的 playwright.api.config.ts，避免浏览器跑法把它们带上
+  testIgnore: ["api/**"],
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

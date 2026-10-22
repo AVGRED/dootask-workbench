@@ -37,7 +37,7 @@
 | 1 | P2 | 前端 token 存在 `localStorage`，一旦出现 XSS 即可被读取 | 当前无 `v-html`、无第三方脚本，风险可控；后续可评估 httpOnly Cookie + CSRF token |
 | 2 | P2 | `SecurityConfig` 白名单里有 `/projects/**`（员工端 history 路由），若将来在根路径新增同名后端接口会被误放行 | 接口统一走 `/api/v1/**`，或在白名单里改为精确路由 |
 | 3 | P2 | `ProjectAccess` 注释写「角色 owner/admin/member/viewer」，但代码里没有「系统管理员自动获得项目权限」的分支 | 目前管理端用独立 SQL 查询全量数据，不需要该分支；建议修注释避免误解 |
-| 4 | P2 | 端到端浏览器测试仍引用 `demo@workbench.local`（该账号已按需求删除），本地跑 `pnpm test:e2e` 会失败 | 把 e2e 改成读 `WORKBENCH_STAFF_USERNAME/PASSWORD`，或 CI 里用 seed 脚本造账号 |
+| 4 | ~~P2~~ | ~~端到端浏览器测试仍引用 `demo@workbench.local`~~ **已修复**：e2e 全部改为读 `WORKBENCH_STAFF_USERNAME/PASSWORD`、`WORKBENCH_ADMIN_*`、`*_URL`；task-access 改为自建项目，mobile 用例自建项目；浏览器配置排除 api 目录。现网实测 API 18/18、浏览器 8/8 全绿 | — |
 | 5 | P3 | 生产环境单机：应用、数据库、备份同盘 | 已做本机（Windows）异地拉取；OSS 异地已就绪待填 AK（见 `docs/security-php2shell.md`） |
 | 6 | P3 | 登录限流是单机内存实现，重启即清零，多实例不共享 | 单实例部署下可接受；将来多实例换成 Redis 计数 |
 | 7 | P3 | 头像按 `userid-时间戳` 命名且公开可读（`/api/v1/avatars/**` 在白名单） | 文件名不可枚举出他人头像（时间戳未知），风险低；如需严格可改为签名 URL |

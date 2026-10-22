@@ -29,8 +29,17 @@ public class AuthController {
         return com.workbench.common.api.ApiResponse.ok(null);
     }
 
+    private String clientIp(jakarta.servlet.http.HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
     @PostMapping("/login")
-    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ApiResponse.ok(authService.login(request));
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request,
+                                            jakarta.servlet.http.HttpServletRequest httpRequest) {
+        return ApiResponse.ok(authService.login(request, clientIp(httpRequest)));
     }
 }

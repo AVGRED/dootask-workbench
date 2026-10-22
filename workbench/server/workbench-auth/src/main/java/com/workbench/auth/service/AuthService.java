@@ -30,11 +30,11 @@ public class AuthService {
     private static final int LOGIN_MAX_KEYS = 5000;
     private final java.util.Map<String, java.util.Deque<Long>> loginFailures = new java.util.concurrent.ConcurrentHashMap<>();
 
-    private void checkLoginRate(String username) {
+    private void checkLoginRate(String username, String clientIp) {
         if (loginFailures.size() > LOGIN_MAX_KEYS) {
             loginFailures.clear();
         }
-        String key = username == null ? "" : username.toLowerCase(java.util.Locale.ROOT);
+        String key = rateKey(username, clientIp);
         java.util.Deque<Long> attempts = loginFailures.get(key);
         if (attempts == null) {
             return;
@@ -50,20 +50,17 @@ public class AuthService {
         }
     }
 
-    private void recordLoginFailure(String username) {
-        String key = username == null ? "" : username.toLowerCase(java.util.Locale.ROOT);
-        java.util.Deque<Long> attempts = loginFailures.computeIfAbsent(key,
-                ignored -> new java.util.concurrent.ConcurrentLinkedDeque<>());
-        long now = System.currentTimeMillis();
-        synchronized (attempts) {
-            attempts.addLast(now);
-            while (!attempts.isEmpty() && now - attempts.peekFirst() > LOGIN_WINDOW_MS) {
-                attempts.pollFirst();
-            }
-            while (attempts.size() > LOGIN_MAX_FAILURES) {
-                attempts.pollFirst();
-            }
-        }
+    private void recordLoginFailure(String username, String clientIp) {
+        String key = rateKey(username, clientIp);
+        loginFailures.computeIfAbsent(key, ignored -> new java.util.concurrent.ConcurrentLinkedDeque<>())
+                .addLast(System.currentTimeMillis());
+    }
+
+    /** 限流 key：来源 IP + 账号。按 IP 区分后，别人刷失败次数不会把这个账号锁死。 */
+    private String rateKey(String username, String clientIp) {
+        String ip = clientIp == null || clientIp.isBlank() ? "unknown" : clientIp;
+        String name = username == null ? "" : username.toLowerCase(java.util.Locale.ROOT);
+        return ip + "|" + name;
     }
 
     private final JdbcTemplate jdbcTemplate;
@@ -76,11 +73,11 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
-    public LoginResponse login(LoginRequest request) {
-        checkLoginRate(request.username());
+    public LoginResponse login(LoginRequest request, String clientIp) {
+        checkLoginRate(request.username(), clientIp);
         List<Map<String, Object>> rows = findByEmail(request.username());
         if (rows.isEmpty()) {
-            recordLoginFailure(request.username());
+            recordLoginFailure(request.username(), clientIp);
             throw new BusinessException("账号或密码错误");
         }
         Map<String, Object> user = rows.get(0);
@@ -88,10 +85,10 @@ public class AuthService {
         String stored = (String) user.get("password");
         String salt = (String) user.get("encrypt");
         if (!matches(request.password(), stored, salt)) {
-            recordLoginFailure(request.username());
+            recordLoginFailure(request.username(), clientIp);
             throw new BusinessException("账号或密码错误");
         }
-        loginFailures.remove(request.username() == null ? "" : request.username().toLowerCase(java.util.Locale.ROOT));
+        loginFailures.remove(rateKey(request.username(), clientIp));
         if (isBcrypt(stored)) {
             // already upgraded
         } else {

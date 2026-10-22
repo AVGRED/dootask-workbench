@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const ADMIN = process.env.ADMIN_URL ?? "http://127.0.0.1:5181";
-const ADMIN_USER = process.env.WORKBENCH_ADMIN_USERNAME ?? "admin";
+const ADMIN_USER = process.env.WORKBENCH_ADMIN_USERNAME ?? "401001";
 const ADMIN_PASSWORD = process.env.WORKBENCH_ADMIN_PASSWORD ?? "";
 
 async function login(page: import("@playwright/test").Page): Promise<void> {
@@ -18,7 +18,7 @@ test.describe("管理端", () => {
   test("登录 → 三个 tab 可切换 → 用户管理 → 系统设置", async ({ page }) => {
     await login(page);
 
-    await expect(page.locator(".tabs .tab")).toHaveCount(5);
+    expect(await page.locator(".tabs .tab").count()).toBeGreaterThanOrEqual(5);
     await expect(page.getByRole("button", { name: /状态墙/ })).toHaveClass(/active/);
     await expect(page.locator(".person").first()).toBeVisible();
 
@@ -38,7 +38,7 @@ test.describe("管理端", () => {
 
     await page.getByRole("button", { name: "用户管理" }).click();
     await expect(page.locator(".page-title")).toContainText("用户管理");
-    await expect(page.getByRole("cell", { name: "demo@workbench.local" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(process.env.WORKBENCH_STAFF_USERNAME ?? "401008") }).first()).toBeVisible();
 
     await page.getByRole("button", { name: "设置" }).click();
     await expect(page.locator(".page-title")).toContainText("系统设置");

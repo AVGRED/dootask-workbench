@@ -13,15 +13,15 @@
 #>
 param(
     [string]$BaseUrl = "http://127.0.0.1:9002",
-    [string]$Username = "demo@workbench.local",
-    [string]$Password = $env:WORKBENCH_DEMO_PASSWORD
+    [string]$Username = $env:WORKBENCH_STAFF_USERNAME ?? "401008",
+    [string]$Password = $env:WORKBENCH_STAFF_PASSWORD
 )
 
 $ErrorActionPreference = "Stop"
 
 if ([string]::IsNullOrWhiteSpace($Password)) {
-  Write-Host "WORKBENCH_DEMO_PASSWORD 未设置，无法运行冒烟脚本。" -ForegroundColor Red
-  Write-Host "请先设置环境变量（值见 server/deploy/workbench.env 的 DEMO_PASSWORD）" -ForegroundColor Yellow
+  Write-Host "WORKBENCH_STAFF_PASSWORD 未设置，无法运行冒烟脚本。" -ForegroundColor Red
+  Write-Host "请先设置 WORKBENCH_STAFF_USERNAME / WORKBENCH_STAFF_PASSWORD" -ForegroundColor Yellow
   exit 1
 }
 $script:token = ""
