@@ -11,6 +11,7 @@ import com.workbench.user.web.UserDtos.UpdateUserRequest;
 import com.workbench.user.web.UserDtos.UserView;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -68,8 +69,12 @@ public class UserService {
         Long numericId = numericAccount(account);
         if (numericId != null) {
             user.setUserid(numericId);
-            if (userMapper.selectById(numericId) != null) {
-                throw new BusinessException("账号已被使用");
+            User occupied = userMapper.selectById(numericId);
+            if (occupied != null) {
+                String reason = occupied.getDeletedAt() != null
+                        ? "该工号曾被删除、仍被占用，请换一个工号"
+                        : "账号已被使用";
+                throw new BusinessException(reason);
             }
         }
         user.setEmail(request.email());
@@ -84,12 +89,16 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
         if (numericId != null) {
             // IdType.AUTO 会忽略手动设置的 id，这里直接写 SQL 保证 userid = 工号
-            jdbcTemplate.update(
-                    "insert into users (userid, account, email, nickname, profession, userimg, password, encrypt, "
-                            + "role, login_num, created_at, updated_at) "
-                            + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now())",
-                    numericId, user.getAccount(), user.getEmail(), user.getNickname(), user.getProfession(),
-                    user.getUserimg(), user.getPassword(), user.getEncrypt(), user.getRole(), user.getLoginNum());
+            try {
+                jdbcTemplate.update(
+                        "insert into users (userid, account, email, nickname, profession, userimg, password, encrypt, "
+                                + "role, login_num, created_at, updated_at) "
+                                + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now())",
+                        numericId, user.getAccount(), user.getEmail(), user.getNickname(), user.getProfession(),
+                        user.getUserimg(), user.getPassword(), user.getEncrypt(), user.getRole(), user.getLoginNum());
+            } catch (DuplicateKeyException exception) {
+                throw new BusinessException("该工号已被占用，请换一个工号");
+            }
             return toView(userMapper.selectById(numericId));
         }
         userMapper.insert(user);
