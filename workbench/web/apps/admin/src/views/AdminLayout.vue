@@ -61,7 +61,7 @@ async function logout(): Promise<void> {
 <style scoped>
 .shell {
   min-height: 100vh;
-  background: var(--wb-bg);
+  background: transparent;
 }
 .shell-header {
   position: sticky;
@@ -140,7 +140,7 @@ async function logout(): Promise<void> {
 }
 .shell-main {
   padding: 20px;
-  background: var(--wb-bg);
+  background: transparent;
 }
 .brand::before {
   border-radius: 0;

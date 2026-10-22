@@ -204,7 +204,7 @@ onMounted(load);
 <style scoped>
 .dashboard {
   min-height: 100vh;
-  background: var(--wb-bg);
+  background: transparent;
 }
 .dashboard-main {
   padding: 18px 20px 32px;

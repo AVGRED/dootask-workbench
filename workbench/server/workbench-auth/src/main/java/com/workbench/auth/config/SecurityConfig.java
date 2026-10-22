@@ -40,6 +40,7 @@ public class SecurityConfig {
             "/starmap",
             "/settings",
             "/projects/**",
+            "/bg-*.svg",
             "/favicon.svg",
             "/favicon-32.png",
             "/icon-*.png",
