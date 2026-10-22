@@ -3,6 +3,9 @@
     <div class="toolbar">
       <span class="hint">共 {{ rows.length }} 个项目</span>
       <el-input v-model="keyword" placeholder="筛选项目名 / 负责人" size="small" style="width: 220px" clearable />
+      <div class="toolbar-right">
+        <el-button type="primary" size="small" @click="openCreate">新建项目</el-button>
+      </div>
     </div>
     <div class="stats">
       <div class="stat-card">
@@ -24,6 +27,7 @@
         <div class="card-head">
           <span class="name">{{ row.name }}</span>
           <span v-if="row.overdue > 0" class="overdue">{{ row.overdue }} 逾期</span>
+          <el-button class="card-del" link type="danger" size="small" @click="removeProject(row)">删除</el-button>
         </div>
         <div class="meta">负责人 {{ row.owner_name || "#" + row.owner_userid }} · {{ row.members }} 名成员</div>
         <div class="progress">
@@ -37,16 +41,115 @@
       </div>
     </div>
     <div v-if="filtered.length === 0" class="empty">没有匹配的项目</div>
+
+    <el-dialog v-model="createVisible" title="新建项目" width="480px">
+      <el-form :model="form" label-width="80px">
+        <el-form-item label="项目名称">
+          <el-input v-model="form.name" maxlength="255" placeholder="例如：官网改版" />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="form.desc" type="textarea" :rows="3" maxlength="500" placeholder="项目目标、范围（可选）" />
+        </el-form-item>
+        <el-form-item label="成员">
+          <el-select
+            v-model="form.memberUserids"
+            multiple
+            filterable
+            placeholder="选择项目成员（可多选）"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="user in users"
+              :key="user.userid"
+              :label="`${user.nickname}（${user.account || user.email}）`"
+              :value="user.userid"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="submitCreate">创建</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import type { AdminProjectRow } from "@workbench/api";
+import { computed, onMounted, reactive, ref } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import type { AdminProjectRow, UserView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const rows = ref<AdminProjectRow[]>([]);
 const keyword = ref("");
+const users = ref<UserView[]>([]);
+const createVisible = ref(false);
+const saving = ref(false);
+const form = reactive<{ name: string; desc: string; memberUserids: number[] }>({
+  name: "",
+  desc: "",
+  memberUserids: []
+});
+
+async function loadUsers(): Promise<void> {
+  try {
+    const page = await client.listUsers({ page: 1, size: 100 });
+    users.value = page.list;
+  } catch {
+    users.value = [];
+  }
+}
+
+function openCreate(): void {
+  form.name = "";
+  form.desc = "";
+  form.memberUserids = [];
+  createVisible.value = true;
+  if (users.value.length === 0) void loadUsers();
+}
+
+async function submitCreate(): Promise<void> {
+  if (!form.name.trim()) {
+    ElMessage.warning("请填写项目名称");
+    return;
+  }
+  saving.value = true;
+  try {
+    const project = await client.createProject({ name: form.name.trim(), desc: form.desc.trim() });
+    for (const userid of form.memberUserids) {
+      try {
+        await client.addMember(project.id, userid);
+      } catch {
+        // 单个成员添加失败不阻塞整个创建流程
+      }
+    }
+    createVisible.value = false;
+    ElMessage.success("项目已创建");
+    await load();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "创建失败");
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function removeProject(row: AdminProjectRow): Promise<void> {
+  try {
+    await ElMessageBox.confirm(`删除项目「${row.name}」？项目下任务会一并隐藏。`, "删除确认", {
+      type: "warning"
+    });
+  } catch {
+    return;
+  }
+  try {
+    await client.deleteProject(row.id);
+    ElMessage.success("已删除");
+    await load();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
+  }
+}
 
 const filtered = computed(() => {
   const text = keyword.value.trim();
@@ -85,6 +188,16 @@ onMounted(load);
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
+}
+.toolbar-right {
+  margin-left: auto;
+}
+.card-del {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.card:hover .card-del {
+  opacity: 1;
 }
 .hint {
   color: var(--wb-text-3);
