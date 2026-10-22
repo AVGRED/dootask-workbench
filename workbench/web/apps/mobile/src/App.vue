@@ -1,6 +1,7 @@
 <template>
   <div class="app">
     <div class="wb-galaxy" aria-hidden="true">
+      <span class="vignette"></span>
       <span class="band band-a"></span>
       <span class="band band-b"></span>
       <span class="milky"></span>

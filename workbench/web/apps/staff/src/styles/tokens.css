@@ -501,3 +501,67 @@ html.dark .wb-galaxy .milky {
     animation: none;
   }
 }
+
+/* 浅色模式：银色要比底色更"沉"才看得出来——银灰带 + 白色亮芯，外加一圈很淡的暗角 */
+html:not(.dark) .wb-galaxy .band {
+  opacity: 0.9;
+}
+
+html:not(.dark) .wb-galaxy .band-a {
+  background: conic-gradient(
+    from 30deg,
+    rgba(96, 106, 128, 0) 0deg,
+    rgba(96, 106, 128, 0.34) 70deg,
+    rgba(236, 240, 248, 0.30) 150deg,
+    rgba(96, 106, 128, 0) 220deg,
+    rgba(120, 132, 155, 0.26) 300deg,
+    rgba(96, 106, 128, 0) 360deg
+  );
+}
+
+html:not(.dark) .wb-galaxy .band-b {
+  background: conic-gradient(
+    from 200deg,
+    rgba(80, 90, 112, 0) 0deg,
+    rgba(80, 90, 112, 0.26) 90deg,
+    rgba(240, 244, 250, 0.26) 180deg,
+    rgba(80, 90, 112, 0) 260deg,
+    rgba(110, 122, 145, 0.22) 330deg,
+    rgba(80, 90, 112, 0) 360deg
+  );
+  opacity: 0.8;
+}
+
+html:not(.dark) .wb-galaxy .milky {
+  opacity: 0.95;
+  background: linear-gradient(
+    90deg,
+    rgba(96, 106, 128, 0) 0%,
+    rgba(96, 106, 128, 0.26) 20%,
+    rgba(255, 255, 255, 0.85) 46%,
+    rgba(120, 132, 155, 0.24) 64%,
+    rgba(96, 106, 128, 0) 100%
+  );
+  filter: blur(64px);
+}
+
+html:not(.dark) .wb-galaxy .stars {
+  opacity: 0.95;
+}
+
+.wb-galaxy .vignette {
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 38%,
+    rgba(120, 130, 150, 0) 42%,
+    rgba(108, 118, 140, 0.10) 100%
+  );
+}
+
+html.dark .wb-galaxy .vignette {
+  background: radial-gradient(
+    circle at 50% 38%,
+    rgba(0, 0, 0, 0) 45%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+}
