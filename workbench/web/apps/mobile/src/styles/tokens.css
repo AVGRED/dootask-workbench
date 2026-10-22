@@ -434,12 +434,7 @@ html.dark .wb-galaxy .stars {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .wb-galaxy .band,
-  .wb-galaxy .stars {
-    animation: none;
-  }
-}
+
 
 @media (max-width: 768px) {
   .wb-galaxy .band {
@@ -496,11 +491,7 @@ html.dark .wb-galaxy .milky {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .wb-galaxy .milky {
-    animation: none;
-  }
-}
+
 
 /* 浅色模式：银色要比底色更"沉"才看得出来——银灰带 + 白色亮芯，外加一圈很淡的暗角 */
 html:not(.dark) .wb-galaxy .band {
@@ -568,19 +559,19 @@ html.dark .wb-galaxy .vignette {
 
 /* 让"流动"看得出来：整体提速 + 一条缓慢横扫的银色光带 */
 .wb-galaxy .milky {
-  animation-duration: 42s;
+  animation-duration: 26s;
 }
 
 .wb-galaxy .band-a {
-  animation-duration: 95s;
+  animation-duration: 60s;
 }
 
 .wb-galaxy .band-b {
-  animation-duration: 130s;
+  animation-duration: 80s;
 }
 
 .wb-galaxy .stars {
-  animation-duration: 110s;
+  animation-duration: 70s;
 }
 
 .wb-galaxy .sweep {
@@ -598,8 +589,8 @@ html.dark .wb-galaxy .vignette {
     rgba(255, 255, 255, 0) 100%
   );
   filter: blur(38px);
-  opacity: 0.5;
-  animation: wb-galaxy-sweep 26s linear infinite;
+  opacity: 0.7;
+  animation: wb-galaxy-sweep 16s linear infinite;
   will-change: transform, opacity;
 }
 
@@ -631,9 +622,29 @@ html.dark .wb-galaxy .sweep {
   }
 }
 
+
+
+/* 银河层不受系统"减少动效"影响：即使 OS 关了动画，银河也保持缓慢流动 */
 @media (prefers-reduced-motion: reduce) {
+  .wb-galaxy .band-a {
+    animation: wb-galaxy-spin 60s linear infinite !important;
+  }
+  .wb-galaxy .band-b {
+    animation: wb-galaxy-spin 80s linear infinite reverse !important;
+  }
+  .wb-galaxy .milky {
+    animation: wb-galaxy-flow 26s ease-in-out infinite alternate !important;
+  }
   .wb-galaxy .sweep {
-    animation: none;
-    opacity: 0;
+    animation: wb-galaxy-sweep 16s linear infinite !important;
+  }
+  .wb-galaxy .stars {
+    animation: wb-galaxy-drift 70s linear infinite !important;
+  }
+  .wb-galaxy .band,
+  .wb-galaxy .stars,
+  .wb-galaxy .sweep,
+  .wb-galaxy .milky {
+    animation-iteration-count: infinite !important;
   }
 }
