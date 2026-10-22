@@ -163,8 +163,8 @@ onMounted(async () => {
   justify-content: space-between;
   height: 64px;
   padding: 0 20px;
-  background: color-mix(in srgb, var(--wb-surface) 84%, transparent);
-  backdrop-filter: blur(14px);
+  background: color-mix(in srgb, var(--wb-surface) 62%, transparent);
+  backdrop-filter: blur(18px) saturate(120%);
   border-bottom: 1px solid var(--wb-border);
 }
 .header-left {

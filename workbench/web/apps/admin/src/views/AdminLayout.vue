@@ -72,8 +72,8 @@ async function logout(): Promise<void> {
   justify-content: space-between;
   height: 64px;
   padding: 0 20px;
-  background: color-mix(in srgb, var(--wb-surface) 82%, transparent);
-  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--wb-surface) 60%, transparent);
+  backdrop-filter: blur(18px) saturate(120%);
   border-bottom: 1px solid var(--wb-border);
 }
 .left {

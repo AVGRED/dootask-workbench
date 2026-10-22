@@ -565,3 +565,75 @@ html.dark .wb-galaxy .vignette {
     rgba(0, 0, 0, 0.35) 100%
   );
 }
+
+/* 让"流动"看得出来：整体提速 + 一条缓慢横扫的银色光带 */
+.wb-galaxy .milky {
+  animation-duration: 42s;
+}
+
+.wb-galaxy .band-a {
+  animation-duration: 95s;
+}
+
+.wb-galaxy .band-b {
+  animation-duration: 130s;
+}
+
+.wb-galaxy .stars {
+  animation-duration: 110s;
+}
+
+.wb-galaxy .sweep {
+  left: 50%;
+  top: 50%;
+  width: 18vmax;
+  height: 210vmax;
+  margin: -105vmax 0 0 -9vmax;
+  transform: rotate(24deg);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.55) 45%,
+    rgba(190, 200, 218, 0.35) 55%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  filter: blur(38px);
+  opacity: 0.5;
+  animation: wb-galaxy-sweep 26s linear infinite;
+  will-change: transform, opacity;
+}
+
+html.dark .wb-galaxy .sweep {
+  background: linear-gradient(
+    180deg,
+    rgba(220, 228, 244, 0) 0%,
+    rgba(226, 234, 250, 0.42) 45%,
+    rgba(170, 182, 205, 0.24) 55%,
+    rgba(220, 228, 244, 0) 100%
+  );
+  opacity: 0.42;
+}
+
+@keyframes wb-galaxy-sweep {
+  0% {
+    transform: rotate(24deg) translate3d(-38vw, 0, 0);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.55;
+  }
+  82% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: rotate(24deg) translate3d(38vw, 0, 0);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-galaxy .sweep {
+    animation: none;
+    opacity: 0;
+  }
+}

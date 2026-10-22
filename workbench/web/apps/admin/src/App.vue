@@ -5,6 +5,7 @@
       <span class="band band-a"></span>
       <span class="band band-b"></span>
       <span class="milky"></span>
+      <span class="sweep"></span>
       <span class="stars"></span>
     </div>
     <router-view />
