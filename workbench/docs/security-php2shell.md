@@ -1,0 +1,83 @@
+# PHP2Shell（CVE-2026-109618 / CVE-2026-109619）应急处理记录
+
+> 触发：阿里云安全通告，PHP 披露两个 CVSS 9.2 的未授权远程代码执行漏洞，统称 php2shell。
+> 处理时间：2026-10-22
+
+## 漏洞要点
+
+- 影响：PHP 5.x 起的全部版本（含 8.2–8.5），Apache mod_php、PHP-FPM、php-cgi、FrankenPHP、LiteSpeed 均受影响
+- 成因：
+  - CVE-2026-109618：OOM 异常路径下请求数据未初始化，清理阶段访问无效内存
+  - CVE-2026-109619：全局状态未正确重置，导致跨请求 Use-After-Free
+- 后果：未认证攻击者可以 Web 进程权限执行任意代码；官方已在 mod_php 与 FPM 下验证可利用，且已在野利用
+- 修复：升级 PHP 到官方修复版本或发行版回移补丁；升级后必须重启全部 PHP 工作进程
+
+## 本机受影响情况
+
+| 项 | 状态 |
+|---|---|
+| PHP 版本 | 8.3.25（宝塔编译版，2025-10 构建，属于受影响范围） |
+| php-fpm-83 | 原为 inactive + enabled（开机自启） |
+| WordPress 站点 | `/www/wwwroot/wordpress`，vhost `127.0.0.1.conf` 以 `default_server` 监听 80 并 include `enable-php-83.conf` |
+| phpMyAdmin | nginx `listen 888`，`root /www/server/phpmyadmin`，含 PHP handler |
+| 星图 | 与 PHP 无关（Spring Boot :9020 + nginx 反代） |
+
+结论：**虽然 PHP-FPM 当时未运行，但开机自启 + 80 端口 PHP handler 同时存在，重启即暴露。**
+
+## 本次处置（已完成）
+
+```bash
+# 1. 彻底停用 PHP
+systemctl disable php-fpm-83
+systemctl stop php-fpm-83
+# 结果：inactive / disabled，无进程、无 /tmp/php-cgi*.sock
+
+# 2. 下线 WordPress vhost（保留文件，可回滚）
+cd /www/server/panel/vhost/nginx
+cp 127.0.0.1.conf /root/wordpress-vhost.conf.bak
+mv 127.0.0.1.conf 127.0.0.1.conf.disabled
+nginx -t && systemctl reload nginx
+
+# 3. 关闭 phpMyAdmin 的公网入口（仅本机可访问）
+iptables -I INPUT -p tcp --dport 888 -s 127.0.0.1 -j ACCEPT
+iptables -I INPUT -p tcp --dport 888 -j DROP
+service iptables save
+```
+
+验证结果：
+
+```
+http://<IP>/index.php      -> 404   （不再有 PHP handler）
+http://<IP>/wp-login.php   -> 404
+http://<IP>:888/           -> 404   （phpMyAdmin 不再执行 PHP）
+php-fpm-83                 -> inactive / disabled
+php 进程 / socket          -> 无
+https://yanyunxiaoguang.cn -> 200（星图不受影响）
+```
+
+## 回滚 / 后续升级
+
+如果以后还要用 WordPress：
+
+1. 在宝塔面板「软件商店 → PHP 8.3」升级到官方修复版本（或发行版回移补丁），确认 `php -v` 为修复版本
+2. 恢复 vhost：`mv 127.0.0.1.conf.disabled 127.0.0.1.conf`
+3. 启动 FPM：`systemctl enable --now php-fpm-83`，并确认所有 worker 已重启
+4. 按需放开 888 端口（不建议对公网开放 phpMyAdmin）
+
+## 仍建议处理的暴露面
+
+| 风险 | 建议 |
+|---|---|
+| 宝塔面板 8888 对公网开放 | 改随机端口 + 开启「面板授权 IP」，或安全组只放行自己 IP |
+| SSH 22 对公网开放 + root 密码登录 | 改用密钥登录、禁用密码登录、fail2ban |
+| 服务器 root 密码曾在聊天中传输 | 立即 `passwd root` 更换 |
+| 阿里云安全组 | 只放行 80/443 与自己常用的运维 IP |
+| 无 WAF/日志告警 | 需要时接入阿里云 WAF 或云安全中心 |
+
+## 参考
+
+- 阿里云安全防护指南：https://developer.aliyun.com/article/1773846
+- PHP 官方 2026 安全公告归档：https://www.php.net/archive/2026.php
+- GHSA-w8hw-w9fx-j79w（CVE-2026-109618）
+- GHSA-6wmf-4rv5-p3rp（CVE-2026-109619）
+- IPA 告警：https://www.ipa.go.jp/security/security-alert/2026/alert20261022.html
