@@ -116,11 +116,20 @@ public class UserService {
     }
 
     /** 管理员重置某用户密码：重新 bcrypt 哈希。注意：已签发令牌仍有效直到过期。 */
-    public void changePassword(long userid, String password) {
+    public void changePassword(long callerUserid, long userid, String password) {
         if (password == null || password.length() < 8) {
             throw new BusinessException("密码至少 8 位");
         }
         User user = require(userid);
+        boolean targetIsAdmin = SystemAdmin.ROLE_ADMIN.equals(user.getRole()) || systemAdmin.isSuper(userid);
+        if (targetIsAdmin && !systemAdmin.isSuper(callerUserid)) {
+            throw new BusinessException(403, "只有超级管理员能重置管理员密码");
+        }
+        // 重置后旧登录态失效，必须重新登录
+        if (user.getTokenVersion() == null) {
+            user.setTokenVersion(0);
+        }
+        user.setTokenVersion(user.getTokenVersion() + 1);
         user.setPassword(passwordEncoder.encode(password));
         user.setEncrypt("");
         user.setUpdatedAt(LocalDateTime.now());

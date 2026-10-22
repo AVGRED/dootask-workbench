@@ -540,6 +540,10 @@ export class ApiClient {
     await this.request<null>("POST", "/api/v1/super/todos", { userid, title });
   }
 
+  async superResetPassword(userid: number, password: string): Promise<void> {
+    await this.request<null>("POST", `/api/v1/super/users/${userid}/password`, { password });
+  }
+
   async superForceLogout(userid: number): Promise<void> {
     await this.request<null>("POST", `/api/v1/super/users/${userid}/force-logout`);
   }

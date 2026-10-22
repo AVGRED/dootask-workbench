@@ -18,10 +18,13 @@ public class SuperAdminService {
 
     private final JdbcTemplate jdbc;
     private final SystemAdmin systemAdmin;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
-    public SuperAdminService(JdbcTemplate jdbc, SystemAdmin systemAdmin) {
+    public SuperAdminService(JdbcTemplate jdbc, SystemAdmin systemAdmin,
+                             org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.jdbc = jdbc;
         this.systemAdmin = systemAdmin;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public Map<String, Object> writeReport(long operator, long userid, LocalDate date,
@@ -66,6 +69,20 @@ public class SuperAdminService {
                 + "values (?, ?, 0, 0, now(), now())", userid, safe);
         audit(operator, "todo.create", userid, safe);
         return Map.of("userid", userid, "title", safe);
+    }
+
+    /** 重置任意用户密码（含管理员），并让对方的登录态失效。 */
+    public Map<String, Object> resetPassword(long operator, long userid, String password) {
+        systemAdmin.requireSuper(operator);
+        requireUser(userid);
+        if (password == null || password.length() < 8) {
+            throw new BusinessException("密码至少 8 位");
+        }
+        String encoded = passwordEncoder.encode(password);
+        jdbc.update("update users set password = ?, encrypt = '', token_version = coalesce(token_version, 0) + 1, "
+                + "updated_at = now() where userid = ? and deleted_at is null", encoded, userid);
+        audit(operator, "user.reset_password", userid, "");
+        return Map.of("userid", userid, "ok", true);
     }
 
     public Map<String, Object> forceLogout(long operator, long userid) {

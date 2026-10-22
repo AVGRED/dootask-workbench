@@ -73,8 +73,9 @@ public class UserController {
             Principal principal,
             @PathVariable long userid,
             @RequestBody ChangePasswordRequest request) {
-        systemAdmin.requireAdmin(currentUserid(principal));
-        userService.changePassword(userid, request.password());
+        long operator = currentUserid(principal);
+        systemAdmin.requireAdmin(operator);
+        userService.changePassword(operator, userid, request.password());
         return ApiResponse.ok(null);
     }
 

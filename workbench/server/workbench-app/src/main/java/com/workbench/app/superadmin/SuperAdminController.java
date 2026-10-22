@@ -42,6 +42,13 @@ public class SuperAdminController {
         return ApiResponse.ok(service.forceLogout(currentUserid(principal), userid));
     }
 
+    @PostMapping("/users/{userid}/password")
+    public ApiResponse<Map<String, Object>> resetPassword(Principal principal,
+                                                          @PathVariable long userid,
+                                                          @RequestBody PasswordRequest request) {
+        return ApiResponse.ok(service.resetPassword(currentUserid(principal), userid, request.password()));
+    }
+
     @DeleteMapping("/tasks/{taskId}")
     public ApiResponse<Map<String, Object>> deleteTask(Principal principal, @PathVariable long taskId) {
         return ApiResponse.ok(service.deleteTask(currentUserid(principal), taskId));
@@ -63,6 +70,9 @@ public class SuperAdminController {
     }
 
     public record TodoRequest(long userid, String title) {
+    }
+
+    public record PasswordRequest(String password) {
     }
 
     private long currentUserid(Principal principal) {

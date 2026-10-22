@@ -59,6 +59,32 @@
       </section>
 
       <section class="card">
+        <h3>重置用户密码</h3>
+        <p class="hint">可以重置任何人（含管理员）的密码；重置后对方需要重新登录。</p>
+        <el-form label-width="88px" size="small">
+          <el-form-item label="用户">
+            <el-select v-model="resetUserid" filterable placeholder="选择用户" style="width: 100%">
+              <el-option
+                v-for="u in users"
+                :key="u.userid"
+                :label="`${u.nickname}（${u.account ?? u.email}）${u.role === 'admin' ? ' · 管理员' : ''}`"
+                :value="u.userid"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="新密码">
+            <el-input v-model="newPassword" placeholder="至少 8 位" show-password />
+          </el-form-item>
+          <el-form-item>
+            <div class="inline">
+              <el-button :loading="busy === 'reset'" type="primary" @click="resetPassword">重置密码</el-button>
+              <el-button @click="randomPassword">生成随机密码</el-button>
+            </div>
+          </el-form-item>
+        </el-form>
+      </section>
+
+      <section class="card">
         <h3>删除任务 / 项目</h3>
         <p class="hint">绕过负责人限制，直接软删除。请谨慎使用，操作会记录在审计日志。</p>
         <div class="inline">
@@ -117,6 +143,8 @@ const today = new Date().toISOString().slice(0, 10);
 const reportForm = reactive<{ userid?: number; date: string; done: string; blocker: string; plan: string }>({ userid: undefined, date: today, done: "", blocker: "", plan: "" });
 const todoForm = reactive<{ userid?: number; title: string }>({ userid: undefined, title: "" });
 const logoutUserid = ref<number | undefined>();
+const resetUserid = ref<number | undefined>();
+const newPassword = ref("");
 const taskId = ref<number | undefined>();
 const projectId = ref<number | undefined>();
 
@@ -206,6 +234,40 @@ async function forceLogout(): Promise<void> {
     await loadAudit();
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "操作失败");
+  } finally {
+    busy.value = "";
+  }
+}
+
+function randomPassword(): void {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  let value = "";
+  for (let i = 0; i < 12; i += 1) value += alphabet[Math.floor(Math.random() * alphabet.length)];
+  newPassword.value = value + "!9";
+}
+
+async function resetPassword(): Promise<void> {
+  if (!resetUserid.value) {
+    ElMessage.warning("请选择用户");
+    return;
+  }
+  if (newPassword.value.length < 8) {
+    ElMessage.warning("新密码至少 8 位");
+    return;
+  }
+  try {
+    await ElMessageBox.confirm("重置后对方会被强制重新登录，确认继续？", "重置密码", { type: "warning" });
+  } catch {
+    return;
+  }
+  busy.value = "reset";
+  try {
+    await client.superResetPassword(resetUserid.value, newPassword.value);
+    ElMessage.success("密码已重置，请把新密码告知对方");
+    newPassword.value = "";
+    await loadAudit();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "重置失败");
   } finally {
     busy.value = "";
   }

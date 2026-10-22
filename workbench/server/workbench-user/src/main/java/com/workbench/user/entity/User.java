@@ -23,6 +23,7 @@ public class User {
     private String nickname;
     private String profession;
     private String role;
+    private Integer tokenVersion;
     private String userimg;
     private String password;
     private String encrypt;
@@ -127,6 +128,14 @@ public class User {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Integer getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void setTokenVersion(Integer tokenVersion) {
+        this.tokenVersion = tokenVersion;
     }
 
     public LocalDateTime getUpdatedAt() {

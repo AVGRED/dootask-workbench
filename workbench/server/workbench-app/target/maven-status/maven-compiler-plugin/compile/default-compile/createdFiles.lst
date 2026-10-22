@@ -40,6 +40,7 @@ com\workbench\app\starmap\StarMapService.class
 com\workbench\app\superadmin\SuperAdminController$TodoRequest.class
 com\workbench\app\superadmin\SuperAdminController$ReportRequest.class
 com\workbench\app\status\StatusService.class
+com\workbench\app\superadmin\SuperAdminController$PasswordRequest.class
 com\workbench\app\mail\MailController$MailTestResult.class
 com\workbench\app\todo\PersonalTodoService.class
 com\workbench\app\migrate\MigrationPlan.class
