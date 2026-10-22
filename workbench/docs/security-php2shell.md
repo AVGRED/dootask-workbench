@@ -136,3 +136,33 @@ ssh -i C:\Users\H\.ssh\xingtu_ed25519 -L 8888:127.0.0.1:8888 root@47.109.88.107
 - 已验证：手动执行成功，产出 db/data/config 三个压缩包（当日总计约 220K）
 
 建议后续把 `/root/backup` 同步到阿里云 OSS 做异地备份（宝塔计划任务 + OSS 插件即可）。
+
+## 异地备份
+
+### 已生效：拉到本机（Windows）
+
+- 脚本：`workbench/scripts/pull-backups.ps1`（scp 拉取 `/root/backup/*.gz` 到 `D:\backups\xingtu`）
+- 本地保留 14 天
+- Windows 计划任务：`XingtuBackupPull`，每天 **03:30**（交互式，需当前用户登录）
+- 已实测：首次拉取 7 个文件成功
+
+这样即使服务器整机损坏，最近一天的数据库与上传文件在本机仍有一份。
+
+### 已就绪、待填凭据：阿里云 OSS
+
+- 上传脚本：`/opt/xingtu/oss_upload.py`（依赖已装 oss2 2.19.1）
+- 配置模板：`/opt/xingtu/oss.env.example` → 复制为 `oss.env` 并填 4 个值
+- `backup.sh` 末尾已挂钩：存在 `oss.env` 时自动上传，远端保留 30 天
+- 当前状态：无 `oss.env`，脚本输出 `no oss.env, skip`（不影响本地备份）
+
+需要的信息：bucket 名称/地域、**仅授权该 bucket 的 RAM 子账号** AK（不要主账号 AK）。
+推荐 endpoint 用内网地址（`oss-cn-<region>-internal.aliyuncs.com`），上传不走公网流量费。
+
+### 备份链路
+
+```
+MySQL + /opt/xingtu/data
+   → /root/backup（本地 7 天，03:00）
+   → D:\backups\xingtu（本机 14 天，03:30）
+   → OSS（待配置，远端 30 天）
+```
