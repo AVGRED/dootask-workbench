@@ -11,6 +11,7 @@ import com.workbench.user.web.UserDtos.UpdateUserRequest;
 import com.workbench.user.web.UserDtos.UserView;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -24,11 +25,16 @@ public class UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final SystemAdmin systemAdmin;
+    private final JdbcTemplate jdbcTemplate;
 
-    public UserService(UserMapper userMapper, PasswordEncoder passwordEncoder, SystemAdmin systemAdmin) {
+    public UserService(UserMapper userMapper,
+                       PasswordEncoder passwordEncoder,
+                       SystemAdmin systemAdmin,
+                       JdbcTemplate jdbcTemplate) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.systemAdmin = systemAdmin;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public PageResult<UserView> page(int page, int size, String keyword) {
@@ -59,6 +65,13 @@ public class UserService {
         }
         User user = new User();
         user.setAccount(account);
+        Long numericId = numericAccount(account);
+        if (numericId != null) {
+            user.setUserid(numericId);
+            if (userMapper.selectById(numericId) != null) {
+                throw new BusinessException("账号已被使用");
+            }
+        }
         user.setEmail(request.email());
         user.setNickname(request.nickname());
         user.setProfession(request.profession() == null ? "" : request.profession());
@@ -69,6 +82,16 @@ public class UserService {
         user.setLoginNum(0);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
+        if (numericId != null) {
+            // IdType.AUTO 会忽略手动设置的 id，这里直接写 SQL 保证 userid = 工号
+            jdbcTemplate.update(
+                    "insert into users (userid, account, email, nickname, profession, userimg, password, encrypt, "
+                            + "role, login_num, created_at, updated_at) "
+                            + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now())",
+                    numericId, user.getAccount(), user.getEmail(), user.getNickname(), user.getProfession(),
+                    user.getUserimg(), user.getPassword(), user.getEncrypt(), user.getRole(), user.getLoginNum());
+            return toView(userMapper.selectById(numericId));
+        }
         userMapper.insert(user);
         return toView(user);
     }
@@ -129,6 +152,14 @@ public class UserService {
             throw new BusinessException("账号最多 64 个字符");
         }
         return account;
+    }
+
+    /** 纯数字账号直接当 userid 用，保证 ID 与工号一致。 */
+    private Long numericAccount(String account) {
+        if (account == null || !account.matches("\\d{4,18}")) {
+            return null;
+        }
+        return Long.parseLong(account);
     }
 
     private User require(long userid) {

@@ -14,6 +14,38 @@
         class="hint"
       />
 
+      <div class="section-title">基本信息</div>
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">我的资料</div>
+            <div class="panel-sub">昵称、邮箱、职位都会显示在状态墙和星图上</div>
+          </div>
+          <div class="avatar-box">
+            <img v-if="avatar" class="avatar" :src="`/api/v1/avatars/${avatar}`" alt="头像" />
+            <span v-else class="avatar placeholder">{{ (profileForm.nickname || "我").slice(0, 1) }}</span>
+            <div class="avatar-actions">
+              <el-button size="small" :loading="uploading" @click="pickAvatar">更换头像</el-button>
+            </div>
+          </div>
+        </div>
+        <el-form label-width="90px" class="profile-form">
+          <el-form-item label="昵称">
+            <el-input v-model="profileForm.nickname" maxlength="50" show-word-limit />
+          </el-form-item>
+          <el-form-item label="邮箱">
+            <el-input v-model="profileForm.email" placeholder="name@example.com" />
+          </el-form-item>
+          <el-form-item label="职位">
+            <el-input v-model="profileForm.profession" maxlength="50" placeholder="选填，如 产品经理" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="savingProfile" @click="saveProfile">保存信息</el-button>
+          </el-form-item>
+        </el-form>
+        <input ref="fileInput" type="file" accept="image/*" hidden @change="onFilePicked" />
+      </div>
+
       <div class="section-title">账号安全</div>
       <div class="panel password-panel">
         <div class="panel-head">
@@ -120,6 +152,66 @@ const form = reactive<{ type: string; code: string; label: string; sort: number 
 
 const auth = useAuthStore();
 const currentAccount = computed(() => auth.user?.nickname || auth.user?.username || "当前账号");
+const profileForm = reactive({ nickname: "", email: "", profession: "" });
+const avatar = ref("");
+const savingProfile = ref(false);
+const uploading = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+
+async function loadProfile(): Promise<void> {
+  try {
+    const profile = await client.meProfile();
+    profileForm.nickname = profile.nickname ?? "";
+    profileForm.email = profile.email ?? "";
+    profileForm.profession = profile.profession ?? "";
+    avatar.value = profile.avatar ?? "";
+  } catch {
+    // 未登录时忽略
+  }
+}
+
+async function saveProfile(): Promise<void> {
+  if (!profileForm.nickname.trim()) {
+    ElMessage.warning("昵称不能为空");
+    return;
+  }
+  savingProfile.value = true;
+  try {
+    const updated = await client.updateMeProfile({
+      nickname: profileForm.nickname.trim(),
+      email: profileForm.email.trim(),
+      profession: profileForm.profession.trim()
+    });
+    profileForm.nickname = updated.nickname;
+    profileForm.email = updated.email;
+    ElMessage.success("已保存");
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "保存失败");
+  } finally {
+    savingProfile.value = false;
+  }
+}
+
+function pickAvatar(): void {
+  fileInput.value?.click();
+}
+
+async function onFilePicked(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  uploading.value = true;
+  try {
+    const result = await client.uploadAvatar(file);
+    avatar.value = result.avatar;
+    ElMessage.success("头像已更新");
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "上传失败");
+  } finally {
+    uploading.value = false;
+    input.value = "";
+  }
+}
 const passwordForm = reactive({ oldPassword: "", newPassword: "", confirm: "" });
 const changingPassword = ref(false);
 
@@ -208,7 +300,10 @@ async function removeDict(row: DictItemView): Promise<void> {
   }
 }
 
-onMounted(reload);
+onMounted(() => {
+  void loadProfile();
+  void reload();
+});
 </script>
 
 <style scoped>
@@ -234,6 +329,35 @@ onMounted(reload);
 }
 .password-form {
   max-width: 420px;
+}
+.profile-form {
+  max-width: 420px;
+}
+.avatar-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--wb-border);
+}
+.avatar.placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--wb-brand-50);
+  color: var(--wb-brand-700);
+  font-weight: 600;
+  font-size: 18px;
+}
+.avatar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .page-header {
   display: flex;
