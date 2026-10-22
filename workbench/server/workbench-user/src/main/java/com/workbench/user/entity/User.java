@@ -18,6 +18,7 @@ public class User {
     private Long userid;
 
     private String account;
+    private Integer superAdmin;
     private String email;
     private String nickname;
     private String profession;
@@ -46,6 +47,14 @@ public class User {
 
     public void setAccount(String account) {
         this.account = account;
+    }
+
+    public Integer getSuperAdmin() {
+        return superAdmin;
+    }
+
+    public void setSuperAdmin(Integer superAdmin) {
+        this.superAdmin = superAdmin;
     }
 
     public String getEmail() {

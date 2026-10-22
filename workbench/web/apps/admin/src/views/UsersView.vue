@@ -21,7 +21,9 @@
         <el-table-column prop="loginNum" label="登录次数" width="100" />
         <el-table-column label="角色" width="140">
           <template #default="{ row }">
+            <el-tag v-if="row.superAdmin === 1" type="danger" effect="dark">超级管理员</el-tag>
             <el-select
+              v-else
               :model-value="row.role ?? 'staff'"
               size="small"
               @change="(value: string) => changeRole(row as UserView, value)"

@@ -105,6 +105,9 @@ public class UserService {
             throw new BusinessException("角色只能是 admin 或 staff");
         }
         User user = require(userid);
+        if (systemAdmin.isSuper(userid)) {
+            throw new BusinessException("超级管理员不能被降级");
+        }
         boolean allowed = callerUserid == userid && systemAdmin.allowBootstrap(callerUserid, userid, role);
         if (!allowed) {
             systemAdmin.requireAdmin(callerUserid);
@@ -145,6 +148,7 @@ public class UserService {
                 user.getProfession(),
                 user.getUserimg(),
                 user.getLoginNum() == null ? 0 : user.getLoginNum(),
-                user.getRole() == null ? SystemAdmin.ROLE_STAFF : user.getRole());
+                user.getRole() == null ? SystemAdmin.ROLE_STAFF : user.getRole(),
+                user.getSuperAdmin() == null ? 0 : user.getSuperAdmin());
     }
 }

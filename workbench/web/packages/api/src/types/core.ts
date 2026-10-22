@@ -35,6 +35,7 @@ export interface UserView {
   userimg: string;
   loginNum: number;
   role?: string;
+  superAdmin?: number;
 }
 
 export interface CreateUserRequest {

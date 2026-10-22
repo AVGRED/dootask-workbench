@@ -43,6 +43,21 @@ public class SystemAdmin {
         return ROLE_ADMIN.equals(roleOf(userid));
     }
 
+    /** 超级管理员：role=admin 且 super_admin=1，唯一且不可被降级/删除。 */
+    public boolean isSuper(long userid) {
+        User user = userMapper.selectById(userid);
+        return user != null
+                && ROLE_ADMIN.equals(user.getRole())
+                && user.getSuperAdmin() != null
+                && user.getSuperAdmin() == 1;
+    }
+
+    public void requireSuper(long userid) {
+        if (!isSuper(userid)) {
+            throw new BusinessException(403, "需要超级管理员权限");
+        }
+    }
+
     public void requireAdmin(long userid) {
         if (!isAdmin(userid)) {
             throw new BusinessException(403, "需要管理员权限");

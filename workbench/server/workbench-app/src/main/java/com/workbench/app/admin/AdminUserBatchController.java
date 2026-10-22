@@ -47,6 +47,11 @@ public class AdminUserBatchController {
             if (roles.isEmpty()) {
                 continue;
             }
+            Long superFlag = jdbc.queryForObject(
+                    "select count(*) from users where userid = ? and super_admin = 1", Long.class, userid);
+            if (superFlag != null && superFlag > 0) {
+                throw new BusinessException("超级管理员不能被删除");
+            }
             boolean isTargetAdmin = "admin".equals(roles.get(0));
             if (isTargetAdmin && adminCount != null && adminCount <= 1) {
                 throw new BusinessException("不能删除最后一个管理员");
