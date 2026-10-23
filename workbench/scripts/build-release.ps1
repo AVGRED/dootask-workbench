@@ -38,6 +38,9 @@ try {
     } else {
         mvn -q -DskipTests package
     }
+    if ($LASTEXITCODE -ne 0) {
+        throw 'maven 打包失败：请先修复编译错误（本次未更新 jar）'
+    }
 } finally {
     Pop-Location
 }

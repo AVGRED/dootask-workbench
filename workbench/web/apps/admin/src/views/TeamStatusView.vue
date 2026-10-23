@@ -18,16 +18,23 @@
     </div>
 
     <div v-if="error" class="error">{{ error }}</div>
+    <input ref="photoInput" type="file" accept="image/*" hidden @change="onPhotoPicked" />
 
     <div class="wall">
       <article v-for="row in filtered" :key="row.userid" class="person">
         <div class="avatar-slot" :class="row.status">
-          <img v-if="row.avatar" class="avatar-img" :src="`/api/v1/avatars/${row.avatar}`" :alt="row.nickname || ''" />
+          <img
+            v-if="row.wall_photo"
+            class="avatar-img"
+            :src="`/api/v1/wall-photos/${row.wall_photo}`"
+            :alt="row.nickname || ''"
+          />
           <template v-else>
             <span class="avatar-initial">{{ (row.nickname || "?").slice(0, 1) }}</span>
-            <span class="avatar-hint">3D 形象</span>
+            <span class="avatar-hint">待上传</span>
           </template>
           <span class="presence" :class="row.status"></span>
+          <button v-if="isAdmin" class="photo-btn" type="button" title="换状态墙照片" @click.stop="pickPhoto(row)">📷</button>
         </div>
 
         <div class="person-body">
@@ -100,6 +107,9 @@ const loading = ref(false);
 const error = ref("");
 const canManageStatus = ref(false);
 const changingUserid = ref(0);
+const isAdmin = ref(false);
+const photoInput = ref<HTMLInputElement | null>(null);
+const photoTarget = ref<TeamStatusRow | null>(null);
 
 const filters = [
   { value: "all", label: "全部" },
@@ -129,6 +139,28 @@ async function changeStatus(row: TeamStatusRow, value: string): Promise<void> {
     ElMessage.error(exception instanceof Error ? exception.message : "修改失败");
   } finally {
     changingUserid.value = 0;
+  }
+}
+
+function pickPhoto(row: TeamStatusRow): void {
+  photoTarget.value = row;
+  photoInput.value?.click();
+}
+
+async function onPhotoPicked(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  const target = photoTarget.value;
+  if (!file || !target) return;
+  try {
+    const result = await client.uploadWallPhoto(target.userid, file);
+    target.wall_photo = result.wallPhoto;
+    ElMessage.success("照片已更新");
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "上传失败");
+  } finally {
+    input.value = "";
+    photoTarget.value = null;
   }
 }
 
@@ -174,14 +206,32 @@ onMounted(async () => {
   try {
     const profile = await client.meProfile();
     canManageStatus.value = profile.superAdmin === 1;
+    isAdmin.value = profile.role === "admin";
   } catch {
     canManageStatus.value = false;
+    isAdmin.value = false;
   }
   await load();
 });
 </script>
 
 <style scoped>
+.photo-btn {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  padding: 2px 5px;
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.person:hover .photo-btn {
+  opacity: 1;
+}
 .admin-tag {
   padding: 1px 6px;
   border-radius: 999px;

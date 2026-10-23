@@ -65,6 +65,7 @@ export interface TeamStatusRow {
   week_minutes: number;
   role?: string;
   superAdmin?: number;
+  wall_photo?: string;
 }
 
 /** 星图节点：一个员工就是一颗星。 */

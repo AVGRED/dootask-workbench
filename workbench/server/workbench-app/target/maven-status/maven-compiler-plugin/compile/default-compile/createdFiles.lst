@@ -45,4 +45,5 @@ com\workbench\app\mail\MailController$MailTestResult.class
 com\workbench\app\todo\PersonalTodoService.class
 com\workbench\app\migrate\MigrationPlan.class
 com\workbench\app\dashboard\DashboardDtos$DashboardView.class
+com\workbench\app\profile\WallPhotoController.class
 com\workbench\app\notice\AdminNoticeService.class

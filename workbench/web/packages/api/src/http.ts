@@ -56,10 +56,12 @@ export async function requestJson<T>(
   path: string,
   body?: unknown
 ): Promise<T> {
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   const response = await fetch(`${options.baseUrl}${path}`, {
     method,
-    headers: buildHeaders(options),
-    body: body === undefined ? undefined : JSON.stringify(body)
+    // FormData 交给浏览器自己带 boundary，不能手动设置 Content-Type
+    headers: buildHeaders(options, !isForm),
+    body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body)
   });
   const payload = await parsePayload<T>(response);
   handleUnauthorized(response, payload.code);

@@ -562,6 +562,16 @@ export class ApiClient {
     return this.request("GET", `/api/v1/super/audit?limit=${limit}`);
   }
 
+  async uploadWallPhoto(userid: number, file: File): Promise<{ userid: number; wallPhoto: string }> {
+    const body = new FormData();
+    body.append("file", file);
+    return this.request<{ userid: number; wallPhoto: string }>("POST", `/api/v1/admin/users/${userid}/wall-photo`, body);
+  }
+
+  async clearWallPhoto(userid: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/admin/users/${userid}/wall-photo`);
+  }
+
   async adminSetStatus(userid: number, status: string, note = ""): Promise<void> {
     await this.request<null>("PUT", `/api/v1/admin/status/${userid}`, { status, note });
   }

@@ -38,7 +38,7 @@ class AuthControllerTest {
 
     @Test
     void loginReturnsToken() throws Exception {
-        given(authService.login(any())).willReturn(
+        given(authService.login(any(), any())).willReturn(
                 new LoginResponse("token-abc", 7L, "a@b.com", "张三", "staff", 43200L));
 
         mockMvc.perform(post("/api/v1/auth/login")
@@ -52,7 +52,7 @@ class AuthControllerTest {
 
     @Test
     void loginWithWrongPasswordReturnsBusinessError() throws Exception {
-        given(authService.login(any())).willThrow(new BusinessException("账号或密码错误"));
+        given(authService.login(any(), any())).willThrow(new BusinessException("账号或密码错误"));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
