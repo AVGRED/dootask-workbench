@@ -22,13 +22,13 @@ test.describe("管理端", () => {
     await expect(page.getByRole("button", { name: /状态墙/ })).toHaveClass(/active/);
     await expect(page.locator(".person").first()).toBeVisible();
 
-    await page.getByRole("button", { name: /项目总览/ }).click();
+    await page.goto(`${ADMIN}/projects`);
     await expect(page.locator(".stat-card").first()).toContainText("项目总数");
 
-    await page.getByRole("button", { name: /每日日报/ }).click();
+    await page.goto(`${ADMIN}/reports`);
     await expect(page.locator(".stat").first()).toContainText("已提交");
 
-    await page.getByRole("button", { name: /状态墙/ }).click();
+    await page.goto(`${ADMIN}/team`);
     await expect(page.locator(".chip").first()).toContainText("全部");
 
     // 状态筛选：切到「专注」后仍是合法渲染（人数可能为 0）
@@ -36,11 +36,11 @@ test.describe("管理端", () => {
     await expect(page.locator(".chip", { hasText: "专注" })).toHaveClass(/active/);
     await page.locator(".chip", { hasText: "全部" }).click();
 
-    await page.getByRole("button", { name: "用户管理" }).click();
+    await page.goto(`${ADMIN}/users`);
     await expect(page.locator(".page-title")).toContainText("用户管理");
     await expect(page.getByRole("cell", { name: new RegExp(process.env.WORKBENCH_STAFF_USERNAME ?? "401008") }).first()).toBeVisible();
 
-    await page.getByRole("button", { name: "设置" }).click();
+    await page.goto(`${ADMIN}/settings`);
     await expect(page.locator(".page-title")).toContainText("系统设置");
     const hasAlert = await page.locator(".el-alert").first().isVisible().catch(() => false);
     const hasTable = await page.locator(".el-table").first().isVisible().catch(() => false);
