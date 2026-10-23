@@ -80,7 +80,7 @@ public class StatusService {
                         + "group by userid) w on w.userid = u.userid "
                         // 状态墙只展示员工，管理员账号不上墙
                         + "where u.deleted_at is null "
-                        + "order by s.updated_at is null, s.updated_at desc, u.userid");
+                        + "order by u.userid asc");
     }
 
     private Map<String, Object> row(long userid) {
