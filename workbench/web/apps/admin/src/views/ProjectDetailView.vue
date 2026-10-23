@@ -19,7 +19,37 @@
     <el-tabs v-model="activeTab" class="task-tabs">
       <el-tab-pane label="任务列表" name="list" />
       <el-tab-pane label="看板" name="board" />
+      <el-tab-pane label="甘特" name="gantt" />
     </el-tabs>
+
+    <div v-if="activeTab === 'gantt'" v-loading="ganttLoading" class="gantt">
+      <div v-if="gantt" class="gantt-inner">
+        <div class="gantt-head">
+          <span class="gantt-name-col">任务</span>
+          <div class="gantt-scale">
+            <span v-for="tick in ganttTicks" :key="tick.label" class="gantt-tick" :style="{ left: tick.left + '%' }">
+              {{ tick.label }}
+            </span>
+          </div>
+        </div>
+        <div v-for="task in gantt.tasks" :key="task.id" class="gantt-row">
+          <span class="gantt-name-col" :title="task.name">{{ task.name }}</span>
+          <div class="gantt-track">
+            <div
+              class="gantt-bar"
+              :class="{ done: task.completed }"
+              :style="barStyle(task)"
+              :title="`${task.name}：${task.startDate} → ${task.endDate}`"
+              @click="openTaskDrawer(task as unknown as TaskView)"
+            >
+              <span class="gantt-bar-label">{{ task.name }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-if="gantt.tasks.length === 0" class="empty">还没有任务</div>
+      </div>
+      <div v-else-if="!ganttLoading" class="empty">暂无排期数据</div>
+    </div>
 
     <div v-if="activeTab === 'board'" v-loading="boardLoading" class="board">
       <div v-for="group in boardColumns" :key="group.column.id" class="board-column">
@@ -74,7 +104,7 @@
         </template>
       </el-table-column>
     </el-table>
-    <div v-if="!loading && tasks.length === 0" class="empty">还没有任务，点右上角「新建任务」</div>
+    <div v-if="activeTab === 'list' && !loading && tasks.length === 0" class="empty">还没有任务，点右上角「新建任务」</div>
 
     <el-drawer v-model="drawerVisible" :title="currentTask?.name ?? '任务详情'" size="480px">
       <div class="drawer-section">
@@ -210,10 +240,55 @@ const memberToAdd = ref<number | undefined>();
 const memberBusy = ref(false);
 const taskVisible = ref(false);
 const drawerVisible = ref(false);
-const activeTab = ref<"list" | "board">("list");
+const activeTab = ref<"list" | "board" | "gantt">("list");
 const boardColumns = ref<{ column: { id: number; name: string }; cards: { id: number; name: string; ownerUserid: number; completed: boolean }[] }[]>([]);
 const boardLoading = ref(false);
 const dragging = ref<{ id: number; from: number } | null>(null);
+const gantt = ref<{
+  rangeStart: string;
+  rangeEnd: string;
+  tasks: { id: number; name: string; startDate: string; endDate: string; completed: boolean }[];
+} | null>(null);
+const ganttLoading = ref(false);
+
+const ganttDays = computed(() => {
+  if (!gantt.value) return 1;
+  const start = new Date(gantt.value.rangeStart).getTime();
+  const end = new Date(gantt.value.rangeEnd).getTime();
+  return Math.max(1, Math.round((end - start) / 86400000) + 1);
+});
+
+const ganttTicks = computed(() => {
+  if (!gantt.value) return [];
+  const total = ganttDays.value;
+  const step = Math.max(1, Math.ceil(total / 6));
+  const ticks: { label: string; left: number }[] = [];
+  for (let day = 0; day < total; day += step) {
+    const date = new Date(new Date(gantt.value.rangeStart).getTime() + day * 86400000);
+    ticks.push({ label: `${date.getMonth() + 1}/${date.getDate()}`, left: (day / total) * 100 });
+  }
+  return ticks;
+});
+
+function barStyle(task: { startDate: string; endDate: string }): Record<string, string> {
+  if (!gantt.value) return {};
+  const total = ganttDays.value;
+  const start = new Date(gantt.value.rangeStart).getTime();
+  const from = Math.max(0, Math.round((new Date(task.startDate).getTime() - start) / 86400000));
+  const to = Math.max(from, Math.round((new Date(task.endDate).getTime() - start) / 86400000));
+  return { left: `${(from / total) * 100}%`, width: `${Math.max(1.5, ((to - from + 1) / total) * 100)}%` };
+}
+
+async function loadGantt(): Promise<void> {
+  ganttLoading.value = true;
+  try {
+    gantt.value = await client.gantt(projectId);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "甘特加载失败");
+  } finally {
+    ganttLoading.value = false;
+  }
+}
 const currentTask = ref<TaskView | null>(null);
 const comments = ref<{ id: number; userid: number; content: string; createdAt: string }[]>([]);
 const commentText = ref("");
@@ -517,6 +592,7 @@ async function removeTask(task: TaskView): Promise<void> {
 
 watch(activeTab, (tab) => {
   if (tab === "board") void loadBoard();
+  if (tab === "gantt") void loadGantt();
 });
 
 onMounted(load);
@@ -735,5 +811,83 @@ onMounted(load);
 .board-card-owner {
   font-size: 12px;
   color: var(--wb-text-3);
+}
+</style>
+
+<style scoped>
+.gantt-inner {
+  border: 1px solid var(--wb-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--wb-surface);
+}
+.gantt-head,
+.gantt-row {
+  display: flex;
+  align-items: center;
+}
+.gantt-head {
+  position: relative;
+  height: 32px;
+  border-bottom: 1px solid var(--wb-border);
+  background: var(--wb-surface-2);
+  font-size: 12px;
+  color: var(--wb-text-3);
+}
+.gantt-name-col {
+  flex: 0 0 200px;
+  padding: 0 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--wb-text);
+}
+.gantt-head .gantt-name-col {
+  font-size: 12px;
+  color: var(--wb-text-3);
+}
+.gantt-scale {
+  position: relative;
+  flex: 1;
+  height: 100%;
+}
+.gantt-tick {
+  position: absolute;
+  top: 8px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.gantt-row {
+  height: 36px;
+  border-bottom: 1px dashed var(--wb-border);
+}
+.gantt-row:last-child {
+  border-bottom: none;
+}
+.gantt-track {
+  position: relative;
+  flex: 1;
+  height: 100%;
+}
+.gantt-bar {
+  position: absolute;
+  top: 8px;
+  height: 20px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--wb-brand-400), var(--wb-brand-600));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.gantt-bar.done {
+  background: linear-gradient(90deg, #34d399, #10b981);
+}
+.gantt-bar-label {
+  padding: 0 6px;
+  font-size: 11px;
+  color: #fff;
+  white-space: nowrap;
 }
 </style>
