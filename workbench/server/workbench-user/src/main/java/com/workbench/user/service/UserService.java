@@ -67,6 +67,7 @@ public class UserService {
         User user = new User();
         user.setAccount(account);
         Long numericId = numericAccount(account);
+        long targetId = numericId != null ? numericId : nextNonStaffId();
         if (numericId != null) {
             user.setUserid(numericId);
             User occupied = userMapper.selectById(numericId);
@@ -87,22 +88,18 @@ public class UserService {
         user.setLoginNum(0);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
-        if (numericId != null) {
-            // IdType.AUTO 会忽略手动设置的 id，这里直接写 SQL 保证 userid = 工号
-            try {
-                jdbcTemplate.update(
-                        "insert into users (userid, account, email, nickname, profession, userimg, password, encrypt, "
-                                + "role, login_num, created_at, updated_at) "
-                                + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now())",
-                        numericId, user.getAccount(), user.getEmail(), user.getNickname(), user.getProfession(),
-                        user.getUserimg(), user.getPassword(), user.getEncrypt(), user.getRole(), user.getLoginNum());
-            } catch (DuplicateKeyException exception) {
-                throw new BusinessException("该工号已被占用，请换一个工号");
-            }
-            return toView(userMapper.selectById(numericId));
+        // 统一用显式 id 写入：数字账号 = 工号，非数字账号 = 1000000+ 段
+        try {
+            jdbcTemplate.update(
+                    "insert into users (userid, account, email, nickname, profession, userimg, password, encrypt, "
+                            + "role, login_num, created_at, updated_at) "
+                            + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now())",
+                    targetId, user.getAccount(), user.getEmail(), user.getNickname(), user.getProfession(),
+                    user.getUserimg(), user.getPassword(), user.getEncrypt(), user.getRole(), user.getLoginNum());
+        } catch (DuplicateKeyException exception) {
+            throw new BusinessException("该工号已被占用，请换一个工号");
         }
-        userMapper.insert(user);
-        return toView(user);
+        return toView(userMapper.selectById(targetId));
     }
 
     public UserView update(long userid, UpdateUserRequest request) {
@@ -170,6 +167,13 @@ public class UserService {
             throw new BusinessException("账号最多 64 个字符");
         }
         return account;
+    }
+
+    /** 非数字账号（邮箱/昵称注册）用 1000000+ 段，避免占用 401xxx 工号段。 */
+    private long nextNonStaffId() {
+        Long next = jdbcTemplate.queryForObject(
+                "select coalesce(max(userid), 1000000) + 1 from users where userid >= 1000000", Long.class);
+        return next == null ? 1000001L : next;
     }
 
     /** 纯数字账号直接当 userid 用，保证 ID 与工号一致。 */
