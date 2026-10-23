@@ -99,8 +99,8 @@ class ProjectControllerTest {
 
     @Test
     void membersAreListed() throws Exception {
-        given(projectService.members(3L)).willReturn(List.of(new MemberView(7L, true, "owner"),
-                new MemberView(9L, false, "viewer")));
+        given(projectService.members(3L)).willReturn(List.of(new MemberView(7L, true, "owner", "张三", "401007"),
+                new MemberView(9L, false, "viewer", "李四", "401009")));
 
         mockMvc.perform(get("/api/v1/projects/3/members").principal(principal))
                 .andExpect(status().isOk())
@@ -111,7 +111,7 @@ class ProjectControllerTest {
 
     @Test
     void addMemberPassesRequest() throws Exception {
-        given(projectService.addMember(eq(7L), eq(3L), any())).willReturn(new MemberView(11L, false, "member"));
+        given(projectService.addMember(eq(7L), eq(3L), any())).willReturn(new MemberView(11L, false, "member", "王五", "401011"));
 
         mockMvc.perform(post("/api/v1/projects/3/members").principal(principal)
                         .contentType(MediaType.APPLICATION_JSON)
