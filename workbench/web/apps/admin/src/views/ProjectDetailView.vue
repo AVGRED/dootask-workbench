@@ -8,6 +8,7 @@
         <el-button size="small" @click="openMembers">成员管理</el-button>
         <el-button size="small" @click="openProjectEdit">编辑项目</el-button>
         <el-button size="small" type="primary" @click="openTaskDialog()">新建任务</el-button>
+        <el-button size="small" @click="openMeta">里程碑 / 标签</el-button>
         <el-button size="small" type="danger" @click="deleteProject">删除项目</el-button>
       </div>
       <p class="meta">
@@ -140,6 +141,41 @@
       </div>
     </el-drawer>
 
+    <el-dialog v-model="metaVisible" title="里程碑 / 标签" width="560px">
+      <div class="meta-block">
+        <h4>里程碑</h4>
+        <div class="meta-add">
+          <el-input v-model="newMilestone.name" placeholder="里程碑名称" size="small" style="flex: 1" />
+          <el-date-picker v-model="newMilestone.targetAt" type="date" value-format="YYYY-MM-DD" size="small" style="width: 140px" />
+          <el-button type="primary" size="small" :loading="metaBusy" @click="createMilestone">添加</el-button>
+        </div>
+        <div v-if="milestones.length === 0" class="muted">还没有里程碑</div>
+        <div v-for="item in milestones" :key="item.id" class="meta-row">
+          <span class="meta-name">{{ item.name }}</span>
+          <span class="muted small">{{ item.targetAt || "无日期" }}</span>
+          <span class="muted small">{{ item.completedCount }}/{{ item.taskCount }}</span>
+          <el-tag :type="item.status === 'completed' ? 'success' : 'info'" size="small">
+            {{ item.status === "completed" ? "已完成" : "进行中" }}
+          </el-tag>
+          <el-button link type="danger" size="small" @click="removeMilestone(item)">删除</el-button>
+        </div>
+      </div>
+
+      <div class="meta-block">
+        <h4>标签</h4>
+        <div class="meta-add">
+          <el-input v-model="newTag" placeholder="标签名，如 前端" size="small" style="flex: 1" />
+          <el-button type="primary" size="small" :loading="metaBusy" @click="createTag">添加</el-button>
+        </div>
+        <div v-if="tags.length === 0" class="muted">还没有标签</div>
+        <div class="tag-list">
+          <span v-for="tag in tags" :key="tag.id" class="tag-chip" :style="{ borderColor: tag.color || '#c7d2fe' }">
+            {{ tag.name }}
+          </span>
+        </div>
+      </div>
+    </el-dialog>
+
     <!-- 项目信息 -->
     <el-dialog v-model="projectEditVisible" title="编辑项目" width="480px">
       <el-form :model="projectForm" label-width="80px">
@@ -250,6 +286,12 @@ const gantt = ref<{
   tasks: { id: number; name: string; startDate: string; endDate: string; completed: boolean }[];
 } | null>(null);
 const ganttLoading = ref(false);
+const metaVisible = ref(false);
+const metaBusy = ref(false);
+const milestones = ref<{ id: number; name: string; targetAt: string | null; status: string; taskCount: number; completedCount: number }[]>([]);
+const tags = ref<{ id: number; name: string; color?: string }[]>([]);
+const newMilestone = reactive<{ name: string; targetAt: string | null }>({ name: "", targetAt: null });
+const newTag = ref("");
 
 const ganttDays = computed(() => {
   if (!gantt.value) return 1;
@@ -277,6 +319,80 @@ function barStyle(task: { startDate: string; endDate: string }): Record<string, 
   const from = Math.max(0, Math.round((new Date(task.startDate).getTime() - start) / 86400000));
   const to = Math.max(from, Math.round((new Date(task.endDate).getTime() - start) / 86400000));
   return { left: `${(from / total) * 100}%`, width: `${Math.max(1.5, ((to - from + 1) / total) * 100)}%` };
+}
+
+async function openMeta(): Promise<void> {
+  metaVisible.value = true;
+  await Promise.all([loadMilestones(), loadTags()]);
+}
+
+async function loadMilestones(): Promise<void> {
+  try {
+    milestones.value = await client.listMilestones(projectId);
+  } catch {
+    milestones.value = [];
+  }
+}
+
+async function loadTags(): Promise<void> {
+  try {
+    tags.value = await client.listTags(projectId);
+  } catch {
+    tags.value = [];
+  }
+}
+
+async function createMilestone(): Promise<void> {
+  if (!newMilestone.name.trim()) {
+    ElMessage.warning("请填写里程碑名称");
+    return;
+  }
+  metaBusy.value = true;
+  try {
+    await client.createMilestone(projectId, {
+      name: newMilestone.name.trim(),
+      targetAt: newMilestone.targetAt,
+      status: "open"
+    });
+    newMilestone.name = "";
+    newMilestone.targetAt = null;
+    await loadMilestones();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "创建失败");
+  } finally {
+    metaBusy.value = false;
+  }
+}
+
+async function removeMilestone(item: { id: number; name: string }): Promise<void> {
+  try {
+    await ElMessageBox.confirm(`删除里程碑「${item.name}」？`, "删除里程碑", { type: "warning" });
+  } catch {
+    return;
+  }
+  try {
+    await client.deleteMilestone(projectId, item.id);
+    await loadMilestones();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
+  }
+}
+
+async function createTag(): Promise<void> {
+  if (!newTag.value.trim()) {
+    ElMessage.warning("请填写标签名");
+    return;
+  }
+  metaBusy.value = true;
+  try {
+    await client.createTag(projectId, newTag.value.trim());
+    newTag.value = "";
+    await loadTags();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "创建失败");
+  } finally {
+    metaBusy.value = false;
+  }
 }
 
 async function loadGantt(): Promise<void> {
@@ -889,5 +1005,45 @@ onMounted(load);
   font-size: 11px;
   color: #fff;
   white-space: nowrap;
+}
+</style>
+
+<style scoped>
+.meta-block {
+  margin-bottom: 18px;
+}
+.meta-block h4 {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  color: var(--wb-text);
+}
+.meta-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--wb-border);
+  font-size: 13px;
+}
+.meta-name {
+  min-width: 120px;
+  color: var(--wb-text);
+}
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tag-chip {
+  padding: 2px 10px;
+  border: 1px solid var(--wb-border);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--wb-text-2);
 }
 </style>
