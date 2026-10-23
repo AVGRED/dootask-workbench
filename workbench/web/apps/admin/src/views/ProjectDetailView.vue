@@ -88,7 +88,7 @@
         <template #default="{ row }">{{ priorityText(row.pLevel) }}</template>
       </el-table-column>
       <el-table-column label="截止" width="120">
-        <template #default="{ row }">{{ (row.endAt ?? "").slice(0, 10) || "—" }}</template>
+        <template #default="{ row }">{{ (row.endAt ?? "").replace("T", " ").slice(0, 16) || "—" }}</template>
       </el-table-column>
       <el-table-column label="状态" width="90">
         <template #default="{ row }">
@@ -234,10 +234,24 @@
           </el-select>
         </el-form-item>
         <el-form-item label="开始">
-          <el-date-picker v-model="taskForm.startAt" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+          <el-date-picker
+            v-model="taskForm.startAt"
+            type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            format="YYYY-MM-DD HH:mm"
+            placeholder="开始时间（精确到分钟）"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="截止">
-          <el-date-picker v-model="taskForm.endAt" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+          <el-date-picker
+            v-model="taskForm.endAt"
+            type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            format="YYYY-MM-DD HH:mm"
+            placeholder="截止时间（精确到分钟）"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="taskForm.desc" type="textarea" :rows="3" maxlength="2000" />
