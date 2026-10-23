@@ -16,7 +16,39 @@
       </p>
     </div>
 
-    <el-table v-loading="loading" :data="tasks" size="small" border class="task-table">
+    <el-tabs v-model="activeTab" class="task-tabs">
+      <el-tab-pane label="任务列表" name="list" />
+      <el-tab-pane label="看板" name="board" />
+    </el-tabs>
+
+    <div v-if="activeTab === 'board'" v-loading="boardLoading" class="board">
+      <div v-for="group in boardColumns" :key="group.column.id" class="board-column">
+        <div class="board-head">
+          <span>{{ group.column.name }}</span>
+          <span class="board-count">{{ group.cards.length }}</span>
+        </div>
+        <div
+          class="board-body"
+          @dragover.prevent
+          @drop.prevent="onDrop(group.column.id)"
+        >
+          <div
+            v-for="card in group.cards"
+            :key="card.id"
+            class="board-card"
+            draggable="true"
+            :class="{ done: card.completed }"
+            @dragstart="onDragStart(card, group.column.id)"
+            @click="openTaskDrawer(card as unknown as TaskView)"
+          >
+            <span class="board-card-name">{{ card.name }}</span>
+            <span class="board-card-owner">{{ nameOf(card.ownerUserid) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <el-table v-if="activeTab === 'list'" v-loading="loading" :data="tasks" size="small" border class="task-table">
       <el-table-column prop="name" label="任务" min-width="220" show-overflow-tooltip />
       <el-table-column label="负责人" width="120">
         <template #default="{ row }">{{ nameOf(row.ownerUserid) }}</template>
@@ -154,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { AdminProjectRow, TaskView, UserView } from "@workbench/api";
@@ -178,6 +210,10 @@ const memberToAdd = ref<number | undefined>();
 const memberBusy = ref(false);
 const taskVisible = ref(false);
 const drawerVisible = ref(false);
+const activeTab = ref<"list" | "board">("list");
+const boardColumns = ref<{ column: { id: number; name: string }; cards: { id: number; name: string; ownerUserid: number; completed: boolean }[] }[]>([]);
+const boardLoading = ref(false);
+const dragging = ref<{ id: number; from: number } | null>(null);
 const currentTask = ref<TaskView | null>(null);
 const comments = ref<{ id: number; userid: number; content: string; createdAt: string }[]>([]);
 const commentText = ref("");
@@ -342,6 +378,34 @@ async function saveTask(): Promise<void> {
   }
 }
 
+async function loadBoard(): Promise<void> {
+  boardLoading.value = true;
+  try {
+    const view = await client.board(projectId);
+    boardColumns.value = view.columns;
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "看板加载失败");
+  } finally {
+    boardLoading.value = false;
+  }
+}
+
+function onDragStart(card: { id: number }, columnId: number): void {
+  dragging.value = { id: card.id, from: columnId };
+}
+
+async function onDrop(columnId: number): Promise<void> {
+  const drag = dragging.value;
+  dragging.value = null;
+  if (!drag || drag.from === columnId) return;
+  try {
+    await client.moveTask(drag.id, columnId);
+    await Promise.all([loadBoard(), load()]);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "移动失败");
+  }
+}
+
 async function openTaskDrawer(task: TaskView): Promise<void> {
   currentTask.value = task;
   drawerVisible.value = true;
@@ -450,6 +514,10 @@ async function removeTask(task: TaskView): Promise<void> {
     ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
   }
 }
+
+watch(activeTab, (tab) => {
+  if (tab === "board") void loadBoard();
+});
 
 onMounted(load);
 </script>
@@ -605,6 +673,66 @@ onMounted(load);
   margin-bottom: 8px;
 }
 .member-account {
+  font-size: 12px;
+  color: var(--wb-text-3);
+}
+</style>
+
+<style scoped>
+.task-tabs {
+  margin-bottom: 4px;
+}
+.board {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding: 4px 0 12px;
+}
+.board-column {
+  flex: 0 0 260px;
+  background: var(--wb-surface-2);
+  border: 1px solid var(--wb-border);
+  border-radius: 12px;
+}
+.board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wb-text);
+}
+.board-count {
+  font-size: 12px;
+  color: var(--wb-text-3);
+}
+.board-body {
+  min-height: 80px;
+  padding: 0 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.board-card {
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.board-card.done {
+  opacity: 0.7;
+}
+.board-card-name {
+  font-size: 13px;
+  color: var(--wb-text);
+}
+.board-card-owner {
   font-size: 12px;
   color: var(--wb-text-3);
 }
