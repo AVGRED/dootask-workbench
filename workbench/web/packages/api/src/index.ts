@@ -108,6 +108,10 @@ export class ApiClient {
     return this.request<ProjectView>("POST", "/api/v1/projects", payload);
   }
 
+  async updateProject(projectId: number, payload: SaveProjectRequest): Promise<ProjectView> {
+    return this.request<ProjectView>("PUT", `/api/v1/projects/${projectId}`, payload);
+  }
+
   async archiveProject(projectId: number): Promise<void> {
     await this.request<null>("POST", `/api/v1/projects/${projectId}/archive`);
   }

@@ -24,12 +24,17 @@ export const useAuthStore = defineStore("auth", {
       this.user = data;
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data));
+      // 员工端与管理端同源：登录一次，两边都能直接用
+      localStorage.setItem("workbench.token", data.token);
+      localStorage.setItem("workbench.user", JSON.stringify(data));
     },
     logout(): void {
       this.token = "";
       this.user = null;
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      localStorage.removeItem("workbench.token");
+      localStorage.removeItem("workbench.user");
     }
   }
 });

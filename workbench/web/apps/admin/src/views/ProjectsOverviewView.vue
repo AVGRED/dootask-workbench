@@ -27,7 +27,11 @@
         <div class="card-head">
           <span class="name">{{ row.name }}</span>
           <span v-if="row.overdue > 0" class="overdue">{{ row.overdue }} 逾期</span>
-          <el-button class="card-del" link type="danger" size="small" @click="removeProject(row)">删除</el-button>
+          <span class="card-actions">
+            <el-button class="card-act" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button class="card-act" link type="primary" size="small" @click="openMembers(row)">成员</el-button>
+            <el-button class="card-del" link type="danger" size="small" @click="removeProject(row)">删除</el-button>
+          </span>
         </div>
         <div class="meta">负责人 {{ row.owner_name || "#" + row.owner_userid }} · {{ row.members }} 名成员</div>
         <div class="progress">
@@ -41,6 +45,41 @@
       </div>
     </div>
     <div v-if="filtered.length === 0" class="empty">没有匹配的项目</div>
+
+    <el-dialog v-model="editVisible" title="编辑项目" width="480px">
+      <el-form :model="editForm" label-width="80px">
+        <el-form-item label="项目名称">
+          <el-input v-model="editForm.name" maxlength="255" />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="editForm.desc" type="textarea" :rows="3" maxlength="500" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="submitEdit">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="membersVisible" :title="`成员 · ${membersProject?.name ?? ''}`" width="460px">
+      <div class="member-add">
+        <el-select v-model="memberToAdd" filterable placeholder="添加成员" size="small" style="flex: 1">
+          <el-option
+            v-for="user in candidateUsers"
+            :key="user.userid"
+            :label="`${user.nickname}（${user.account || user.email}）`"
+            :value="user.userid"
+          />
+        </el-select>
+        <el-button type="primary" size="small" :loading="memberBusy" @click="addMember">添加</el-button>
+      </div>
+      <div v-if="members.length === 0" class="empty">还没有成员</div>
+      <div v-for="member in members" :key="member.userid" class="member-row">
+        <span>{{ member.nickname || member.userid }}</span>
+        <span class="member-role">{{ member.role || "member" }}</span>
+        <el-button link type="danger" size="small" @click="removeMember(member.userid)">移除</el-button>
+      </div>
+    </el-dialog>
 
     <el-dialog v-model="createVisible" title="新建项目" width="480px">
       <el-form :model="form" label-width="80px">
@@ -85,6 +124,13 @@ const rows = ref<AdminProjectRow[]>([]);
 const keyword = ref("");
 const users = ref<UserView[]>([]);
 const createVisible = ref(false);
+const editVisible = ref(false);
+const editForm = reactive<{ id: number; name: string; desc: string }>({ id: 0, name: "", desc: "" });
+const membersVisible = ref(false);
+const membersProject = ref<AdminProjectRow | null>(null);
+const members = ref<{ userid: number; nickname?: string; role?: string }[]>([]);
+const memberToAdd = ref<number | undefined>();
+const memberBusy = ref(false);
 const saving = ref(false);
 const form = reactive<{ name: string; desc: string; memberUserids: number[] }>({
   name: "",
@@ -131,6 +177,78 @@ async function submitCreate(): Promise<void> {
     ElMessage.error(exception instanceof Error ? exception.message : "创建失败");
   } finally {
     saving.value = false;
+  }
+}
+
+function openEdit(row: AdminProjectRow): void {
+  editForm.id = row.id;
+  editForm.name = row.name;
+  editForm.desc = "";
+  editVisible.value = true;
+}
+
+async function submitEdit(): Promise<void> {
+  if (!editForm.name.trim()) {
+    ElMessage.warning("请填写项目名称");
+    return;
+  }
+  saving.value = true;
+  try {
+    await client.updateProject(editForm.id, { name: editForm.name.trim(), desc: editForm.desc.trim() });
+    editVisible.value = false;
+    ElMessage.success("项目已更新");
+    await load();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "更新失败");
+  } finally {
+    saving.value = false;
+  }
+}
+
+const candidateUsers = computed(() => {
+  const joined = new Set(members.value.map((member) => member.userid));
+  return users.value.filter((user) => !joined.has(user.userid));
+});
+
+async function openMembers(row: AdminProjectRow): Promise<void> {
+  membersProject.value = row;
+  membersVisible.value = true;
+  memberToAdd.value = undefined;
+  await loadMembers(row.id);
+  if (users.value.length === 0) await loadUsers();
+}
+
+async function loadMembers(projectId: number): Promise<void> {
+  try {
+    members.value = (await client.listMembers(projectId)) as { userid: number; nickname?: string; role?: string }[];
+  } catch {
+    members.value = [];
+  }
+}
+
+async function addMember(): Promise<void> {
+  if (!memberToAdd.value || !membersProject.value) return;
+  memberBusy.value = true;
+  try {
+    await client.addMember(membersProject.value.id, memberToAdd.value);
+    memberToAdd.value = undefined;
+    await loadMembers(membersProject.value.id);
+    await load();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "添加失败");
+  } finally {
+    memberBusy.value = false;
+  }
+}
+
+async function removeMember(userid: number): Promise<void> {
+  if (!membersProject.value) return;
+  try {
+    await client.removeMember(membersProject.value.id, userid);
+    await loadMembers(membersProject.value.id);
+    await load();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "移除失败");
   }
 }
 
@@ -192,12 +310,33 @@ onMounted(load);
 .toolbar-right {
   margin-left: auto;
 }
-.card-del {
+.card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   opacity: 0;
   transition: opacity 0.15s;
 }
-.card:hover .card-del {
+.card:hover .card-actions {
   opacity: 1;
+}
+.member-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--wb-border);
+  font-size: 13px;
+}
+.member-role {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--wb-text-3);
 }
 .hint {
   color: var(--wb-text-3);
