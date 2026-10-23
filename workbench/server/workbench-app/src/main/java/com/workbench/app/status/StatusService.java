@@ -65,7 +65,8 @@ public class StatusService {
                 "select u.userid, u.nickname, u.email, coalesce(u.avatar, '') as avatar, "
                         + "coalesce(s.status, 'idle') as status, coalesce(s.note, '') as note, "
                         + "s.updated_at as status_at, t.current_task, "
-                        + "coalesce(r.report_today, 0) as report_today, coalesce(w.week_minutes, 0) as week_minutes "
+                        + "coalesce(r.report_today, 0) as report_today, coalesce(w.week_minutes, 0) as week_minutes, "
+                        + "coalesce(u.role, 'staff') as role, coalesce(u.super_admin, 0) as superAdmin "
                         + "from users u "
                         + "left join user_status s on s.userid = u.userid "
                         + "left join (select t1.owner_userid, t1.name as current_task from project_tasks t1 "
@@ -78,7 +79,7 @@ public class StatusService {
                         + "where deleted_at is null and work_date >= date_sub(curdate(), interval 7 day) "
                         + "group by userid) w on w.userid = u.userid "
                         // 状态墙只展示员工，管理员账号不上墙
-                        + "where u.deleted_at is null and coalesce(u.role, 'staff') <> 'admin' "
+                        + "where u.deleted_at is null "
                         + "order by s.updated_at is null, s.updated_at desc, u.userid");
     }
 

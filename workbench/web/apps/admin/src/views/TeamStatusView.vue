@@ -34,6 +34,8 @@
           <div class="person-head">
             <span class="name">{{ row.nickname || "未命名" }}</span>
             <span class="uid">#{{ row.userid }}</span>
+            <span v-if="row.superAdmin === 1" class="admin-tag super">超级管理员</span>
+            <span v-else-if="row.role === 'admin'" class="admin-tag">管理员</span>
             <el-select
               v-if="canManageStatus"
               :model-value="row.status"
@@ -180,6 +182,20 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.admin-tag {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--wb-brand-700);
+  background: var(--wb-brand-50);
+  border: 1px solid var(--wb-brand-100);
+}
+.admin-tag.super {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
 .status-edit {
   width: 96px;
 }

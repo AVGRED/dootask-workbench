@@ -63,6 +63,8 @@ export interface TeamStatusRow {
   current_task: string | null;
   report_today: number;
   week_minutes: number;
+  role?: string;
+  superAdmin?: number;
 }
 
 /** 星图节点：一个员工就是一颗星。 */
