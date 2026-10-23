@@ -427,6 +427,15 @@ const candidateUsers = computed(() => {
   return users.value.filter((user) => !joined.has(user.userid));
 });
 
+let lastErrorAt = 0;
+
+function toastError(exception: unknown, fallback: string): void {
+  const now = Date.now();
+  if (now - lastErrorAt < 800) return;
+  lastErrorAt = now;
+  ElMessage.error(exception instanceof Error ? exception.message : fallback);
+}
+
 function nameOf(userid: number): string {
   const member = members.value.find((item) => item.userid === userid);
   return member?.nickname || String(userid);
@@ -513,7 +522,7 @@ async function addMember(): Promise<void> {
     memberToAdd.value = undefined;
     await load();
   } catch (exception) {
-    ElMessage.error(exception instanceof Error ? exception.message : "添加失败");
+    toastError(exception, "添加失败");
   } finally {
     memberBusy.value = false;
   }
@@ -524,7 +533,7 @@ async function removeMember(userid: number): Promise<void> {
     await client.removeMember(projectId, userid);
     await load();
   } catch (exception) {
-    ElMessage.error(exception instanceof Error ? exception.message : "移除失败");
+    toastError(exception, "移除失败");
   }
 }
 

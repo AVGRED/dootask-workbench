@@ -200,7 +200,7 @@ public class ProjectService {
         if (project == null) {
             throw new BusinessException("项目不存在");
         }
-        if (Objects.equals(project.getUserid(), currentUserid)) {
+        if (Objects.equals(project.getUserid(), currentUserid) || isSystemAdmin(currentUserid)) {
             return project;
         }
         ProjectMember member = memberMapper.selectOne(new LambdaQueryWrapper<ProjectMember>()
