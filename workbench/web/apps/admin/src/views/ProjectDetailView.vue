@@ -8,6 +8,7 @@
         <el-button size="small" @click="openMembers">成员管理</el-button>
         <el-button size="small" @click="openProjectEdit">编辑项目</el-button>
         <el-button size="small" type="primary" @click="openTaskDialog()">新建任务</el-button>
+        <el-button size="small" type="danger" @click="deleteProject">删除项目</el-button>
       </div>
       <p class="meta">
         负责人 {{ project?.owner_name || "—" }} · {{ project?.done ?? 0 }}/{{ project?.total ?? 0 }} 完成 ·
@@ -205,6 +206,23 @@ function nameOf(userid: number): string {
 
 function priorityText(level: number): string {
   return level === 2 ? "紧急" : level === 1 ? "重要" : "普通";
+}
+
+async function deleteProject(): Promise<void> {
+  try {
+    await ElMessageBox.confirm(`删除项目「${project.value?.name ?? ""}」？项目下任务会一并删除。`, "删除项目", {
+      type: "warning"
+    });
+  } catch {
+    return;
+  }
+  try {
+    await client.deleteProject(projectId);
+    ElMessage.success("项目已删除");
+    goBack();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "删除失败");
+  }
 }
 
 function goBack(): void {

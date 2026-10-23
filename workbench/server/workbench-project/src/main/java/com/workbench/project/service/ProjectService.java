@@ -27,12 +27,14 @@ public class ProjectService {
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper memberMapper;
     private final ActivityService activityService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     public ProjectService(ProjectMapper projectMapper, ProjectMemberMapper memberMapper,
-                          ActivityService activityService) {
+                          ActivityService activityService, org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.projectMapper = projectMapper;
         this.memberMapper = memberMapper;
         this.activityService = activityService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public PageResult<ProjectView> page(long currentUserid, int page, int size, String keyword) {
@@ -196,12 +198,24 @@ public class ProjectService {
         throw new BusinessException(403, "需要项目管理员权限");
     }
 
+    /** 系统管理员可以操作任何项目。 */
+    private boolean isSystemAdmin(long userid) {
+        try {
+            String role = jdbcTemplate.queryForObject(
+                    "select coalesce(role, 'staff') from users where userid = ? and deleted_at is null",
+                    String.class, userid);
+            return "admin".equals(role);
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
     private Project requireOwner(long currentUserid, long projectId) {
         Project project = projectMapper.selectById(projectId);
         if (project == null) {
             throw new BusinessException("项目不存在");
         }
-        if (!Objects.equals(project.getUserid(), currentUserid)) {
+        if (!Objects.equals(project.getUserid(), currentUserid) && !isSystemAdmin(currentUserid)) {
             throw new BusinessException("无权操作该项目");
         }
         return project;
