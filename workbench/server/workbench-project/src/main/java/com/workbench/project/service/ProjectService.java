@@ -136,9 +136,25 @@ public class ProjectService {
         return memberMapper
                 .selectList(new LambdaQueryWrapper<ProjectMember>().eq(ProjectMember::getProjectId, projectId))
                 .stream()
-                .map(member -> new MemberView(member.getUserid(), Objects.equals(member.getOwner(), 1),
-                        roleOf(member)))
+                .map(this::toMemberView)
                 .toList();
+    }
+
+    /** 成员行带上姓名与账号，前端就不用只显示数字 userid 了。 */
+    private MemberView toMemberView(ProjectMember member) {
+        long userid = member.getUserid();
+        String nickname = "";
+        String account = "";
+        try {
+            Map<String, Object> row = jdbcTemplate.queryForMap(
+                    "select coalesce(nickname, '') as nickname, coalesce(account, '') as account "
+                            + "from users where userid = ?", userid);
+            nickname = String.valueOf(row.get("nickname"));
+            account = String.valueOf(row.get("account"));
+        } catch (RuntimeException ignored) {
+            // 用户不存在时保持空字符串
+        }
+        return new MemberView(userid, Objects.equals(member.getOwner(), 1), roleOf(member), nickname, account);
     }
 
     public MemberView addMember(long currentUserid, long projectId, AddMemberRequest request) {
@@ -158,7 +174,7 @@ public class ProjectService {
         member.setCreatedAt(LocalDateTime.now());
         member.setUpdatedAt(LocalDateTime.now());
         memberMapper.insert(member);
-        return new MemberView(member.getUserid(), false, role);
+        return toMemberView(member);
     }
 
     public void removeMember(long currentUserid, long projectId, long userid) {

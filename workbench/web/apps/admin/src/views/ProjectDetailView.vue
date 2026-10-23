@@ -107,7 +107,8 @@
       </div>
       <div v-if="members.length === 0" class="empty">还没有成员</div>
       <div v-for="member in members" :key="member.userid" class="member-row">
-        <span>{{ member.nickname || member.userid }}</span>
+        <span class="member-name">{{ member.nickname || member.userid }}</span>
+        <span class="member-account">{{ member.account || "" }}</span>
         <span class="member-role">{{ member.role || "member" }}</span>
         <el-button link type="danger" size="small" @click="removeMember(member.userid)">移除</el-button>
       </div>
@@ -167,7 +168,7 @@ const loading = ref(false);
 const saving = ref(false);
 const project = ref<AdminProjectRow | null>(null);
 const tasks = ref<TaskView[]>([]);
-const members = ref<{ userid: number; nickname?: string; role?: string }[]>([]);
+const members = ref<{ userid: number; nickname?: string; role?: string; account?: string }[]>([]);
 const users = ref<UserView[]>([]);
 
 const projectEditVisible = ref(false);
@@ -236,7 +237,7 @@ async function load(): Promise<void> {
     project.value = rows.find((row) => row.id === projectId) ?? null;
     const page = await client.listTasks(projectId, { page: 1, size: 200 });
     tasks.value = page.list;
-    members.value = (await client.listMembers(projectId)) as { userid: number; nickname?: string; role?: string }[];
+    members.value = (await client.listMembers(projectId)) as { userid: number; nickname?: string; role?: string; account?: string }[];
     if (users.value.length === 0) {
       const pageUsers = await client.listUsers({ page: 1, size: 100 });
       users.value = pageUsers.list;
@@ -582,5 +583,29 @@ onMounted(load);
   line-height: 1.6;
   color: var(--wb-text-2);
   white-space: pre-wrap;
+}
+</style>
+
+<style scoped>
+.member-new {
+  margin: 10px 0 14px;
+  padding: 10px;
+  border: 1px dashed var(--wb-border-strong);
+  border-radius: 10px;
+  background: var(--wb-surface-2);
+}
+.member-new-title {
+  font-size: 12.5px;
+  color: var(--wb-text-3);
+  margin-bottom: 8px;
+}
+.member-new-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.member-account {
+  font-size: 12px;
+  color: var(--wb-text-3);
 }
 </style>

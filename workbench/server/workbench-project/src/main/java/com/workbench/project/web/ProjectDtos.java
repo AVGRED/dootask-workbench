@@ -36,7 +36,9 @@ public final class ProjectDtos {
     public record MemberView(
             long userid,
             boolean owner,
-            String role
+            String role,
+            String nickname,
+            String account
     ) {
     }
 }
