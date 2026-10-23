@@ -17,7 +17,6 @@
         </nav>
       </div>
       <div class="right">
-        <el-button link @click="openStaff">员工端</el-button>
         <el-button link type="primary" @click="go('users')">用户管理</el-button>
         <el-button link type="primary" @click="go('settings')">设置</el-button>
         <el-button link @click="toggleTheme">{{ theme === "dark" ? "☀️" : "🌙" }}</el-button>
@@ -62,11 +61,6 @@ const allTabs: { name: string; label: string; icon: string; superOnly?: boolean 
   { name: "notices", label: "通知", icon: "📢" },
   { name: "super", label: "超级管理", icon: "🛡️", superOnly: true }
 ];
-
-function openStaff(): void {
-  // 与管理端同源且共享登录态，直接打开员工端即可使用全部功能
-  window.open("/", "_blank", "noopener");
-}
 
 async function go(name: string): Promise<void> {
   await router.push({ name });

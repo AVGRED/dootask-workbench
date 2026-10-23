@@ -24,10 +24,26 @@ public class ProjectAccess {
 
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper memberMapper;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
-    public ProjectAccess(ProjectMapper projectMapper, ProjectMemberMapper memberMapper) {
+    public ProjectAccess(ProjectMapper projectMapper,
+                         ProjectMemberMapper memberMapper,
+                         org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.projectMapper = projectMapper;
         this.memberMapper = memberMapper;
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    /** 系统管理员对任何项目都有完整权限（管理端要能改所有内容）。 */
+    private boolean isSystemAdmin(long userid) {
+        try {
+            String role = jdbcTemplate.queryForObject(
+                    "select coalesce(role, 'staff') from users where userid = ? and deleted_at is null",
+                    String.class, userid);
+            return "admin".equals(role);
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 
     /** 非成员返回 null；项目不存在抛业务异常。 */
@@ -36,7 +52,7 @@ public class ProjectAccess {
         if (project == null) {
             throw new BusinessException("项目不存在");
         }
-        if (Objects.equals(project.getUserid(), userid)) {
+        if (Objects.equals(project.getUserid(), userid) || isSystemAdmin(userid)) {
             return ROLE_OWNER;
         }
         ProjectMember member = memberMapper.selectOne(new LambdaQueryWrapper<ProjectMember>()

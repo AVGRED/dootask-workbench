@@ -23,14 +23,14 @@
     </div>
 
     <div class="grid">
-      <div v-for="row in filtered" :key="row.id" class="card">
+      <div v-for="row in filtered" :key="row.id" class="card" @click="openProject(row)">
         <div class="card-head">
           <span class="name">{{ row.name }}</span>
           <span v-if="row.overdue > 0" class="overdue">{{ row.overdue }} 逾期</span>
           <span class="card-actions">
-            <el-button class="card-act" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button class="card-act" link type="primary" size="small" @click="openMembers(row)">成员</el-button>
-            <el-button class="card-del" link type="danger" size="small" @click="removeProject(row)">删除</el-button>
+            <el-button class="card-act" link type="primary" size="small" @click.stop="openEdit(row)">编辑</el-button>
+            <el-button class="card-act" link type="primary" size="small" @click.stop="openMembers(row)">成员</el-button>
+            <el-button class="card-del" link type="danger" size="small" @click.stop="removeProject(row)">删除</el-button>
           </span>
         </div>
         <div class="meta">负责人 {{ row.owner_name || "#" + row.owner_userid }} · {{ row.members }} 名成员</div>
@@ -116,11 +116,17 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { AdminProjectRow, UserView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const rows = ref<AdminProjectRow[]>([]);
+const router = useRouter();
+
+function openProject(row: AdminProjectRow): void {
+  void router.push({ name: "project", params: { id: row.id } });
+}
 const keyword = ref("");
 const users = ref<UserView[]>([]);
 const createVisible = ref(false);

@@ -253,7 +253,7 @@ public class TaskService {
         if (project == null) {
             throw new BusinessException("项目不存在");
         }
-        if (Objects.equals(project.getUserid(), currentUserid)) {
+        if (Objects.equals(project.getUserid(), currentUserid) || isSystemAdmin(currentUserid)) {
             return "owner";
         }
         ProjectMember member = memberMapper.selectOne(new LambdaQueryWrapper<ProjectMember>()
@@ -267,6 +267,18 @@ public class TaskService {
             return "owner";
         }
         return member.getRole() == null || member.getRole().isBlank() ? "member" : member.getRole();
+    }
+
+    /** 系统管理员对任何项目都有完整权限。 */
+    private boolean isSystemAdmin(long userid) {
+        try {
+            String role = jdbcTemplate.queryForObject(
+                    "select coalesce(role, 'staff') from users where userid = ? and deleted_at is null",
+                    String.class, userid);
+            return "admin".equals(role);
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 
     private static TaskView toView(Task task) {

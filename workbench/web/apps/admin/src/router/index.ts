@@ -12,6 +12,7 @@ export const router = createRouter({
         { path: "", redirect: { name: "team" } },
         { path: "team", name: "team", component: () => import("../views/TeamStatusView.vue") },
         { path: "projects", name: "projects", component: () => import("../views/ProjectsOverviewView.vue") },
+        { path: "projects/:id", name: "project", component: () => import("../views/ProjectDetailView.vue") },
         { path: "reports", name: "reports", component: () => import("../views/DailyReportsView.vue") },
         { path: "starmap", name: "starmap", component: () => import("../views/StarMapView.vue") },
         { path: "notices", name: "notices", component: () => import("../views/NoticesView.vue") },
