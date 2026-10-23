@@ -346,7 +346,9 @@ onMounted(async () => {
 .avatar-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* 状态墙照片按原图完整显示，不裁切 */
+  object-fit: contain;
+  background: var(--wb-surface-2);
 }
 .avatar-initial {
   font-size: 40px;
