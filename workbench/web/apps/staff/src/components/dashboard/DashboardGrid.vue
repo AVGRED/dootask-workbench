@@ -1,7 +1,7 @@
 <template>
   <div ref="bentoRef" class="bento" :style="{ height: `${gridHeight}px` }">
     <div
-      v-for="item in layout"
+      v-for="item in visibleLayout"
       :key="item.id"
       class="tile"
       :class="{ dragging: drag?.id === item.id }"
@@ -67,6 +67,9 @@ const drag = ref<{
 } | null>(null);
 
 const colorIndex = computed(() => buildColorIndex(props.layout));
+// 工时板块已下线：旧布局里残留的 capacity 不渲染
+const visibleLayout = computed(() => props.layout.filter((item: LayoutItem) => item.id !== "capacity"));
+
 const gridHeight = computed(() => gridHeightOf(props.layout));
 
 function titleOf(id: string): string {

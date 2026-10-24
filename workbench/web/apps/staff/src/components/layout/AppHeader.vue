@@ -31,6 +31,11 @@
         </template>
       </el-dropdown>
 
+      <button class="icon-btn notify-btn" type="button" title="消息" @click="openNotifications">
+        🔔
+        <span v-if="unread > 0" class="notify-dot">{{ unread > 99 ? "99+" : unread }}</span>
+      </button>
+
       <el-tooltip :content="theme === 'dark' ? '切换到亮色' : '切换到暗色'" placement="bottom">
         <button class="icon-btn" type="button" @click="toggleTheme">
           {{ theme === "dark" ? "☀️" : "🌙" }}
@@ -53,7 +58,27 @@
       </el-dropdown>
       <input ref="fileInput" type="file" accept="image/*" hidden @change="uploadAvatar" />
     </div>
+
   </header>
+
+  <el-drawer v-model="notifyVisible" title="消息" size="420px">
+    <div class="notify-actions">
+      <el-button size="small" @click="readAllNotifications">全部已读</el-button>
+      <span class="notify-unread">未读 {{ unread }}</span>
+    </div>
+    <el-empty v-if="notifications.length === 0" description="没有新消息" />
+    <div v-for="item in notifications" :key="item.id" class="notify-item">
+      <div class="notify-title">
+        {{ item.title }}
+        <el-tag v-if="!item.read" size="small" type="warning">未读</el-tag>
+      </div>
+      <div class="notify-meta">{{ (item.createdAt || "").replace("T", " ").slice(0, 16) }}</div>
+      <p class="notify-body">{{ item.payload }}</p>
+      <el-button v-if="!item.read" link type="primary" size="small" @click="markNotificationRead(item)">
+        标为已读
+      </el-button>
+    </div>
+  </el-drawer>
 </template>
 
 <script setup lang="ts">
@@ -62,6 +87,42 @@ import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { client } from "../../stores/auth";
 import { useTheme } from "../../composables/useTheme";
+
+const notifyVisible = ref(false);
+const notifications = ref<{ id: number; title: string; payload?: string; read: boolean; createdAt?: string }[]>([]);
+
+const unread = computed(() => notifications.value.filter((item) => !item.read).length);
+
+async function loadNotifications(): Promise<void> {
+  try {
+    notifications.value = await client.listNotifications();
+  } catch {
+    notifications.value = [];
+  }
+}
+
+function openNotifications(): void {
+  notifyVisible.value = true;
+  void loadNotifications();
+}
+
+async function markNotificationRead(item: { id: number }): Promise<void> {
+  try {
+    await client.markNotificationRead(item.id);
+    await loadNotifications();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "操作失败");
+  }
+}
+
+async function readAllNotifications(): Promise<void> {
+  try {
+    await client.markAllNotificationsRead();
+    await loadNotifications();
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "操作失败");
+  }
+}
 
 const route = useRoute();
 const router = useRouter();
@@ -311,5 +372,56 @@ onMounted(async () => {
 .brand-dot {
   border-radius: 0;
   clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+.notify-btn {
+  position: relative;
+}
+.notify-dot {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+.notify-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.notify-unread {
+  font-size: 12px;
+  color: var(--wb-text-3);
+}
+.notify-item {
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--wb-border);
+}
+.notify-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wb-text);
+}
+.notify-meta {
+  font-size: 12px;
+  color: var(--wb-text-3);
+  margin: 4px 0;
+}
+.notify-body {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--wb-text-2);
+  white-space: pre-wrap;
 }
 </style>
