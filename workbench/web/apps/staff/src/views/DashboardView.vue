@@ -7,8 +7,7 @@
         <div class="greeting-title">{{ greeting }}，{{ nickname }}</div>
         <div class="greeting-sub">
           <template v-if="dash">
-            今天有 {{ openTaskCount }} 条待办 · {{ projectCount }} 个项目 ·
-            本周已记录 {{ capacityMinutes }} 分钟
+            今天有 {{ openTaskCount }} 条待办 · {{ projectCount }} 个项目
           </template>
           <template v-else>正在加载你的星图…</template>
         </div>
@@ -84,10 +83,6 @@ const openTaskCount = computed(() => {
 const projectCount = computed(() => {
   const projects = dash.value?.data["summary"] as { projects?: number } | undefined;
   return projects?.projects ?? 0;
-});
-const capacityMinutes = computed(() => {
-  const capacity = dash.value?.data["capacity"] as { minutes?: number } | undefined;
-  return capacity?.minutes ?? 0;
 });
 
 const projectBlocks = computed<ProjectBlock[]>(() =>
