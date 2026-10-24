@@ -72,10 +72,7 @@
           </div>
 
           <div class="load">
-            <div class="load-head">
-              <span>近 7 天工时</span>
-              <span class="load-value">{{ row.week_minutes }} / {{ WEEK_CAPACITY }} 分钟</span>
-            </div>
+            
             <div class="load-bar">
               <div
                 class="load-fill"

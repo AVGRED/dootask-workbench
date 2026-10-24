@@ -25,7 +25,6 @@
           <el-option label="P3 低" :value="3" />
         </el-select>
         <el-button @click="exportTasks">导出任务</el-button>
-        <el-button @click="exportWorklogs">导出工时</el-button>
       </div>
 
       <el-table v-loading="loading" :data="rows" class="task-table" @selection-change="onSelectionChange">
@@ -50,8 +49,7 @@
         <el-table-column label="操作" width="280">
           <template #default="{ row }">
             <el-button link type="primary" @click="openEdit(row as TaskView)">编辑</el-button>
-            <el-button link type="primary" @click="openWorklogs(row as TaskView)">工时</el-button>
-            <el-button link type="primary" @click="openComments(row as TaskView)">评论</el-button>
+              <el-button link type="primary" @click="openComments(row as TaskView)">评论</el-button>
             <el-button link type="primary" @click="openTagDialog(row as TaskView)">标签</el-button>
             <el-button link type="primary" @click="openFiles(row as TaskView)">附件</el-button>
             <el-button link type="primary" @click="complete(row as TaskView)">完成</el-button>
@@ -341,12 +339,6 @@ const worklogForm = reactive<{ minutes: number; workDate: string; note: string }
   note: ""
 });
 
-async function openWorklogs(row: TaskView): Promise<void> {
-  worklogTaskId.value = row.id;
-  worklogVisible.value = true;
-  await loadWorklogs();
-}
-
 async function loadWorklogs(): Promise<void> {
   if (!worklogTaskId.value) return;
   try {
@@ -452,14 +444,6 @@ function downloadBlob(blob: Blob, filename: string): void {
 async function exportTasks(): Promise<void> {
   try {
     downloadBlob(await client.exportTasksCsv(projectId.value), `tasks-${projectId.value}.csv`);
-  } catch (exception) {
-    ElMessage.error(exception instanceof Error ? exception.message : "导出失败");
-  }
-}
-
-async function exportWorklogs(): Promise<void> {
-  try {
-    downloadBlob(await client.exportWorklogsCsv(projectId.value), `worklogs-${projectId.value}.csv`);
   } catch (exception) {
     ElMessage.error(exception instanceof Error ? exception.message : "导出失败");
   }

@@ -21,10 +21,7 @@
             <div class="metric-value">{{ report.taskOverdue }}</div>
             <div class="metric-label">逾期任务</div>
           </div>
-          <div class="metric">
-            <div class="metric-value">{{ report.worklogMinutes }}</div>
-            <div class="metric-label">工时（分钟）</div>
-          </div>
+          
           <div class="metric">
             <div class="metric-value">{{ report.milestoneDone }}/{{ report.milestoneTotal }}</div>
             <div class="metric-label">里程碑达成</div>
@@ -32,10 +29,7 @@
         </div>
 
         <div class="panel">
-          <div class="panel-head">
-            <span class="panel-title">每日工时</span>
-            <span class="panel-sub">{{ report.from }} ~ {{ report.to }}</span>
-          </div>
+          
           <div class="chart">
             <div
               v-for="point in report.days"
@@ -53,10 +47,7 @@
         </div>
 
         <div class="panel">
-          <div class="panel-head">
-            <span class="panel-title">成员工时</span>
-            <span class="panel-sub">{{ report.members.length }} 人</span>
-          </div>
+          
           <el-table :data="report.members" class="task-table" empty-text="暂无数据">
             <el-table-column prop="userid" label="用户" width="90" />
             <el-table-column prop="email" label="邮箱" min-width="200" />
