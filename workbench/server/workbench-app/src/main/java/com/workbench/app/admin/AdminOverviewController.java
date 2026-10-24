@@ -66,6 +66,7 @@ public class AdminOverviewController {
         LocalDate day = date == null ? LocalDate.now() : date;
         return ApiResponse.ok(jdbc.queryForList(
                 "select u.userid, u.nickname, u.email from users u where u.deleted_at is null "
+                        + "and coalesce(u.role, 'staff') <> 'admin' "
                         + "and not exists (select 1 from daily_reports d where d.userid = u.userid "
                         + "and d.report_date = ? and d.deleted_at is null) order by u.userid", day));
     }

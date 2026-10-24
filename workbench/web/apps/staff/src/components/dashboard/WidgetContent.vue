@@ -35,8 +35,9 @@
   </div>
 
   <div v-else-if="id === 'daily-report'">
-    <div class="big">{{ reportSubmitted ? "已提交" : "未提交" }}</div>
-    <el-button size="small" @click="emit('go-report')">去写日报</el-button>
+    <div class="big">{{ isAdmin ? "免提交" : reportSubmitted ? "已提交" : "未提交" }}</div>
+    <span v-if="isAdmin" class="muted">管理员无需提交日报</span>
+    <el-button v-else size="small" @click="emit('go-report')">去写日报</el-button>
   </div>
 
   <div v-else-if="id === 'capacity'">
@@ -88,6 +89,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useAuthStore } from "../../stores/auth";
 import type { PersonalTodo } from "@workbench/api";
 import { client } from "../../stores/auth";
 
@@ -123,6 +125,15 @@ interface TaskRow {
 
 const tasks = computed(() => (props.data["my-tasks"] as TaskRow[] | undefined) ?? []);
 const project = computed(() => props.data[props.id] as ProjectBlock | undefined);
+const auth = useAuthStore();
+const isAdmin = computed(() => {
+  try {
+    return auth.user?.role === "admin";
+  } catch {
+    return false;
+  }
+});
+
 const reportSubmitted = computed(
   () => ((props.data["daily-report"] as unknown[] | undefined)?.length ?? 0) > 0
 );
