@@ -38,18 +38,11 @@
             <el-input v-model="form.contentPlan" type="textarea" :rows="2" maxlength="1000" show-word-limit placeholder="选填" />
           </label>
 
-          <div class="field">
-            <span class="field-label">投入分钟</span>
-            <div class="minutes-row">
-              <el-input-number v-model="form.minutes" :min="0" :max="1440" :step="30" size="small" />
-              <button v-for="value in QUICK_MINUTES" :key="value" class="quick" type="button" @click="form.minutes = value">
-                {{ value }}
-              </button>
-            </div>
-          </div>
+
 
           <div class="panel-foot">
-            <el-button type="primary" :loading="saving" @click="save">提交日报</el-button>
+            <el-button type="primary" :loading="saving" :disabled="!reportOpen" @click="save">提交日报</el-button>
+        <span v-if="!reportOpen" class="hint-text">每天 18:00 之后才能提交当天日报</span>
             <span class="foot-hint">提交后可在右侧「近期提交」里修改</span>
           </div>
         </section>
@@ -101,13 +94,14 @@ import type { DailyReportView, WeeklySummaryView } from "@workbench/api";
 import AppHeader from "../components/layout/AppHeader.vue";
 import { client } from "../stores/auth";
 
-const QUICK_MINUTES = [60, 120, 240, 480];
 const today = new Date().toISOString().slice(0, 10);
 const selectedDate = ref(today);
 const existingStatus = ref("");
 const reports = ref<DailyReportView[]>([]);
 const weeklySummaries = ref<WeeklySummaryView[]>([]);
 const saving = ref(false);
+// 以本机时间为准做提示，服务端同样会校验
+const reportOpen = ref(new Date().getHours() >= 18);
 const streak = computed(() => {
   const days: { date: string; label: string; submitted: boolean }[] = [];
   const submitted = new Set(reports.value.map((row) => row.reportDate));
@@ -408,5 +402,10 @@ onMounted(async () => {
   .report-grid {
     grid-template-columns: 1fr;
   }
+}
+.hint-text {
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--wb-text-3);
 }
 </style>

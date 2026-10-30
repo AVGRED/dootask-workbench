@@ -2,7 +2,7 @@
   <div class="super-page">
     <div class="intro">
       <h2>超级管理</h2>
-      <p>这些操作只有超级管理员可用，全部会写进审计日志。</p>
+      <p>这些操作只有超级管理员可用，操作会记录在后台。</p>
     </div>
 
     <div class="grid">
@@ -86,7 +86,7 @@
 
       <section class="card">
         <h3>删除任务 / 项目</h3>
-        <p class="hint">绕过负责人限制，直接软删除。请谨慎使用，操作会记录在审计日志。</p>
+        <p class="hint">绕过负责人限制，直接软删除。请谨慎使用，操作会记录在后台。</p>
         <div class="inline">
           <el-input v-model.number="taskId" placeholder="任务 ID" size="small" style="flex: 1" />
           <el-button type="danger" size="small" :loading="busy === 'task'" @click="deleteTask">删除任务</el-button>
@@ -98,23 +98,7 @@
       </section>
     </div>
 
-    <section class="card audit">
-      <div class="audit-head">
-        <h3>审计日志</h3>
-        <el-button size="small" :loading="loadingAudit" @click="loadAudit">刷新</el-button>
-      </div>
-      <el-table :data="auditLogs" size="small" border max-height="360">
-        <el-table-column prop="created_at" label="时间" width="180">
-          <template #default="{ row }">{{ (row.created_at ?? "").slice(0, 19).replace("T", " ") }}</template>
-        </el-table-column>
-        <el-table-column prop="operator_name" label="操作人" width="120" />
-        <el-table-column prop="action" label="动作" width="170" />
-        <el-table-column label="对象" width="140">
-          <template #default="{ row }">{{ row.target_name || row.target_userid || "-" }}</template>
-        </el-table-column>
-        <el-table-column prop="detail" label="详情" min-width="200" />
-      </el-table>
-    </section>
+
   </div>
 </template>
 

@@ -9,6 +9,8 @@ import com.workbench.report.web.ReportDtos.DailyReportView;
 import com.workbench.report.web.ReportDtos.SaveDailyReportRequest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,6 +29,9 @@ public class DailyReportService {
     private final DailyReportMapper dailyReportMapper;
     private final JdbcTemplate jdbcTemplate;
 
+    /** 日报开放提交时间（北京时间 18:00）。 */
+    private static final int REPORT_OPEN_HOUR = 18;
+
     public DailyReportService(DailyReportMapper dailyReportMapper, JdbcTemplate jdbcTemplate) {
         this.dailyReportMapper = dailyReportMapper;
         this.jdbcTemplate = jdbcTemplate;
@@ -42,6 +47,11 @@ public class DailyReportService {
         }
         if (!ReportStatus.withinBackfillWindow(reportDate, now)) {
             throw new BusinessException("超过 " + ReportStatus.BACKFILL_DAYS + " 天补交窗口");
+        }
+        // 每天 18:00（北京时间）之后才允许提交当天日报；补交历史日报不受限制
+        if (reportDate.isEqual(now.toLocalDate())
+                && LocalTime.now(ZoneId.of("Asia/Shanghai")).isBefore(LocalTime.of(REPORT_OPEN_HOUR, 0))) {
+            throw new BusinessException("每天 " + REPORT_OPEN_HOUR + ":00 之后才可以提交日报");
         }
         int status = ReportStatus.evaluate(reportDate, now);
         String blocker = request.contentBlocker() == null ? "" : request.contentBlocker();
