@@ -26,7 +26,6 @@
             <span class="name">{{ row.nickname || "未命名" }}</span>
             <span class="uid">#{{ row.userid }}</span>
           </div>
-          <span class="minutes">{{ row.minutes ?? 0 }} 分钟</span>
         </header>
 
         <div class="section">
@@ -192,13 +191,6 @@ onMounted(load);
 .uid {
   font-size: 12px;
   color: var(--wb-text-3);
-}
-.minutes {
-  font-size: 12px;
-  color: var(--wb-brand-700);
-  background: var(--wb-brand-50);
-  border-radius: 999px;
-  padding: 3px 10px;
 }
 .section {
   display: flex;
