@@ -59,6 +59,7 @@ export * from "./types";
 
 export { ApiError } from "./http";
 export type { ClientOptions } from "./http";
+export { BUSINESS_TIME_ZONE, dateInBusinessZone, todayInBusinessZone } from "./datetime";
 import { ApiError, buildHeaders, parsePayload, requestJson, type ClientOptions } from "./http";
 
 export class ApiClient {

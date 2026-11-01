@@ -180,6 +180,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import type { AttachmentView, CommentView, MilestoneView, TagView, TaskView, WorklogView } from "@workbench/api";
 import AppHeader from "../components/layout/AppHeader.vue";
 import { client } from "../stores/auth";
+import { todayInBusinessZone } from "@workbench/api";
 
 const route = useRoute();
 const projectId = computed(() => Number(route.params.projectId ?? 0));
@@ -335,7 +336,7 @@ const worklogSaving = ref(false);
 const worklogs = ref<WorklogView[]>([]);
 const worklogForm = reactive<{ minutes: number; workDate: string; note: string }>({
   minutes: 60,
-  workDate: new Date().toISOString().slice(0, 10),
+  workDate: todayInBusinessZone(),
   note: ""
 });
 

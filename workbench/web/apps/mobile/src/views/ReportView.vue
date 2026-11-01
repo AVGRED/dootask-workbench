@@ -25,8 +25,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { client } from "../stores/auth";
+import { todayInBusinessZone } from "@workbench/api";
 
-const reportDate = ref(new Date().toISOString().slice(0, 10));
+const reportDate = ref(todayInBusinessZone());
 const contentDone = ref("");
 const contentBlocker = ref("");
 const minutes = ref(0);

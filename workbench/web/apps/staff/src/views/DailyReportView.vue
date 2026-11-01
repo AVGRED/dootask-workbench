@@ -66,7 +66,7 @@
               <span class="recent-date">{{ row.reportDate.slice(5) }}</span>
               <div class="recent-body">
                 <div class="recent-text">{{ row.contentDone }}</div>
-                <div class="recent-meta">{{ row.minutes ?? 0 }} 分钟 · {{ row.statusText }}</div>
+                <div class="recent-meta">{{ row.statusText }}</div>
               </div>
               <el-button link type="danger" class="recent-del" @click.stop="remove(row as DailyReportView)">删除</el-button>
             </article>
@@ -77,7 +77,7 @@
             <div v-if="weeklySummaries.length === 0" class="empty">本周还没有汇总</div>
             <div v-for="week in weeklySummaries.slice(0, 2)" :key="week.id" class="weekly-item">
               <div class="weekly-range">{{ week.weekStart }} ~ {{ week.weekEnd }}</div>
-              <div class="recent-meta">{{ week.reportCount }} 篇 · 缺 {{ week.missingCount }} 天 · {{ week.totalMinutes }} 分钟</div>
+              <div class="recent-meta">{{ week.reportCount }} 篇 · 缺 {{ week.missingCount }} 天</div>
             </div>
             <el-button size="small" class="regen" :loading="saving" @click="regenerate">重新生成上周周报</el-button>
           </div>
@@ -93,8 +93,9 @@ import { ElMessage } from "element-plus";
 import type { DailyReportView, WeeklySummaryView } from "@workbench/api";
 import AppHeader from "../components/layout/AppHeader.vue";
 import { client } from "../stores/auth";
+import { dateInBusinessZone, todayInBusinessZone } from "@workbench/api";
 
-const today = new Date().toISOString().slice(0, 10);
+const today = todayInBusinessZone();
 const selectedDate = ref(today);
 const existingStatus = ref("");
 const reports = ref<DailyReportView[]>([]);
@@ -108,7 +109,7 @@ const streak = computed(() => {
   for (let offset = 6; offset >= 0; offset--) {
     const date = new Date();
     date.setDate(date.getDate() - offset);
-    const key = date.toISOString().slice(0, 10);
+    const key = dateInBusinessZone(date);
     days.push({
       date: key,
       label: ["日", "一", "二", "三", "四", "五", "六"][date.getDay()],

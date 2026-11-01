@@ -107,6 +107,7 @@ import { onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { UserView } from "@workbench/api";
 import { client } from "../stores/auth";
+import { todayInBusinessZone } from "@workbench/api";
 
 interface AuditRow {
   id: number;
@@ -123,7 +124,7 @@ const busy = ref("");
 const loadingAudit = ref(false);
 const auditLogs = ref<AuditRow[]>([]);
 
-const today = new Date().toISOString().slice(0, 10);
+const today = todayInBusinessZone();
 const reportForm = reactive<{ userid?: number; date: string; done: string; blocker: string; plan: string }>({ userid: undefined, date: today, done: "", blocker: "", plan: "" });
 const todoForm = reactive<{ userid?: number; title: string }>({ userid: undefined, title: "" });
 const logoutUserid = ref<number | undefined>();
