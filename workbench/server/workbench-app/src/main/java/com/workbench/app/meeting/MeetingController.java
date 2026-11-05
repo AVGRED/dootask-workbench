@@ -5,9 +5,11 @@ import com.workbench.common.api.BusinessException;
 import com.workbench.user.service.SystemAdmin;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import java.security.Principal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 会议：先支持「粘贴腾讯会议链接 + 通知参会人」，
- * 以后接入腾讯会议 API 时只需把 joinUrl 的来源换掉。
+ * 会议：管理员创建并指定参会人，参会人会收到站内通知，点链接进入腾讯会议。
  */
 @RestController
 @RequestMapping("/api/v1/meetings")
@@ -41,79 +42,79 @@ public class MeetingController {
 
     public record SaveMeetingRequest(
             @NotBlank(message = "请填写会议主题") @Size(max = 120) String title,
-            Long projectId,
             LocalDateTime startAt,
             Integer durationMinutes,
             @NotBlank(message = "请填写会议链接") @Size(max = 600) String joinUrl,
             @Size(max = 40) String meetingCode,
-            @Size(max = 500) String description
+            @Size(max = 500) String description,
+            @NotEmpty(message = "请选择参会人") List<Long> participantUserids
     ) {
     }
 
     @GetMapping
     public ApiResponse<List<Map<String, Object>>> list(Principal principal,
-                                                       @RequestParam(required = false) Long projectId,
                                                        @RequestParam(required = false) Integer limit) {
         long userid = currentUserid(principal);
-        int size = limit == null || limit <= 0 || limit > 100 ? 50 : limit;
-        StringBuilder sql = new StringBuilder(
-                "select m.id, m.title, m.project_id, m.owner_userid, m.start_at, m.duration_minutes, "
-                        + "m.join_url, m.meeting_code, m.platform, m.description, m.created_at, "
-                        + "coalesce(u.nickname, '') as owner_name, coalesce(p.name, '') as project_name "
-                        + "from meetings m left join users u on u.userid = m.owner_userid "
-                        + "left join projects p on p.id = m.project_id "
-                        + "where m.deleted_at is null ");
-        List<Object> args = new java.util.ArrayList<>();
-        if (projectId != null) {
-            requireProjectVisible(userid, projectId);
-            sql.append("and m.project_id = ? ");
-            args.add(projectId);
-        } else if (!systemAdmin.isAdmin(userid)) {
-            sql.append("and (m.project_id is null or m.project_id in "
-                    + "(select project_id from project_users where userid = ?)) ");
+        int size = limit == null || limit <= 0 || limit > 200 ? 100 : limit;
+        boolean admin = systemAdmin.isAdmin(userid);
+
+        String sql = "select m.id, m.title, m.owner_userid, m.start_at, m.duration_minutes, m.join_url, "
+                + "m.meeting_code, m.platform, m.description, m.created_at, coalesce(u.nickname, '') as owner_name "
+                + "from meetings m left join users u on u.userid = m.owner_userid "
+                + "where m.deleted_at is null ";
+        List<Object> args = new ArrayList<>();
+        if (!admin) {
+            sql += "and exists (select 1 from meeting_participants p where p.meeting_id = m.id and p.userid = ?) ";
             args.add(userid);
         }
-        sql.append("order by m.start_at desc, m.id desc limit ?");
+        sql += "order by m.start_at desc, m.id desc limit ?";
         args.add(size);
-        return ApiResponse.ok(jdbc.queryForList(sql.toString(), args.toArray()));
-    }
 
-    /** 只接受 http/https 链接，避免 javascript: 等伪协议被当成会议地址打开。 */
-    private String safeJoinUrl(String raw) {
-        String url = raw == null ? "" : raw.trim();
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            throw new BusinessException("会议链接必须以 http:// 或 https:// 开头");
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Map<String, Object> row : jdbc.queryForList(sql, args.toArray())) {
+            Map<String, Object> item = new LinkedHashMap<>(row);
+            long meetingId = Long.parseLong(row.get("id").toString());
+            List<Map<String, Object>> people = jdbc.queryForList(
+                    "select p.userid, coalesce(u.nickname, '') as nickname from meeting_participants p "
+                            + "left join users u on u.userid = p.userid where p.meeting_id = ? order by p.userid",
+                    meetingId);
+            List<Long> ids = new ArrayList<>();
+            List<String> names = new ArrayList<>();
+            for (Map<String, Object> person : people) {
+                ids.add(Long.parseLong(person.get("userid").toString()));
+                names.add(String.valueOf(person.get("nickname")));
+            }
+            item.put("participant_userids", ids);
+            item.put("participant_names", names);
+            item.put("participant_count", ids.size());
+            rows.add(item);
         }
-        return url;
+        return ApiResponse.ok(rows);
     }
 
     @PostMapping
     @Transactional
     public ApiResponse<Map<String, Object>> create(Principal principal, @Valid @RequestBody SaveMeetingRequest request) {
         long userid = currentUserid(principal);
+        systemAdmin.requireAdmin(userid);
+
         LocalDateTime startAt = request.startAt() == null ? LocalDateTime.now() : request.startAt();
-        int duration = request.durationMinutes() == null || request.durationMinutes() <= 0 ? 60 : request.durationMinutes();
+        int duration = Math.min(
+                request.durationMinutes() == null || request.durationMinutes() <= 0 ? 60 : request.durationMinutes(), 720);
+        String joinUrl = safeJoinUrl(request.joinUrl());
         String code = request.meetingCode() == null ? "" : request.meetingCode().trim();
         String desc = request.description() == null ? "" : request.description().trim();
-        String joinUrl = safeJoinUrl(request.joinUrl());
-        // 单次会议最长 12 小时，防止异常入参
-        duration = Math.min(duration, 720);
-
-        if (request.projectId() == null) {
-            // 全公司会议只有管理员能建
-            systemAdmin.requireAdmin(userid);
-        } else {
-            requireProjectWrite(userid, request.projectId());
-        }
+        List<Long> participants = validParticipants(request.participantUserids());
 
         jdbc.update(
-                "insert into meetings (title, project_id, owner_userid, start_at, duration_minutes, join_url, "
-                        + "meeting_code, platform, description, created_at, updated_at) "
-                        + "values (?, ?, ?, ?, ?, ?, ?, 'tencent', ?, now(), now())",
-                request.title().trim(), request.projectId(), userid, startAt, duration, joinUrl, code, desc);
+                "insert into meetings (title, owner_userid, start_at, duration_minutes, join_url, meeting_code, "
+                        + "platform, description, created_at, updated_at) "
+                        + "values (?, ?, ?, ?, ?, ?, 'tencent', ?, now(), now())",
+                request.title().trim(), userid, startAt, duration, joinUrl, code, desc);
         Long id = jdbc.queryForObject("select last_insert_id()", Long.class);
+        saveParticipants(id, participants);
+        int sent = notify(participants, request.title().trim(), startAt, joinUrl);
 
-        int sent = fanout(id, request.title().trim(), startAt, joinUrl, request.projectId());
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", id);
         result.put("notified", sent);
@@ -122,43 +123,76 @@ public class MeetingController {
 
     @PutMapping("/{id}")
     @Transactional
-    public ApiResponse<Void> update(Principal principal, @PathVariable long id, @Valid @RequestBody SaveMeetingRequest request) {
+    public ApiResponse<Map<String, Object>> update(Principal principal, @PathVariable long id,
+                                                   @Valid @RequestBody SaveMeetingRequest request) {
         long userid = currentUserid(principal);
-        Map<String, Object> row = load(id);
-        requireMeetingWrite(userid, row);
+        systemAdmin.requireAdmin(userid);
+        requireMeeting(id);
 
         LocalDateTime startAt = request.startAt() == null ? LocalDateTime.now() : request.startAt();
         int duration = Math.min(
                 request.durationMinutes() == null || request.durationMinutes() <= 0 ? 60 : request.durationMinutes(), 720);
         String joinUrl = safeJoinUrl(request.joinUrl());
+        List<Long> participants = validParticipants(request.participantUserids());
+
         jdbc.update(
                 "update meetings set title = ?, start_at = ?, duration_minutes = ?, join_url = ?, meeting_code = ?, "
                         + "description = ?, updated_at = now() where id = ?",
                 request.title().trim(), startAt, duration, joinUrl,
                 request.meetingCode() == null ? "" : request.meetingCode().trim(),
                 request.description() == null ? "" : request.description().trim(), id);
-        return ApiResponse.ok(null);
+
+        List<Long> before = jdbc.queryForList(
+                "select userid from meeting_participants where meeting_id = ?", Long.class, id);
+        jdbc.update("delete from meeting_participants where meeting_id = ?", id);
+        saveParticipants(id, participants);
+
+        // 只给新增的参会人发通知，避免重复打扰
+        List<Long> added = new ArrayList<>(participants);
+        added.removeAll(before);
+        int sent = notify(added, request.title().trim(), startAt, joinUrl);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("notified", sent);
+        return ApiResponse.ok(result);
     }
 
     @DeleteMapping("/{id}")
     @Transactional
     public ApiResponse<Void> delete(Principal principal, @PathVariable long id) {
-        long userid = currentUserid(principal);
-        Map<String, Object> row = load(id);
-        requireMeetingWrite(userid, row);
+        systemAdmin.requireAdmin(currentUserid(principal));
+        requireMeeting(id);
         jdbc.update("update meetings set deleted_at = now(), updated_at = now() where id = ?", id);
         return ApiResponse.ok(null);
     }
 
-    /** 给参会人写站内通知（项目会议 → 项目成员；全公司会议 → 所有人）。 */
-    private int fanout(long meetingId, String title, LocalDateTime startAt, String joinUrl, Long projectId) {
-        List<Long> receivers;
-        if (projectId == null) {
-            receivers = jdbc.queryForList("select userid from users where deleted_at is null", Long.class);
-        } else {
-            receivers = jdbc.queryForList(
-                    "select userid from project_users where project_id = ?", Long.class, projectId);
+    private List<Long> validParticipants(List<Long> raw) {
+        List<Long> ids = new ArrayList<>();
+        for (Long id : raw) {
+            if (id == null || ids.contains(id)) {
+                continue;
+            }
+            Long exists = jdbc.queryForObject(
+                    "select count(*) from users where userid = ? and deleted_at is null", Long.class, id);
+            if (exists != null && exists > 0) {
+                ids.add(id);
+            }
         }
+        if (ids.isEmpty()) {
+            throw new BusinessException("请选择至少一位参会人");
+        }
+        return ids;
+    }
+
+    private void saveParticipants(long meetingId, List<Long> participants) {
+        for (Long participant : participants) {
+            jdbc.update(
+                    "insert into meeting_participants (meeting_id, userid, created_at) values (?, ?, now())",
+                    meetingId, participant);
+        }
+    }
+
+    private int notify(List<Long> receivers, String title, LocalDateTime startAt, String joinUrl) {
         String payload = startAt.toString().replace("T", " ").substring(0, 16) + " · " + joinUrl;
         int sent = 0;
         for (Long receiver : receivers) {
@@ -170,59 +204,20 @@ public class MeetingController {
         return sent;
     }
 
-    private Map<String, Object> load(long id) {
-        List<Map<String, Object>> rows = jdbc.queryForList(
-                "select id, project_id, owner_userid from meetings where id = ? and deleted_at is null", id);
-        if (rows.isEmpty()) {
+    private void requireMeeting(long id) {
+        Long count = jdbc.queryForObject(
+                "select count(*) from meetings where id = ? and deleted_at is null", Long.class, id);
+        if (count == null || count == 0) {
             throw new BusinessException(404, "会议不存在");
         }
-        return rows.get(0);
     }
 
-    private void requireMeetingWrite(long userid, Map<String, Object> row) {
-        if (systemAdmin.isAdmin(userid)) {
-            return;
+    private String safeJoinUrl(String raw) {
+        String url = raw == null ? "" : raw.trim();
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            throw new BusinessException("会议链接必须以 http:// 或 https:// 开头");
         }
-        Object owner = row.get("owner_userid");
-        if (owner != null && Long.parseLong(owner.toString()) == userid) {
-            return;
-        }
-        Object projectId = row.get("project_id");
-        if (projectId != null) {
-            requireProjectWrite(userid, Long.parseLong(projectId.toString()));
-            return;
-        }
-        throw new BusinessException(403, "只有发起人或管理员可以修改会议");
-    }
-
-    private void requireProjectVisible(long userid, long projectId) {
-        if (systemAdmin.isAdmin(userid)) {
-            return;
-        }
-        Long count = jdbc.queryForObject(
-                "select count(*) from project_users where project_id = ? and userid = ?", Long.class, projectId, userid);
-        if (count == null || count == 0) {
-            throw new BusinessException(403, "无权查看该项目");
-        }
-    }
-
-    private void requireProjectWrite(long userid, long projectId) {
-        if (systemAdmin.isAdmin(userid)) {
-            return;
-        }
-        Long owner = jdbc.queryForObject(
-                "select userid from projects where id = ? and deleted_at is null", Long.class, projectId);
-        if (owner != null && owner == userid) {
-            return;
-        }
-        List<String> roles = jdbc.queryForList(
-                "select coalesce(role, 'member') from project_users where project_id = ? and userid = ?",
-                String.class, projectId, userid);
-        String role = roles.isEmpty() ? "" : roles.get(0);
-        if ("owner".equals(role) || "admin".equals(role) || "member".equals(role)) {
-            return;
-        }
-        throw new BusinessException(403, "无权在该项目下创建会议");
+        return url;
     }
 
     private long currentUserid(Principal principal) {

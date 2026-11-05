@@ -1,9 +1,7 @@
-/** 会议（目前是「粘贴腾讯会议链接 + 通知参会人」）。 */
+/** 会议（管理员创建 + 指定参会人，链接为腾讯会议地址）。 */
 export interface MeetingView {
   id: number;
   title: string;
-  project_id: number | null;
-  project_name?: string;
   owner_userid: number;
   owner_name?: string;
   start_at: string;
@@ -13,14 +11,17 @@ export interface MeetingView {
   platform?: string;
   description?: string;
   created_at?: string;
+  participant_userids?: number[];
+  participant_names?: string[];
+  participant_count?: number;
 }
 
 export interface SaveMeetingRequest {
   title: string;
-  projectId?: number | null;
   startAt: string;
   durationMinutes?: number | null;
   joinUrl: string;
   meetingCode?: string | null;
   description?: string | null;
+  participantUserids: number[];
 }

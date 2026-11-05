@@ -3,7 +3,7 @@
     <div class="head">
       <div>
         <h2>会议</h2>
-        <p class="sub">建好会议后，参会人会收到站内通知，点「进入会议」直接跳转腾讯会议。</p>
+        <p class="sub">管理员建会并指定参会人，参会人会收到站内通知，点「进入会议」直接跳转腾讯会议。</p>
       </div>
       <el-button type="primary" @click="openCreate">新建会议</el-button>
     </div>
@@ -19,12 +19,13 @@
               <span class="tag live">进行中</span>
             </div>
             <div class="meta">{{ timeText(row) }} · 发起人 {{ row.owner_name || row.owner_userid }}</div>
-            <div class="meta" v-if="row.project_name">项目：{{ row.project_name }}</div>
+            <div class="meta">参会人 {{ row.participant_count }} 人：{{ (row.participant_names || []).slice(0, 6).join("、") }}</div>
             <p v-if="row.description" class="desc">{{ row.description }}</p>
             <div class="actions">
               <el-button type="primary" size="small" @click="join(row)">进入会议</el-button>
               <el-button size="small" @click="copy(row)">复制链接</el-button>
-              <el-button v-if="canManage(row)" link type="danger" size="small" @click="remove(row)">删除</el-button>
+              <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+              <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
             </div>
           </article>
         </div>
@@ -40,12 +41,13 @@
               <span class="tag">{{ row.duration_minutes }} 分钟</span>
             </div>
             <div class="meta">{{ timeText(row) }} · 发起人 {{ row.owner_name || row.owner_userid }}</div>
-            <div class="meta" v-if="row.project_name">项目：{{ row.project_name }}</div>
+            <div class="meta">参会人 {{ row.participant_count }} 人：{{ (row.participant_names || []).slice(0, 6).join("、") }}</div>
             <p v-if="row.description" class="desc">{{ row.description }}</p>
             <div class="actions">
               <el-button size="small" type="primary" plain @click="join(row)">进入会议</el-button>
               <el-button size="small" @click="copy(row)">复制链接</el-button>
-              <el-button v-if="canManage(row)" link type="danger" size="small" @click="remove(row)">删除</el-button>
+              <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+              <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
             </div>
           </article>
         </div>
@@ -62,22 +64,41 @@
             </div>
             <div class="meta">{{ timeText(row) }} · 发起人 {{ row.owner_name || row.owner_userid }}</div>
             <div class="actions">
-              <el-button v-if="canManage(row)" link type="danger" size="small" @click="remove(row)">删除</el-button>
+              <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+              <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
             </div>
           </article>
         </div>
       </div>
     </template>
 
-    <el-dialog v-model="dialogVisible" title="新建会议" width="520px">
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑会议' : '新建会议'" width="560px">
       <el-form :model="form" label-width="86px">
         <el-form-item label="会议主题">
           <el-input v-model="form.title" maxlength="120" placeholder="例如：周会 · 项目进度同步" />
         </el-form-item>
-        <el-form-item label="所属项目">
-          <el-select v-model="form.projectId" clearable placeholder="不选 = 全公司会议（仅管理员）" style="width: 100%">
-            <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
+        <el-form-item label="参会人">
+          <el-select
+            v-model="form.participantUserids"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="选择要参会的人"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="user in users"
+              :key="user.userid"
+              :label="`${user.nickname}（${user.account || user.email}）`"
+              :value="user.userid"
+            />
           </el-select>
+          <div class="pick-all">
+            <el-button link type="primary" size="small" @click="selectAll">全选</el-button>
+            <el-button link size="small" @click="form.participantUserids = []">清空</el-button>
+            <span class="muted">已选 {{ form.participantUserids.length }} 人</span>
+          </div>
         </el-form-item>
         <el-form-item label="开始时间">
           <el-date-picker
@@ -97,7 +118,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="会议链接">
-          <el-input v-model="form.joinUrl" placeholder="腾讯会议「邀请」里的链接，或 https://meeting.tencent.com/dm/xxx" />
+          <el-input v-model="form.joinUrl" placeholder="腾讯会议「邀请」里的链接，https://meeting.tencent.com/dm/xxx" />
         </el-form-item>
         <el-form-item label="会议号">
           <el-input v-model="form.meetingCode" placeholder="选填，如 123-456-789" />
@@ -108,7 +129,9 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submit">创建并通知</el-button>
+        <el-button type="primary" :loading="saving" @click="submit">
+          {{ editingId ? "保存" : "创建并通知" }}
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -116,19 +139,20 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { todayInBusinessZone, type MeetingView, type ProjectView } from "@workbench/api";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { todayInBusinessZone, type MeetingView, type UserView } from "@workbench/api";
 import { client } from "../stores/auth";
 
 const rows = ref<MeetingView[]>([]);
-const projects = ref<{ id: number; name: string }[]>([]);
+const users = ref<UserView[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const dialogVisible = ref(false);
+const editingId = ref(0);
 
 const form = reactive<{
   title: string;
-  projectId: number | null;
+  participantUserids: number[];
   startAt: string;
   durationMinutes: number;
   joinUrl: string;
@@ -136,7 +160,7 @@ const form = reactive<{
   description: string;
 }>({
   title: "",
-  projectId: null,
+  participantUserids: [],
   startAt: `${todayInBusinessZone()}T10:00:00`,
   durationMinutes: 60,
   joinUrl: "",
@@ -144,36 +168,20 @@ const form = reactive<{
   description: ""
 });
 
-const now = () => Date.now();
+const endOf = (row: MeetingView) => new Date(row.start_at).getTime() + (row.duration_minutes || 60) * 60000;
 
 const ongoing = computed(() =>
-  rows.value.filter((row) => {
-    const start = new Date(row.start_at).getTime();
-    const end = start + (row.duration_minutes || 60) * 60000;
-    return now() >= start && now() <= end;
-  })
+  rows.value.filter((row) => Date.now() >= new Date(row.start_at).getTime() && Date.now() <= endOf(row))
 );
-
 const upcoming = computed(() =>
   rows.value
-    .filter((row) => new Date(row.start_at).getTime() > now())
+    .filter((row) => new Date(row.start_at).getTime() > Date.now())
     .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
 );
-
-const finished = computed(() =>
-  rows.value.filter((row) => {
-    const start = new Date(row.start_at).getTime();
-    const end = start + (row.duration_minutes || 60) * 60000;
-    return now() > end;
-  })
-);
+const finished = computed(() => rows.value.filter((row) => Date.now() > endOf(row)));
 
 function timeText(row: MeetingView): string {
   return (row.start_at || "").replace("T", " ").slice(0, 16);
-}
-
-function canManage(_row: MeetingView): boolean {
-  return true;
 }
 
 async function load(): Promise<void> {
@@ -187,18 +195,44 @@ async function load(): Promise<void> {
   }
 }
 
-async function loadProjects(): Promise<void> {
+async function loadUsers(): Promise<void> {
+  if (users.value.length) return;
   try {
-    const page = await client.listProjects({ page: 1, size: 100 });
-    projects.value = page.list as ProjectView[];
+    const page = await client.listUsers({ page: 1, size: 100 });
+    users.value = page.list;
   } catch {
-    projects.value = [];
+    users.value = [];
   }
 }
 
-function openCreate(): void {
+function selectAll(): void {
+  form.participantUserids = users.value.map((user) => user.userid);
+}
+
+async function openCreate(): Promise<void> {
+  editingId.value = 0;
+  form.title = "";
+  form.startAt = `${todayInBusinessZone()}T10:00:00`;
+  form.durationMinutes = 60;
+  form.joinUrl = "";
+  form.meetingCode = "";
+  form.description = "";
   dialogVisible.value = true;
-  void loadProjects();
+  await loadUsers();
+  selectAll();
+}
+
+async function openEdit(row: MeetingView): Promise<void> {
+  editingId.value = row.id;
+  form.title = row.title;
+  form.startAt = row.start_at;
+  form.durationMinutes = row.duration_minutes || 60;
+  form.joinUrl = row.join_url;
+  form.meetingCode = row.meeting_code ?? "";
+  form.description = row.description ?? "";
+  dialogVisible.value = true;
+  await loadUsers();
+  form.participantUserids = [...(row.participant_userids || [])];
 }
 
 async function submit(): Promise<void> {
@@ -210,26 +244,32 @@ async function submit(): Promise<void> {
     ElMessage.warning("请粘贴腾讯会议链接");
     return;
   }
+  if (form.participantUserids.length === 0) {
+    ElMessage.warning("请至少选择一位参会人");
+    return;
+  }
   saving.value = true;
   try {
-    const result = await client.createMeeting({
+    const payload = {
       title: form.title.trim(),
-      projectId: form.projectId,
       startAt: form.startAt,
       durationMinutes: form.durationMinutes,
       joinUrl: form.joinUrl.trim(),
       meetingCode: form.meetingCode.trim(),
-      description: form.description.trim()
-    });
+      description: form.description.trim(),
+      participantUserids: [...form.participantUserids]
+    };
+    if (editingId.value) {
+      const result = await client.updateMeeting(editingId.value, payload);
+      ElMessage.success(`已保存，新增通知 ${result.notified} 人`);
+    } else {
+      const result = await client.createMeeting(payload);
+      ElMessage.success(`会议已创建，已通知 ${result.notified} 人`);
+    }
     dialogVisible.value = false;
-    ElMessage.success(`会议已创建，已通知 ${result.notified} 人`);
-    form.title = "";
-    form.joinUrl = "";
-    form.meetingCode = "";
-    form.description = "";
     await load();
   } catch (exception) {
-    ElMessage.error(exception instanceof Error ? exception.message : "创建失败");
+    ElMessage.error(exception instanceof Error ? exception.message : "保存失败");
   } finally {
     saving.value = false;
   }
@@ -249,6 +289,11 @@ async function copy(row: MeetingView): Promise<void> {
 }
 
 async function remove(row: MeetingView): Promise<void> {
+  try {
+    await ElMessageBox.confirm(`删除会议「${row.title}」？`, "删除会议", { type: "warning" });
+  } catch {
+    return;
+  }
   try {
     await client.deleteMeeting(row.id);
     ElMessage.success("已删除");
@@ -292,7 +337,7 @@ onMounted(load);
 }
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 14px;
 }
 .card {
@@ -349,11 +394,22 @@ onMounted(load);
   align-items: center;
   gap: 8px;
   margin-top: 4px;
+  flex-wrap: wrap;
 }
 .empty {
   padding: 18px;
   text-align: center;
   font-size: 13px;
+  color: var(--wb-text-3);
+}
+.pick-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.muted {
+  font-size: 12px;
   color: var(--wb-text-3);
 }
 </style>

@@ -639,9 +639,8 @@ export class ApiClient {
     return this.request<GanttView>("GET", `/api/v1/projects/${projectId}/gantt`);
   }
 
-  async listMeetings(params: { projectId?: number; limit?: number } = {}): Promise<MeetingView[]> {
+  async listMeetings(params: { limit?: number } = {}): Promise<MeetingView[]> {
     const query = new URLSearchParams();
-    if (params.projectId) query.set("projectId", String(params.projectId));
     if (params.limit) query.set("limit", String(params.limit));
     const suffix = query.toString() ? `?${query.toString()}` : "";
     return this.request<MeetingView[]>("GET", `/api/v1/meetings${suffix}`);
@@ -651,8 +650,8 @@ export class ApiClient {
     return this.request<{ id: number; notified: number }>("POST", "/api/v1/meetings", payload);
   }
 
-  async updateMeeting(id: number, payload: SaveMeetingRequest): Promise<void> {
-    await this.request<null>("PUT", `/api/v1/meetings/${id}`, payload);
+  async updateMeeting(id: number, payload: SaveMeetingRequest): Promise<{ notified: number }> {
+    return this.request<{ notified: number }>("PUT", `/api/v1/meetings/${id}`, payload);
   }
 
   async deleteMeeting(id: number): Promise<void> {
