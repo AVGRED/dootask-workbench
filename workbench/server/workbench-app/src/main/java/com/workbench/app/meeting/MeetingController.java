@@ -78,6 +78,15 @@ public class MeetingController {
         return ApiResponse.ok(jdbc.queryForList(sql.toString(), args.toArray()));
     }
 
+    /** 只接受 http/https 链接，避免 javascript: 等伪协议被当成会议地址打开。 */
+    private String safeJoinUrl(String raw) {
+        String url = raw == null ? "" : raw.trim();
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            throw new BusinessException("会议链接必须以 http:// 或 https:// 开头");
+        }
+        return url;
+    }
+
     @PostMapping
     @Transactional
     public ApiResponse<Map<String, Object>> create(Principal principal, @Valid @RequestBody SaveMeetingRequest request) {
@@ -86,6 +95,9 @@ public class MeetingController {
         int duration = request.durationMinutes() == null || request.durationMinutes() <= 0 ? 60 : request.durationMinutes();
         String code = request.meetingCode() == null ? "" : request.meetingCode().trim();
         String desc = request.description() == null ? "" : request.description().trim();
+        String joinUrl = safeJoinUrl(request.joinUrl());
+        // 单次会议最长 12 小时，防止异常入参
+        duration = Math.min(duration, 720);
 
         if (request.projectId() == null) {
             // 全公司会议只有管理员能建
@@ -98,11 +110,10 @@ public class MeetingController {
                 "insert into meetings (title, project_id, owner_userid, start_at, duration_minutes, join_url, "
                         + "meeting_code, platform, description, created_at, updated_at) "
                         + "values (?, ?, ?, ?, ?, ?, ?, 'tencent', ?, now(), now())",
-                request.title().trim(), request.projectId(), userid, startAt, duration,
-                request.joinUrl().trim(), code, desc);
+                request.title().trim(), request.projectId(), userid, startAt, duration, joinUrl, code, desc);
         Long id = jdbc.queryForObject("select last_insert_id()", Long.class);
 
-        int sent = fanout(id, request.title().trim(), startAt, request.joinUrl().trim(), request.projectId());
+        int sent = fanout(id, request.title().trim(), startAt, joinUrl, request.projectId());
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", id);
         result.put("notified", sent);
@@ -117,11 +128,13 @@ public class MeetingController {
         requireMeetingWrite(userid, row);
 
         LocalDateTime startAt = request.startAt() == null ? LocalDateTime.now() : request.startAt();
-        int duration = request.durationMinutes() == null || request.durationMinutes() <= 0 ? 60 : request.durationMinutes();
+        int duration = Math.min(
+                request.durationMinutes() == null || request.durationMinutes() <= 0 ? 60 : request.durationMinutes(), 720);
+        String joinUrl = safeJoinUrl(request.joinUrl());
         jdbc.update(
                 "update meetings set title = ?, start_at = ?, duration_minutes = ?, join_url = ?, meeting_code = ?, "
                         + "description = ?, updated_at = now() where id = ?",
-                request.title().trim(), startAt, duration, request.joinUrl().trim(),
+                request.title().trim(), startAt, duration, joinUrl,
                 request.meetingCode() == null ? "" : request.meetingCode().trim(),
                 request.description() == null ? "" : request.description().trim(), id);
         return ApiResponse.ok(null);
