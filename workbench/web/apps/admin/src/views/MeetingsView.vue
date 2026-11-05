@@ -96,8 +96,18 @@
           </el-select>
           <div class="pick-all">
             <el-button link type="primary" size="small" @click="selectAll">全选</el-button>
-            <el-button link size="small" @click="form.participantUserids = []">清空</el-button>
-            <span class="muted">已选 {{ form.participantUserids.length }} 人</span>
+            <el-button link size="small" @click="selectNone">全不选</el-button>
+            <el-button link size="small" @click="invertSelect">反选</el-button>
+            <el-button link size="small" @click="selectStaff">仅员工</el-button>
+            <el-button link size="small" @click="selectAdmins">仅管理员</el-button>
+            <span class="muted">已选 {{ form.participantUserids.length }} / {{ users.length }} 人</span>
+          </div>
+          <div class="pick-all">
+            <el-select v-model="batchProjectId" placeholder="按项目批量加入" size="small" clearable style="width: 190px">
+              <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
+            </el-select>
+            <el-button size="small" :loading="batchLoading" @click="addProjectMembers">加入项目成员</el-button>
+            <span class="muted">只加入该项目成员，不会清掉已选的人</span>
           </div>
         </el-form-item>
         <el-form-item label="开始时间">
@@ -145,6 +155,9 @@ import { client } from "../stores/auth";
 
 const rows = ref<MeetingView[]>([]);
 const users = ref<UserView[]>([]);
+const projects = ref<{ id: number; name: string }[]>([]);
+const batchProjectId = ref<number | undefined>(undefined);
+const batchLoading = ref(false);
 const loading = ref(false);
 const saving = ref(false);
 const dialogVisible = ref(false);
@@ -209,6 +222,50 @@ function selectAll(): void {
   form.participantUserids = users.value.map((user) => user.userid);
 }
 
+function selectNone(): void {
+  form.participantUserids = [];
+}
+
+function invertSelect(): void {
+  const chosen = new Set(form.participantUserids);
+  form.participantUserids = users.value.filter((user) => !chosen.has(user.userid)).map((user) => user.userid);
+}
+
+function selectStaff(): void {
+  form.participantUserids = users.value.filter((user) => (user.role || "staff") !== "admin").map((user) => user.userid);
+}
+
+function selectAdmins(): void {
+  form.participantUserids = users.value.filter((user) => user.role === "admin").map((user) => user.userid);
+}
+
+async function loadProjects(): Promise<void> {
+  if (projects.value.length) return;
+  try {
+    projects.value = (await client.adminProjects()).map((row) => ({ id: row.id, name: row.name }));
+  } catch {
+    projects.value = [];
+  }
+}
+
+async function addProjectMembers(): Promise<void> {
+  if (!batchProjectId.value) {
+    ElMessage.warning("请先选择项目");
+    return;
+  }
+  batchLoading.value = true;
+  try {
+    const members = await client.listMembers(batchProjectId.value);
+    const merged = new Set([...form.participantUserids, ...members.map((member) => member.userid)]);
+    form.participantUserids = [...merged];
+    ElMessage.success(`已加入 ${members.length} 位项目成员`);
+  } catch (exception) {
+    ElMessage.error(exception instanceof Error ? exception.message : "加入失败");
+  } finally {
+    batchLoading.value = false;
+  }
+}
+
 async function openCreate(): Promise<void> {
   editingId.value = 0;
   form.title = "";
@@ -217,8 +274,9 @@ async function openCreate(): Promise<void> {
   form.joinUrl = "";
   form.meetingCode = "";
   form.description = "";
+  batchProjectId.value = undefined;
   dialogVisible.value = true;
-  await loadUsers();
+  await Promise.all([loadUsers(), loadProjects()]);
   selectAll();
 }
 
@@ -231,7 +289,8 @@ async function openEdit(row: MeetingView): Promise<void> {
   form.meetingCode = row.meeting_code ?? "";
   form.description = row.description ?? "";
   dialogVisible.value = true;
-  await loadUsers();
+  batchProjectId.value = undefined;
+  await Promise.all([loadUsers(), loadProjects()]);
   form.participantUserids = [...(row.participant_userids || [])];
 }
 
