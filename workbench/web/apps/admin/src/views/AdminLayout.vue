@@ -58,6 +58,7 @@ const allTabs: { name: string; label: string; icon: string; superOnly?: boolean 
   { name: "projects", label: "项目总览", icon: "📁" },
   { name: "reports", label: "每日日报", icon: "📝" },
   { name: "starmap", label: "星图", icon: "✨" },
+  { name: "meetings", label: "会议", icon: "📹" },
   { name: "notices", label: "通知", icon: "📢" },
   { name: "super", label: "超级管理", icon: "🛡️", superOnly: true }
 ];

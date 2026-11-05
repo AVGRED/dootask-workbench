@@ -21,12 +21,14 @@ com\workbench\app\todo\PersonalTodoService.class
 com\workbench\app\migrate\MigrationPlan.class
 com\workbench\app\dashboard\DashboardDtos$DashboardView.class
 com\workbench\app\notice\AdminNoticeService.class
+com\workbench\app\meeting\MeetingController$SaveMeetingRequest.class
 com\workbench\app\todo\PersonalTodoController$SaveTodoRequest.class
 com\workbench\app\search\SearchController.class
 com\workbench\app\dashboard\DashboardDtos$SaveLayoutRequest.class
 com\workbench\app\notice\AdminNoticeController.class
 com\workbench\app\admin\AdminUserBatchController.class
 com\workbench\app\dashboard\DashboardController.class
+com\workbench\app\meeting\MeetingController.class
 com\workbench\app\admin\AdminUserBatchController$BatchUsersRequest.class
 com\workbench\app\superadmin\SuperAdminService.class
 com\workbench\app\settings\MeSettingsController.class

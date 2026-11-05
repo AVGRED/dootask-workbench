@@ -132,6 +132,7 @@ const NAVS = [
   { name: "dashboard", label: "首页", aliases: ["dashboard"] },
   { name: "projects", label: "项目", aliases: ["projects", "tasks", "board", "gantt", "planning", "report"] },
   { name: "reports", label: "日报", aliases: ["reports"] },
+  { name: "meetings", label: "会议", aliases: ["meetings"] },
   { name: "starmap", label: "星图", aliases: ["starmap"] },
   { name: "settings", label: "设置", aliases: ["settings"] }
 ];

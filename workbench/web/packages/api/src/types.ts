@@ -7,3 +7,4 @@ export * from "./types/report";
 export * from "./types/dashboard";
 export * from "./types/admin";
 export * from "./types/todo";
+export * from "./types/meeting";

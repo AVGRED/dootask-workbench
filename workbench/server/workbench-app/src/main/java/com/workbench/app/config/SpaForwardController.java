@@ -18,6 +18,7 @@ public class SpaForwardController {
     @GetMapping({
             "/login",
             "/reports",
+            "/meetings",
             "/starmap",
             "/settings",
             "/projects",

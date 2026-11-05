@@ -20,6 +20,8 @@ import type {
   GanttView,
   LayoutItem,
   LoginRequest,
+  MeetingView,
+  SaveMeetingRequest,
   LoginResponse,
   MemberView,
   MilestoneView,
@@ -635,6 +637,26 @@ export class ApiClient {
 
   async gantt(projectId: number): Promise<GanttView> {
     return this.request<GanttView>("GET", `/api/v1/projects/${projectId}/gantt`);
+  }
+
+  async listMeetings(params: { projectId?: number; limit?: number } = {}): Promise<MeetingView[]> {
+    const query = new URLSearchParams();
+    if (params.projectId) query.set("projectId", String(params.projectId));
+    if (params.limit) query.set("limit", String(params.limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return this.request<MeetingView[]>("GET", `/api/v1/meetings${suffix}`);
+  }
+
+  async createMeeting(payload: SaveMeetingRequest): Promise<{ id: number; notified: number }> {
+    return this.request<{ id: number; notified: number }>("POST", "/api/v1/meetings", payload);
+  }
+
+  async updateMeeting(id: number, payload: SaveMeetingRequest): Promise<void> {
+    await this.request<null>("PUT", `/api/v1/meetings/${id}`, payload);
+  }
+
+  async deleteMeeting(id: number): Promise<void> {
+    await this.request<null>("DELETE", `/api/v1/meetings/${id}`);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

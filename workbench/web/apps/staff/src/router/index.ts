@@ -7,6 +7,7 @@ export const router = createRouter({
     { path: "/", name: "dashboard", component: () => import("../views/DashboardView.vue") },
     { path: "/projects", name: "projects", component: () => import("../views/ProjectsView.vue") },
     { path: "/reports", name: "reports", component: () => import("../views/DailyReportView.vue") },
+    { path: "/meetings", name: "meetings", component: () => import("../views/MeetingsView.vue") },
     { path: "/starmap", name: "starmap", component: () => import("../views/StarMapView.vue") },
     { path: "/settings", name: "settings", component: () => import("../views/SettingsView.vue") },
     { path: "/projects/:projectId/tasks", name: "tasks", component: () => import("../views/TasksView.vue") },
